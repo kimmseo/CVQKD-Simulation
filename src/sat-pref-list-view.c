@@ -171,7 +171,7 @@ GtkWidget      *sat_pref_list_view_create(GKeyFile * cfg)
 
     /* create the table */
     table = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(table), 10);
+    gtk_grid_set_row_spacing(GTK_GRID(table), 11);
     gtk_grid_set_column_spacing(GTK_GRID(table), 5);
 
     /* create header */

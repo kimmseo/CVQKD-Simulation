@@ -124,7 +124,7 @@ GtkWidget      *sat_pref_single_pass_create()
 
     /* create the table */
     table = gtk_grid_new();
-    gtk_grid_set_row_spacing(GTK_GRID(table), 10);
+    gtk_grid_set_row_spacing(GTK_GRID(table), 11);
     gtk_grid_set_column_spacing(GTK_GRID(table), 5);
     gtk_container_set_border_width(GTK_CONTAINER(table), 20);
 

@@ -65,7 +65,8 @@ const gchar    *SINGLE_SAT_FIELD_TITLE[SINGLE_SAT_FIELD_NUMBER] = {
     N_("Orbit Phase"),
     N_("Orbit Num."),
     N_("Visibility"),
-    N_("SKR")
+    N_("Downlink SKR"),
+    N_("Uplink SKR")
 };
 
 /* Column title hints indexed with column symb. refs. */
@@ -93,7 +94,8 @@ const gchar    *SINGLE_SAT_FIELD_HINT[SINGLE_SAT_FIELD_NUMBER] = {
     N_("Orbit Phase"),
     N_("Orbit Number"),
     N_("Visibility of the satellite"),
-    N_("Secret Key Rate")
+    N_("Secret Key Rate (satellite to ground, downlink)"),
+    N_("Secret Key Rate (ground to satellite, uplink)")
 };
 
 static GtkBoxClass *parent_class = NULL;
@@ -366,10 +368,13 @@ static void update_field(GtkSingleSat * ssat, guint i)
         vis = get_sat_vis(sat, ssat->qth, sat->jul_utc);
         buff = vis_to_str(vis);
         break;
-    case SINGLE_SAT_FIELD_SKR:
-        // using this field for finding out what is xyz in sgp first
+    case SINGLE_SAT_FIELD_SKR_DOWN:
         // placeholder
-        buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
+        buff = g_strdup_printf("placeholder for single sat downlink SKR");
+        break;
+    case SINGLE_SAT_FIELD_SKR_UP:
+        // placeholder
+        buff = g_strdup_printf("placeholder for single sat uplink SKR");
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,

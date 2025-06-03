@@ -154,7 +154,7 @@ GtkWidget      *sat_pref_conditions_create()
     table = gtk_grid_new();
     gtk_grid_set_row_homogeneous(GTK_GRID(table), FALSE);
     gtk_grid_set_column_homogeneous(GTK_GRID(table), FALSE);
-    gtk_grid_set_row_spacing(GTK_GRID(table), 10);
+    gtk_grid_set_row_spacing(GTK_GRID(table), 11);
     gtk_grid_set_column_spacing(GTK_GRID(table), 5);
 
     /* minimum elevation */

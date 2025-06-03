@@ -39,7 +39,8 @@ typedef enum {
     SINGLE_SAT_FIELD_PHASE,     /*!< Phase. */
     SINGLE_SAT_FIELD_ORBIT,     /*!< Orbit Number. */
     SINGLE_SAT_FIELD_VISIBILITY,        /*!< Visibility. */
-    SINGLE_SAT_FIELD_SKR,              /*!< Secret Key Rate */
+    SINGLE_SAT_FIELD_SKR_DOWN,  /*!< Secret Key Rate (satellite to ground, downlink) */
+    SINGLE_SAT_FIELD_SKR_UP,    /*!< Secret Key Rate (ground to satellite, uplink) */
     SINGLE_SAT_FIELD_NUMBER
 } single_sat_field_t;
 
@@ -68,7 +69,8 @@ typedef enum {
     SINGLE_SAT_FLAG_PHASE = 1 << SINGLE_SAT_FIELD_PHASE,        /*!< Phase. */
     SINGLE_SAT_FLAG_ORBIT = 1 << SINGLE_SAT_FIELD_ORBIT,        /*!< Orbit Number. */
     SINGLE_SAT_FLAG_VISIBILITY = 1 << SINGLE_SAT_FIELD_VISIBILITY,       /*!< Visibility. */
-    SINGLE_SAT_FLAG_SKR = 1 << SINGLE_SAT_FIELD_SKR    /*!< Secret Key Rate*/
+    SINGLE_SAT_FLAG_SKR_DOWN = 1 << SINGLE_SAT_FIELD_SKR_DOWN,    /*!< Secret Key Rate (satellite to ground, downlink)*/
+    SINGLE_SAT_FLAG_SKR_UP = 1 << SINGLE_SAT_FIELD_SKR_UP       /*!< Secret Key Rate (ground to satellite, uplink) */
 } single_sat_flag_t;
 
 #define GTK_TYPE_SINGLE_SAT          (gtk_single_sat_get_type ())

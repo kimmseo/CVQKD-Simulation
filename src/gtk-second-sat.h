@@ -39,7 +39,8 @@ typedef enum {
     SECOND_SAT_FIELD_PHASE,     /*!< Phase. */
     SECOND_SAT_FIELD_ORBIT,     /*!< Orbit Number. */
     SECOND_SAT_FIELD_VISIBILITY,        /*!< Visibility. */
-    SECOND_SAT_FIELD_SKR,              /*!< Secret Key Rate */
+    SECOND_SAT_FIELD_SKR_DOWN,  /*!< Secret Key Rate (satellite to ground, downlink) */
+    SECOND_SAT_FIELD_SKR_UP,    /*!< Secret Key Rate (ground to satellite, uplink) */
     SECOND_SAT_FIELD_NUMBER
 } second_sat_field_t;
 
@@ -68,7 +69,8 @@ typedef enum {
     SECOND_SAT_FLAG_PHASE = 1 << SECOND_SAT_FIELD_PHASE,        /*!< Phase. */
     SECOND_SAT_FLAG_ORBIT = 1 << SECOND_SAT_FIELD_ORBIT,        /*!< Orbit Number. */
     SECOND_SAT_FLAG_VISIBILITY = 1 << SECOND_SAT_FIELD_VISIBILITY,       /*!< Visibility. */
-    SECOND_SAT_FLAG_SKR = 1 << SECOND_SAT_FIELD_SKR    /*!< Secret Key Rate*/
+    SECOND_SAT_FLAG_SKR_DOWN = 1 << SECOND_SAT_FIELD_SKR_DOWN,    /*!< Secret Key Rate (satellite to ground, downlink) */
+    SECOND_SAT_FLAG_SKR_UP = 1 << SECOND_SAT_FIELD_SKR_UP   /*!< Secret Key Rate (ground to satellite, uplink) */
 } second_sat_flag_t;
 
 #define GTK_TYPE_SECOND_SAT          (gtk_second_sat_get_type ())
