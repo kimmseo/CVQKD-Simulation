@@ -47,7 +47,7 @@ const gchar    *TWO_SAT_FIELD_TITLE[TWO_SAT_FIELD_NUMBER] = {
     N_("Orbit Phase"),
     N_("Orbit Num."),
     N_("Visibility"),
-    N_("Sat to sat dist"),
+    N_("Sat to Sat Dist."),
     N_("Inter-Satellite SKR"),
     N_("Downlink SKR"),
     N_("Uplink SKR")
@@ -367,6 +367,11 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
         break;
     case TWO_SAT_FIELD_DISTANCE:
         // Display distance between the two selected satellites
+        if (!(is_los_clear(sat, sat2)))
+        {
+            buff = g_strdup_printf("No LOS");
+            break;
+        }
         distance = dist_calc(sat, sat2);
         if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
         {
@@ -380,6 +385,11 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
     case TWO_SAT_FIELD_SKR_INTER:
         // Secret Key Rate (satellite to satellite)
         // placeholder
+        if (!(is_los_clear(sat, sat2)))
+        {
+            buff = g_strdup_printf("No LOS");
+            break;
+        }
         buff = g_strdup_printf("placeholder for inter skr, first sat");
         break;
     case TWO_SAT_FIELD_SKR_DOWN:
@@ -657,6 +667,11 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
         break;
     case TWO_SAT_FIELD_DISTANCE:
         // Display distance between the two selected satellites
+        if (!(is_los_clear(sat, sat2)))
+        {
+            buff = g_strdup_printf("No LOS");
+            break;
+        }
         distance = dist_calc(sat, sat2);
         if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
         {
@@ -670,6 +685,11 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
     case TWO_SAT_FIELD_SKR_INTER:
         // Secret Key Rate (satellite to satellite)
         // placeholder
+        if (!(is_los_clear(sat, sat2)))
+        {
+            buff = g_strdup_printf("No LOS");
+            break;
+        }
         buff = g_strdup_printf("placeholder for inter skr, first sat");
         break;
     case TWO_SAT_FIELD_SKR_DOWN:
@@ -1117,15 +1137,19 @@ void gtk_two_sat_update_first(GtkWidget * widget)
     if (tsat->counter < tsat->refresh)
     {
         tsat->counter++;
+        /*
         sat_log_log(SAT_LOG_LEVEL_DEBUG,
                     "%s %d: counter is %d, refresh is %d",
                     __FILE__, __LINE__, tsat->counter, tsat->refresh);
+        */
     }
     else
     {
+        /*
         sat_log_log(SAT_LOG_LEVEL_DEBUG,
                     "%s %d: counter < refresh rate condition passed",
                     __FILE__, __LINE__);
+        */
         // Calculate here to avoid double calc
         if ((tsat->flags & TWO_SAT_FLAG_RA) || (tsat->flags & TWO_SAT_FLAG_DEC))
         {

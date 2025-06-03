@@ -862,13 +862,11 @@ static void edit_advanced_settings(GtkDialog * parent, GKeyFile * cfgdata)
     if (g_file_test(icon, G_FILE_TEST_EXISTS))
         gtk_window_set_icon_from_file(GTK_WINDOW(dialog), icon, NULL);
     
-    // OK
-    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
 
     // Below line bugged
     contents = sat_pref_modules_create(cfgdata);
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
     gtk_widget_show_all(contents);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
 
     gtk_box_pack_start(GTK_BOX
                        (gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
@@ -1045,6 +1043,7 @@ mod_cfg_status_t mod_cfg_edit(gchar * modname, GKeyFile * cfgdata,
             {
 
                 /* we have at least one sat selected */
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d mod_cfg_apply called here", __FILE__, __LINE__);
                 mod_cfg_apply(cfgdata);
                 finished = TRUE;
                 status = MOD_CFG_OK;

@@ -1394,7 +1394,12 @@ void gtk_sat_module_config_cb(GtkWidget * button, gpointer data)
                 gtk_widget_get_allocation(GTK_WIDGET(module), &alloc);
                 w = alloc.width;
                 h = alloc.height;
-
+                
+                // Below line was crashing sat module when changing two sat config
+                // TODO: Figure out the original purpose of this line, and find any potential bugs
+                // Found out what this was doing
+                // This will close the notebook so that it doesn't open additional notebooks
+                // Find out why its sending a full CLOSE signal and crashing
                 gtk_sat_module_close_cb(NULL, module);
 
                 gchar          *confdir = get_modules_dir();
