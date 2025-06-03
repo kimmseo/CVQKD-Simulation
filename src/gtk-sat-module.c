@@ -401,7 +401,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
         break;
 
     case GTK_SAT_MOD_VIEW_SECOND:
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint log", __FILE__, __LINE__);
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint log", __FILE__, __LINE__);
         view = gtk_second_sat_new(module->cfgdata,
                                   module->satellites, module->qth, 0);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "GtkSecondSat type: %s\n", g_type_name(gtk_second_sat_get_type()));
