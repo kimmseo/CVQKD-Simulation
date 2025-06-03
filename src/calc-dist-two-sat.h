@@ -19,7 +19,7 @@
 // Wrapper function, will pass sat1's pos [x, y, z] and sat2's [x, y, z]
 // details to dist_calc_driver()
 gdouble dist_calc (sat_t *sat1, sat_t *sat2);
-gboolean is_los_clear (sat_t *sat1, sat_t *sat2)
+gboolean is_los_clear (sat_t *sat1, sat_t *sat2);
 
 
 

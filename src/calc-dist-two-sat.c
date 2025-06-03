@@ -27,6 +27,21 @@
 #include "time-tools.h"
 
 
+// Driver function for calculating distance between two satellites
+// Euclidean distance - need verification
+// If not correct, will need to use Haversine formula
+gdouble dist_calc_driver (gdouble sat1_posx, gdouble sat1_posy, gdouble sat1_posz,
+                          gdouble sat2_posx, gdouble sat2_posy, gdouble sat2_posz)
+{
+    gdouble dist;
+
+    dist = sqrt( pow((sat2_posx - sat1_posx), 2)
+                + pow((sat2_posy - sat1_posy), 2)
+                + pow((sat2_posz - sat1_posz), 2) );
+    
+    return dist;
+}
+
 // Warpper function for dist_calc_driver()
 gdouble dist_calc (sat_t *sat1, sat_t *sat2)
 {
@@ -57,20 +72,6 @@ gdouble dist_calc (sat_t *sat1, sat_t *sat2)
     */
 }
 
-// Driver function for calculating distance between two satellites
-// Euclidean distance - need verification
-// If not correct, will need to use Haversine formula
-gdouble dist_calc_driver (gdouble sat1_posx, gdouble sat1_posy, gdouble sat1_posz,
-                          gdouble sat2_posx, gdouble sat2_posy, gdouble sat2_posz)
-{
-    gdouble dist;
-
-    dist = sqrt( pow((sat2_posx - sat1_posx), 2)
-                + pow((sat2_posy - sat1_posy), 2)
-                + pow((sat2_posz - sat1_posz), 2) );
-    
-    return dist;
-}
 
 // Haversine forumla
 // Use if Euclidean distance is not correct
@@ -127,8 +128,6 @@ gdouble dot_product(const vector_t *a, const vector_t *b)
 // Return value false means los is not clear (sat to sat link blocked by Earth)
 gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
 {
-    gboolean result;
-
     vector_t sat1_vector = {sat1->pos.x, sat1->pos.y, sat1->pos.z, sat1->pos.w};
     vector_t sat2_vector = {sat2->pos.x, sat2->pos.y, sat2->pos.z, sat2->pos.w};
 

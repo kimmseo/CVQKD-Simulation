@@ -20,6 +20,7 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "sat-pass-dialogs.h"
 #include "time-tools.h"
+#include "calc-dist-two-sat.h"
 
 /* Column titles indexed with column symb. refs. */
 const gchar    *TWO_SAT_FIELD_TITLE[TWO_SAT_FIELD_NUMBER] = {
@@ -117,7 +118,7 @@ static void gtk_two_sat_init(GtkTwoSat * list, gpointer g_class)
 // Update a field in the GtkTwoSat View, first satellite
 static void update_field_first(GtkTwoSat * tsat, guint i)
 {
-    sat_t      *sat;
+    sat_t      *sat, *sat2;
     gchar      *buff = NULL;
     gchar       tbuf[TIME_FORMAT_MAX_LENGTH];
     gchar       hmf = ' ';
@@ -138,6 +139,7 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
     }
 
     sat = SAT(g_slist_nth_data(tsat->sats, tsat->selected1));
+    sat2 = SAT(g_slist_nth_data(tsat->sats, tsat->selected2));
     if (!sat)
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR, "%s: %d - Cannot update non-existing sat",
@@ -360,7 +362,9 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
     case TWO_SAT_FIELD_SKR:
         // using this field for finding out what is xyz in sgp first
         // placeholder
-        buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
+        //buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
+        skr = dist_calc(sat, sat2);
+        buff = g_strdup_printf("dist %lf", skr);
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -384,7 +388,7 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
 // Update a field in the GtkTwoSat View, second satellite
 static void update_field_second(GtkTwoSat * tsat, guint i)
 {
-    sat_t      *sat;
+    sat_t      *sat, *sat2;
     gchar      *buff = NULL;
     gchar       tbuf[TIME_FORMAT_MAX_LENGTH];
     gchar       hmf = ' ';
@@ -405,6 +409,7 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
     }
 
     sat = SAT(g_slist_nth_data(tsat->sats, tsat->selected2));
+    sat2 = SAT(g_slist_nth_data(tsat->sats, tsat->selected1));
     if (!sat)
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR, "%s: %d - Cannot update non-existing sat",
@@ -627,7 +632,9 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
     case TWO_SAT_FIELD_SKR:
         // using this field for finding out what is xyz in sgp first
         // placeholder
-        buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
+        //buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
+        skr = dist_calc(sat, sat2);
+        buff = g_strdup_printf("dist %lf", skr);
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
