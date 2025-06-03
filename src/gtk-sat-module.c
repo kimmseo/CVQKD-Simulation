@@ -1611,6 +1611,10 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
             sat_log_log(SAT_LOG_LEVEL_DEBUG, _("%s: Is second sat view"),
                         __func__);
         }
+        else if (IS_GTK_TWO_SAT(child))
+        {
+            gtk_two_sat_select_first_sat(child, catnum);
+        }
         else
         {
             sat_log_log(SAT_LOG_LEVEL_ERROR, _("%s: Unknown child type"),
@@ -1644,6 +1648,10 @@ void gtk_sat_module_select_sat_second(GtkSatModule * module, gint catnum)
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: IS_GTK_SECOND_SAT TRUE, gtk_second_sat_select_sat called",
                         __func__);
             gtk_second_sat_select_sat(child, catnum);
+        }
+        else if (IS_GTK_TWO_SAT(child))
+        {
+            gtk_two_sat_select_second_sat(child, catnum);
         }
         else
         {

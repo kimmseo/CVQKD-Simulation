@@ -317,7 +317,7 @@ static void clone_cb(GtkWidget * menuitem, gpointer data)
 }
 
 /**
- * Toggle dockig state.
+ * Toggle docking state.
  *
  * This function is called when the user selects the (Un)Dock menu
  * item in the GtkSatModule popup menu. If the current module state
