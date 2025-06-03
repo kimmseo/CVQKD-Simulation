@@ -1,3 +1,4 @@
+Copyright Disclaimer: All licenses and copyrights of the original Gpredict software applies. All original components of the original Gpredict software belongs to their original authors and contributors.
 
 This software is based entirely on Gpredict, which is a real time satellite tracking and orbit prediction program for the Linux desktop. It uses SGP4/SDP4 propagation algorithms together with NORAD two-line element sets (TLE).
 
