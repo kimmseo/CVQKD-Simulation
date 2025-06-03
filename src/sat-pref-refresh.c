@@ -280,7 +280,7 @@ GtkWidget      *sat_pref_refresh_create(GKeyFile * cfg)
 
     table = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(table), 11);
-    gtk_grid_set_column_spacing(GTK_GRID(table), 5);
+    gtk_grid_set_column_spacing(GTK_GRID(table), 7);
 
     /* data refresh */
     label = gtk_label_new(_("Refresh data every"));
@@ -465,9 +465,9 @@ GtkWidget      *sat_pref_refresh_create(GKeyFile * cfg)
     /* Two-Sat View */
     label = gtk_label_new(_("Refresh two-sat view every"));
     g_object_set(label, "xalign", 0.0, "yalign", 0.5, NULL);
-    gtk_grid_attach(GTK_GRID(table), label, 0, 6, 1, 1);
+    gtk_grid_attach(GTK_GRID(table), label, 0, 7, 1, 1);
 
-    secondspin = gtk_spin_button_new_with_range(1, 50, 1);
+    twospin = gtk_spin_button_new_with_range(1, 50, 1);
     gtk_spin_button_set_increments(GTK_SPIN_BUTTON(twospin), 1, 5);
     gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(twospin), TRUE);
     gtk_spin_button_set_update_policy(GTK_SPIN_BUTTON(twospin),
@@ -486,11 +486,11 @@ GtkWidget      *sat_pref_refresh_create(GKeyFile * cfg)
     gtk_spin_button_set_value(GTK_SPIN_BUTTON(twospin), val);
     g_signal_connect(G_OBJECT(twospin), "value-changed",
                      G_CALLBACK(spin_changed_cb), NULL);
-    gtk_grid_attach(GTK_GRID(table), twospin, 1, 6, 1, 1);
+    gtk_grid_attach(GTK_GRID(table), twospin, 1, 7, 1, 1);
 
     label = gtk_label_new(_("[cycle]"));
     g_object_set(label, "xalign", 0.0, "yalign", 0.5, NULL);
-    gtk_grid_attach(GTK_GRID(table), label, 2, 6, 1, 1);
+    gtk_grid_attach(GTK_GRID(table), label, 2, 7, 1, 1);
 
     /* create vertical box */
     vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);

@@ -741,6 +741,7 @@ GtkWidget      *gtk_second_sat_new(GKeyFile * cfgdata, GHashTable * sats,
                                    GTK_ORIENTATION_VERTICAL);
     second_sat = GTK_SECOND_SAT(widget);
 
+    //sat_log_log(SAT_LOG_LEVEL_ERROR, "%s %d: Breakpoint logging", __FILE__, __LINE__);
     second_sat->update = gtk_second_sat_update;
 
     /* Read configuration data. */

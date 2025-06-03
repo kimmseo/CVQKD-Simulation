@@ -866,7 +866,7 @@ static void edit_advanced_settings(GtkDialog * parent, GKeyFile * cfgdata)
     // Below line bugged
     contents = sat_pref_modules_create(cfgdata);
     gtk_widget_show_all(contents);
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
 
     gtk_box_pack_start(GTK_BOX
                        (gtk_dialog_get_content_area(GTK_DIALOG(dialog))),

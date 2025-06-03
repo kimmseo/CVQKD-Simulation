@@ -84,7 +84,7 @@ GtkWidget      *sat_pref_modules_create(GKeyFile * cfg)
     gtk_notebook_append_page(GTK_NOTEBOOK(nbook),
                              sat_pref_second_sat_create(cfg),
                              gtk_label_new(_("Second Sat View")));
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint OK", __FILE__, __LINE__);
     gtk_notebook_append_page(GTK_NOTEBOOK(nbook),
                              sat_pref_two_sat_create(cfg),
                              gtk_label_new(_("Two Sat View")));
