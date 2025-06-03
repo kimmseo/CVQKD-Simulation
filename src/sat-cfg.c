@@ -124,7 +124,10 @@
     TWO_SAT_FLAG_PHASE |\
     TWO_SAT_FLAG_ORBIT |\
     TWO_SAT_FLAG_VISIBILITY |\
-    TWO_SAT_FLAG_SKR)
+    TWO_SAT_FLAG_DISTANCE |\
+    TWO_SAT_FLAG_SKR_INTER |\
+    TWO_SAT_FLAG_SKR_DOWN |\
+    TWO_SAT_FLAG_SKR_UP)
 /* *INDENT-ON* */
 
 /** Structure representing a boolean value */

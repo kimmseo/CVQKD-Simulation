@@ -47,7 +47,10 @@ const gchar    *TWO_SAT_FIELD_TITLE[TWO_SAT_FIELD_NUMBER] = {
     N_("Orbit Phase"),
     N_("Orbit Num."),
     N_("Visibility"),
-    N_("SKR")
+    N_("Sat to sat dist"),
+    N_("Inter-Satellite SKR"),
+    N_("Downlink SKR"),
+    N_("Uplink SKR")
 };
 
 /* Column title hints indexed with column symb. refs. */
@@ -75,7 +78,10 @@ const gchar    *TWO_SAT_FIELD_HINT[TWO_SAT_FIELD_NUMBER] = {
     N_("Orbit Phase"),
     N_("Orbit Number"),
     N_("Visibility of the satellite"),
-    N_("Secret Key Rate")
+    N_("Distance between the two selected satellites"),
+    N_("Secret Key Rate (satellite to satellite)"),
+    N_("Secret Key Rate (satellite to ground, downlink)"),
+    N_("Secret Key Rate (ground to satellite, uplink)")
 };
 
 static GtkBoxClass *parent_class = NULL;
@@ -127,7 +133,7 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
     gchar      *fmtstr;
     gchar      *alstr;
     sat_vis_t   vis;
-    gdouble     skr;
+    gdouble     distance;
 
     // Make some sanity checks
     if(tsat->labels1[i] == NULL)
@@ -359,12 +365,32 @@ static void update_field_first(GtkTwoSat * tsat, guint i)
         vis = get_sat_vis(sat, tsat->qth, sat->jul_utc);
         buff = vis_to_str(vis);
         break;
-    case TWO_SAT_FIELD_SKR:
-        // using this field for finding out what is xyz in sgp first
+    case TWO_SAT_FIELD_DISTANCE:
+        // Display distance between the two selected satellites
+        distance = dist_calc(sat, sat2);
+        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+        {
+            buff = g_strdup_printf("%.3f mi", KM_TO_MI(distance));
+        }
+        else
+        {
+            buff = g_strdup_printf("%.3f km", distance);
+        }
+        break;
+    case TWO_SAT_FIELD_SKR_INTER:
+        // Secret Key Rate (satellite to satellite)
         // placeholder
-        //buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
-        skr = dist_calc(sat, sat2);
-        buff = g_strdup_printf("dist %lf", skr);
+        buff = g_strdup_printf("placeholder for inter skr, first sat");
+        break;
+    case TWO_SAT_FIELD_SKR_DOWN:
+        // Secret Key Rate (satellite to ground)
+        // placeholder
+        buff = g_strdup_printf("placeholder for downlink skr, first sat");
+        break;
+    case TWO_SAT_FIELD_SKR_UP:
+        // Secret Key Rate (ground to satellite)
+        // placeholder
+        buff = g_strdup_printf("placeholder for uplink skr, first sat");
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -397,7 +423,7 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
     gchar      *fmtstr;
     gchar      *alstr;
     sat_vis_t   vis;
-    gdouble     skr;
+    gdouble     distance;
 
     // Make some sanity checks
     if(tsat->labels2[i] == NULL)
@@ -629,12 +655,32 @@ static void update_field_second(GtkTwoSat * tsat, guint i)
         vis = get_sat_vis(sat, tsat->qth, sat->jul_utc);
         buff = vis_to_str(vis);
         break;
-    case TWO_SAT_FIELD_SKR:
-        // using this field for finding out what is xyz in sgp first
+    case TWO_SAT_FIELD_DISTANCE:
+        // Display distance between the two selected satellites
+        distance = dist_calc(sat, sat2);
+        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+        {
+            buff = g_strdup_printf("%.3f mi", KM_TO_MI(distance));
+        }
+        else
+        {
+            buff = g_strdup_printf("%.3f km", distance);
+        }
+        break;
+    case TWO_SAT_FIELD_SKR_INTER:
+        // Secret Key Rate (satellite to satellite)
         // placeholder
-        //buff = g_strdup_printf("x %lf y %lf z %lf mag %lf", sat->pos.x, sat->pos.y, sat->pos.z, sat->pos.w);
-        skr = dist_calc(sat, sat2);
-        buff = g_strdup_printf("dist %lf", skr);
+        buff = g_strdup_printf("placeholder for inter skr, first sat");
+        break;
+    case TWO_SAT_FIELD_SKR_DOWN:
+        // Secret Key Rate (satellite to ground)
+        // placeholder
+        buff = g_strdup_printf("placeholder for downlink skr, first sat");
+        break;
+    case TWO_SAT_FIELD_SKR_UP:
+        // Secret Key Rate (ground to satellite)
+        // placeholder
+        buff = g_strdup_printf("placeholder for uplink skr, first sat");
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,

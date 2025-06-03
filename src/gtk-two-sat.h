@@ -38,8 +38,11 @@ typedef enum {
     TWO_SAT_FIELD_MA,        /*!< Mean Anomaly. */
     TWO_SAT_FIELD_PHASE,     /*!< Phase. */
     TWO_SAT_FIELD_ORBIT,     /*!< Orbit Number. */
-    TWO_SAT_FIELD_VISIBILITY,        /*!< Visibility. */
-    TWO_SAT_FIELD_SKR,              /*!< Secret Key Rate */
+    TWO_SAT_FIELD_VISIBILITY,   /*!< Visibility. */
+    TWO_SAT_FIELD_DISTANCE,     /*!< Distance between the two satellites */
+    TWO_SAT_FIELD_SKR_INTER,    /*!< Secret Key Rate (satellite to satellite) */
+    TWO_SAT_FIELD_SKR_DOWN,     /*!< Secret Key Rate (satellite to ground, downlink) */
+    TWO_SAT_FIELD_SKR_UP,       /*!< Secret Key Rate (ground to satellite, uplink) */
     TWO_SAT_FIELD_NUMBER
 } two_sat_field_t;
 
@@ -68,7 +71,10 @@ typedef enum {
     TWO_SAT_FLAG_PHASE = 1 << TWO_SAT_FIELD_PHASE,        /*!< Phase. */
     TWO_SAT_FLAG_ORBIT = 1 << TWO_SAT_FIELD_ORBIT,        /*!< Orbit Number. */
     TWO_SAT_FLAG_VISIBILITY = 1 << TWO_SAT_FIELD_VISIBILITY,       /*!< Visibility. */
-    TWO_SAT_FLAG_SKR = 1 << TWO_SAT_FIELD_SKR    /*!< Secret Key Rate*/
+    TWO_SAT_FLAG_DISTANCE = 1 << TWO_SAT_FIELD_DISTANCE,    /*!< Distance between the two satellites */
+    TWO_SAT_FLAG_SKR_INTER = 1 << TWO_SAT_FIELD_SKR_INTER,  /*!< Secret Key Rate (satellite to satellite) */
+    TWO_SAT_FLAG_SKR_DOWN = 1 << TWO_SAT_FIELD_SKR_DOWN,    /*!< Secret Key Rate (satellite to ground, downlink) */
+    TWO_SAT_FLAG_SKR_UP = 1 << TWO_SAT_FIELD_SKR_UP         /*!< Secret Key Rate (ground to satellite, uplink) */
 } two_sat_flag_t;
 
 #define GTK_TYPE_TWO_SAT          (gtk_two_sat_get_type ())
