@@ -55,6 +55,7 @@
 #include "gtk-single-sat.h"
 #include "gtk-second-sat.h"
 #include "gtk-two-sat.h"
+#include "gtk-multiple-sat.h"
 #include "gtk-sky-glance.h"
 #include "mod-cfg.h"
 #include "mod-cfg-get-param.h"
@@ -412,6 +413,12 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
                                module->satellites, module->qth, 0);
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtkTwoSat case called", __FILE__, __LINE__);
         break;
+    
+    case GTK_SAT_MOD_VIEW_MULTIPLE:
+        view = gtk_multiple_sat_new(module->cfgdata,
+                                    module->satellites, module->qth, 0);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtkMultipleSat case called", __FILE__, __LINE__);
+        break;
 
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -704,6 +711,18 @@ static void update_child(GtkWidget * child, gdouble tstamp)
         GTK_TWO_SAT(child)->tstamp = tstamp;
         gtk_two_sat_update_first(child);
         gtk_two_sat_update_second(child);
+    }
+
+    else if (IS_GTK_MULTIPLE_SAT(child))
+    {
+        GTK_MULTIPLE_SAT(child)->tstamp = tstamp;
+        for (guint i = 0; i < NUMBER_OF_SATS; ++i)
+        {
+            // TODO: Make a function here that checks that the current sat is not null
+            // Might need API with child widget to get sat at index i
+            // Store this sat as a temp sat_t var then check if sat is NULL
+            gtk_multiple_sat_update(child, i);
+        }
     }
 
     else
@@ -1521,6 +1540,10 @@ static void reload_sats_in_child(GtkWidget * widget, GtkSatModule * module)
     {
         gtk_two_sat_reload_sats(widget, module->satellites);
     }
+    else if (IS_GTK_MULTIPLE_SAT(G_OBJECT(widget)))
+    {
+        gtk_multiple_sat_reload_sats(widget, module->satellites);
+    }
     else
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -1620,6 +1643,10 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
         else if (IS_GTK_TWO_SAT(child))
         {
             gtk_two_sat_select_first_sat(child, catnum);
+        }
+        else if (IS_GTK_MULTIPLE_SAT(child))
+        {
+            gtk_multiple_sat_select_sat(child, catnum, 0);
         }
         else
         {

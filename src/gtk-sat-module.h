@@ -30,6 +30,7 @@ typedef enum {
     GTK_SAT_MOD_VIEW_EVENT,     /*!< GtkEventList */
     GTK_SAT_MOD_VIEW_SECOND,    /*!< GtkSecondSat */
     GTK_SAT_MOD_VIEW_TWO,       /*<! GtkTwoSat */
+    GTK_SAT_MOD_VIEW_MULTIPLE,  /*<! GtkMultipleSat */
     GTK_SAT_MOD_VIEW_NUM,       /*!< Number of modules */
 } gtk_sat_mod_view_t;
 

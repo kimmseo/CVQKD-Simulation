@@ -77,7 +77,7 @@ typedef enum {
     MULTIPLE_SAT_FLAG_SKR_DOWN = 1 << MULTIPLE_SAT_FIELD_SKR_DOWN,
     MULTIPLE_SAT_FLAG_SKR_UP = 1 << MULTIPLE_SAT_FIELD_SKR_UP,
     MULTIPLE_SAT_FLAG_SKR_NEAREST = 1 << MULTIPLE_SAT_FIELD_SKR_NEAREST
-} single_sat_flag_t;
+} multiple_sat_flag_t;
 
 // Helper struct to define a satellite panel
 typedef struct {
