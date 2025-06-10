@@ -40,6 +40,7 @@
 #include "sat-pref-single-sat.h"
 #include "sat-pref-second-sat.h"
 #include "sat-pref-two-sat.h"
+#include "sat-pref-multiple-sat.h"
 #include "sat-log.h"
 
 
@@ -88,6 +89,9 @@ GtkWidget      *sat_pref_modules_create(GKeyFile * cfg)
     gtk_notebook_append_page(GTK_NOTEBOOK(nbook),
                              sat_pref_two_sat_create(cfg),
                              gtk_label_new(_("Two Sat View")));
+    gtk_notebook_append_page(GTK_NOTEBOOK(nbook),
+                             sat_pref_multiple_sat_create(cfg),
+                             gtk_label_new(_("Multiple Sat View")));
 
     return nbook;
 }
@@ -103,6 +107,7 @@ void sat_pref_modules_cancel(GKeyFile * cfg)
     sat_pref_single_sat_cancel(cfg);
     sat_pref_second_sat_cancel(cfg);
     sat_pref_two_sat_cancel(cfg);
+    sat_pref_multiple_sat_cancel(cfg)
 }
 
 /** User pressed OK. Any changes should be stored in config. */
@@ -116,4 +121,5 @@ void sat_pref_modules_ok(GKeyFile * cfg)
     sat_pref_single_sat_ok(cfg);
     sat_pref_second_sat_ok(cfg);
     sat_pref_two_sat_ok(cfg);
+    sat_pref_multiple_sat_ok(cfg);
 }

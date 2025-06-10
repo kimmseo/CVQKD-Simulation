@@ -41,6 +41,7 @@ gpredict_SOURCES = \
     gtk-event-list.c gtk-event-list.h \
     gtk-event-list-popup.c gtk-event-list-popup.h \
     gtk-freq-knob.c gtk-freq-knob.h \
+    gtk-multiple-sat.c gtk-multiple-sat.h \
     gtk-polar-plot.c gtk-polar-plot.h \
     gtk-polar-view.c gtk-polar-view.h \
     gtk-polar-view-popup.c gtk-polar-view-popup.h \
@@ -105,6 +106,7 @@ gpredict_SOURCES = \
     sat-pref-single-sat.c sat-pref-single-sat.h \
     sat-pref-second-sat.c sat-pref-second-sat.h \
     sat-pref-two-sat.c sat-pref-two-sat.h \
+    sat-pref-multiple-sat.c sat-pref-multiple-sat.h \
     sat-pref-interfaces.c sat-pref-interfaces.h \
     sat-pref-rig.c sat-pref-rig.h sat-pref-rig-data.h \
     sat-pref-rig-editor.c sat-pref-rig-editor.h \
