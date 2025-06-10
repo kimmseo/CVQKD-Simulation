@@ -100,7 +100,7 @@ static void reset_cb(GtkWidget * button, gpointer cfg)
 
     for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
     {
-        gkt_toggle_button_set_active(GTK_TOGGLE_BUTTON(check[i]),
+        gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check[i]),
                                      flags & (1 << i));
     }
 
