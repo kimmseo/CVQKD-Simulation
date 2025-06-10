@@ -107,7 +107,7 @@ void sat_pref_modules_cancel(GKeyFile * cfg)
     sat_pref_single_sat_cancel(cfg);
     sat_pref_second_sat_cancel(cfg);
     sat_pref_two_sat_cancel(cfg);
-    sat_pref_multiple_sat_cancel(cfg)
+    sat_pref_multiple_sat_cancel(cfg);
 }
 
 /** User pressed OK. Any changes should be stored in config. */
