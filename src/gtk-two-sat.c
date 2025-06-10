@@ -1357,7 +1357,8 @@ GtkWidget * gtk_two_sat_new(GKeyFile * cfgdata, GHashTable * sats, qth_t * qth,
         }
     }
 
-
+    
+    // Second satellite starts here
     // Popup button for second satellite
     two_sat->popup_button2 = gpredict_mini_mod_button("gpredict-mod-popup.png",
                                                       _("Satellite options / shortcuts"));

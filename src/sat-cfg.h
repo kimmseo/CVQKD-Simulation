@@ -137,6 +137,9 @@ typedef enum {
     SAT_CFG_INT_TWO_SAT_FIELDS,         /*<! Two-sat fields. */
     SAT_CFG_INT_TWO_SAT_SELECT_FIRST,   /*<! Two-sat first selected satellite. */
     SAT_CFG_INT_TWO_SAT_SELECT_SECOND,  /*<! Two-sat second selected satellite. */
+    SAT_CFG_INT_MULTIPLE_SAT_REFRESH,   /*<! Multiple-sat refresh rate (cycle) */
+    SAT_CFG_INT_MULTIPLE_SAT_FIELDS,    /*<! Multiple-sat fields. */
+    SAT_CFG_INT_MULTIPLE_SAT_SELECT,    /*<! Multiple-sat selected satellites. */
     SAT_CFG_INT_NUM,             /*!< Number of integer parameters. */
 } sat_cfg_int_e;
 

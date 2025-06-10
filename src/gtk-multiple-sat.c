@@ -485,10 +485,10 @@ static void select_satellite(GtkWidget * menuitem, gpointer data, guint index)
     }
 }
 
-/* Single sat options menu */
-static void gtk_multiple_sat_popup_cb(GtkWidget * button, gpointer data, guint index)
+/* Multiple sat options menu */
+static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_data)
 {
-    GtkMultipleSat      *multiple_sat = GTK_MULTIPLE_SAT(data);
+    GtkMultipleSat      *multiple_sat = GTK_MULTIPLE_SAT(cb_data->parent);
     GtkWidget           *menu;
     GtkWidget           *menuitem;
     GtkWidget           *label;
@@ -497,6 +497,8 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, gpointer data, guint i
     sat_t               *sat;
     sat_t               *sati;
     guint               i, n;
+
+    guint index = cb_data->index;
 
     sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[index]));
     if (sat == NULL)
@@ -532,7 +534,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, gpointer data, guint i
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
     // Add the menu items for current, next and future passes
-    add_pass_menu_items(menu, sat, multiple_sat->qth, &multiple_sat->tstamp, data);
+    add_pass_menu_items(menu, sat, multiple_sat->qth, &multiple_sat->tstamp, cb_data->parent);
 
     // Separator
     menuitem = gtk_separator_menu_item_new();
@@ -591,5 +593,300 @@ void gtk_multiple_sat_reconf(GtkWidget * widget,
     GTK_MULTIPLE_SAT(widget)->cfgdata = newcfg;
 
     // Get visible fields from new configuration
+    fields = mod_cfg_get_int(newcfg,
+                             MOD_CFG_MULTIPLE_SAT_SECTION,
+                             MOD_CFG_MULTIPLE_SAT_FIELDS,
+                             SAT_CFG_INT_MULTIPLE_SAT_FIELDS);
     
+    if (fields != GTK_MULTIPLE_SAT(widget)->flags)
+    {
+        GTK_MULTIPLE_SAT(widget)->flags = fields;
+    }
+
+    // If this is a local reconfiguration sats may have changed
+    if (local)
+    {
+        gtk_multiple_sat_reload_sats(widget, sats);
+    }
+
+    // QTH may have changed too single we have a default QTH
+    GTK_MULTIPLE_SAT(widget)->qth = qth;
+
+    // Get refresh rate and cycle counter
+    GTK_MULTIPLE_SAT(widget)->refresh = mod_cfg_get_int(newcfg,
+                                                        MOD_CFG_MULTIPLE_SAT_SECTION,
+                                                        MOD_CFG_MULTIPLE_SAT_REFRESH,
+                                                        SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
+    GTK_MULTIPLE_SAT(widget)->counter = 1;
+}
+
+// Select new satellite
+void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint index)
+{
+    GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(multiple_sat);
+    sat_t               *sat = NULL;
+    gchar               *title;
+    gboolean            foundsat = FALSE;
+    gint                i, n;
+
+    // Find satellite with catnum
+    n = g_slist_length(msat->sats);
+    for (i = 0; i < n; ++i)
+    {
+        sat = SAT(g_slist_nth_data(msat->sats, i));
+        if (sat->tle.catnr == catnum)
+        {
+            // Found satellite
+            msat->selected[index] = i;
+            foundsat = TRUE;
+
+            // Exit loop
+            i = n;
+        }
+    }
+
+    if (!foundsat)
+    {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: Could not find satellite with catalog number %d"),
+                    __func__, catnum);
+        return;
+    }
+    title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat->nickname);
+    gtk_label_set_markup(GTK_LABEL(msat->header[index]), title);
+    g_free(title);
+}
+
+// Update satellites
+void gtk_multiple_sat_update(GtkWidget * widget, guint index)
+{
+    GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(widget);
+    guint               i;
+
+    // Sanity checks
+    if ((msat == NULL) || !IS_GTK_MULTIPLE_SAT(msat))
+    {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: Invalid GtkMultipleSat!"), __func__);
+        return;
+    }
+
+    // Check refresh rate
+    if (msat->counter < msat->refresh)
+    {
+        msat->counter++;
+    }
+    else
+    {
+        // Calculate here to avoid double calculation
+        if ((msat->flags & MULTIPLE_SAT_FLAG_RA) ||
+            (msat->flags & MULTIPLE_SAT_FLAG_DEC))
+        {
+            obs_astro_t     astro;
+            sat_t           *sat =
+                SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
+
+            Calculate_RADec(sat, msat->qth, &astro);
+            sat->ra = Degrees(astro.ra);
+            sat->dec = Degrees(astro.dec);
+        }
+
+        // Update visible fields one by one
+        for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+        {
+            if (msat->flags & (1 << i))
+                update_field(msat, i, index);
+        }
+        msat->counter = 1;
+    }
+}
+
+GType gtk_multiple_sat_get_type()
+{
+    static GType    gtk_multiple_sat_type = 0;
+
+    if (!gtk_multiple_sat_type)
+    {
+        static const GTypeInfo gtk_multiple_sat_info = {
+            sizeof(GtkMultipleSatClass),
+            NULL,                   // base_init
+            NULL,                   // base_finalize
+            (GClassInitFunc) gtk_multiple_sat_class_init,
+            NULL,                   // class_finalize
+            NULL,                   // class_data
+            sizeof(GtkMultipleSat),
+            5,                      // n_preallocs
+            (GInstanceInitFunc) gtk_multiple_sat_init,
+            NULL
+        };
+        
+        gtk_multiple_sat_type = g_type_register_static(GTK_TYPE_BOX,
+                                                       "GtkMultipleSat",
+                                                       &gtk_multiple_sat_info, 0);
+    }
+
+    return gtk_multiple_sat_type;
+}
+
+static SatPanel *create_sat_panel(GKeyFile * cfgdata, guint index, guint32 flags,
+                                  GtkWidget * parent)
+{
+    SatPanel * panel = g_new0(SatPanel, 1);
+    GtkWidget *label1, *label2;
+
+    // Create popup button
+    panel->popup_button = gpredict_mini_mod_button("gpredict-mod-popup.png",
+                                                   _("Satellite options / shortcuts"));
+    PopupCallbackData *cb_data = g_new(PopupCallbackData, 1);
+    cb_data->parent = parent;
+    cb_data->index = index;
+    g_signal_connect(panel->popup_button, "clicked",
+                     G_CALLBACK(gtk_multiple_sat_popup_cb), cb_data);
+    
+    // Create header
+    gchar *title = g_markup_printf_escaped("<b>Satellite: </b>", index + 1);
+    panel->header = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(panel->header), title);
+    g_free(title);
+    g_object_set(panel->header, "xalign", 0.0f, "yalign", 0.5f, NULL);
+
+    // Create table
+    panel->table = gtk_grid_new();
+    gtk_container_set_border_width(GTK_CONTAINER(panel->table), 5);
+    gtk_grid_set_row_spacing(GTK_GRID(panel->table), 0);
+    gtk_grid_set_column_spacing(GTK_GRID(panel->table), 5);
+
+    for (guint i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+    {
+        if (flags & (1 << i))
+        {
+            label1 = gtk_label_new(MULTIPLE_SAT_FIELD_TITLE[i]);
+            g_object_set(label1, "xalign", 1.0f, "yalign", 0.5f, NULL);
+            gtk_grid_attach(GTK_GRID(panel->table), label1, 0, i, 1, 1);
+
+            label2 = gtk_label_new("-");
+            g_object_set(label2, "xalign", 0.0f, "yalign", 0.5f, NULL);
+            gtk_grid_attach(GTK_GRID(panel->table), label2, 2, i, 1, 1);
+            panel->labels[i] = label2;
+            
+            // Add tooltips
+            gtk_widget_set_tooltip_text(label1, MULTIPLE_SAT_FIELD_HINT[i]);
+            gtk_widget_set_tooltip_text(label2, MULTIPLE_SAT_FIELD_HINT[i]);
+
+            label1 = gtk_label_new(":");
+            gtk_grid_attach(GTK_GRID(panel->table), label1, 1, i, 1, 1);
+        }
+        else
+        {
+            panel->labels[i] = NULL;
+        }
+
+        return panel;
+    }
+}
+
+GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
+                                qth_t * qth, guint32 fields)
+{
+    GtkWidget       *widget;
+    GtkMultipleSat  *multiple_sat;
+    GtkWidget       *hbox;  // Horizontal box for header
+    GtkWidget       *label1;
+    GtkWidget       *label2;
+    sat_t           *sat;
+    gchar           *title;
+    guint           i;
+    gint            *selectedcatnum[NUMBER_OF_SATS];
+
+    widget = g_object_new(GTK_TYPE_MULTIPLE_SAT, NULL);
+    gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
+                                   GTK_ORIENTATION_VERTICAL);
+    multiple_sat = GTK_MULTIPLE_SAT(widget);
+
+    multiple_sat->update = gtk_multiple_sat_update;
+
+    // Read configuration data
+    /* ... */
+
+    g_hash_table_foreach(sats, store_sats, widget);
+    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    {
+        multiple_sat->selected[i] = 0;
+    }
+    multiple_sat->qth = qth;
+    multiple_sat->cfgdata = cfgdata;
+
+    // Initialise column flags
+    if (fields > 0)
+    {
+        multiple_sat->flags = fields;
+    }
+    else
+    {
+        multiple_sat->flags = mod_cfg_get_int(cfgdata,
+                                              MOD_CFG_MULTIPLE_SAT_SECTION,
+                                              MOD_CFG_MULTIPLE_SAT_FIELDS,
+                                              SAT_CFG_INT_MULTIPLE_SAT_FIELDS);
+    }
+
+    // Get refresh rate and cycle counter
+    multiple_sat->refresh = mod_cfg_get_int(cfgdata,
+                                            MOD_CFG_MULTIPLE_SAT_SECTION,
+                                            MOD_CFG_MULTIPLE_SAT_REFRESH,
+                                            SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
+    multiple_sat->counter = 1;
+
+    // Get selected catnum if available
+    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    {
+        selectedcatnum[i] = mod_cfg_get_int_from_list(cfgdata,
+                                                      MOD_CFG_MULTIPLE_SAT_SECTION,
+                                                      MOD_CFG_MULTIPLE_SAT_SELECT,
+                                                      i, SAT_CFG_INT_MULTIPLE_SAT_SELECT);
+    }
+
+    // Make a grid, then populate the grid using SatPanels
+    // Create a scrollable area
+    multiple_sat->swin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(multiple_sat->swin),
+                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
+    
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
+    gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
+
+    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    {
+        SatPanel *panel = create_sat_panel(cfgdata, i, multiple_sat->flags, widget);
+        multiple_sat->panels[i] = panel;
+
+        // Load selected catnum from config
+        panel->selected_catnum = mod_cfg_get_int_from_list(cfgdata,
+                                                           MOD_CFG_MULTIPLE_SAT_SECTION,
+                                                           MOD_CFG_MULTIPLE_SAT_SELECT,
+                                                           i, SAT_CFG_INT_MULTIPLE_SAT_SELECT);
+        // Build vbox for header+table
+        GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), panel->popup_button, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), panel->header, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), panel->table, FALSE, FALSE, 0);
+
+        // Place it in the 2xN grid
+        guint row = i / SATS_PER_ROW;
+        guint col = i % SATS_PER_ROW;
+        gtk_grid_attach(GTK_GRID(grid), vbox, col, row, 1, 1);
+
+        // Apply selection if available
+        if (panel->selected_catnum)
+        {
+            gtk_multiple_sat_select_sat(widget, panel->selected_catnum, i);
+        }
+    }
+
+    gtk_container_add(GTK_CONTAINER(multiple_sat->swin), grid);
+    gtk_box_pack_end(GTK_BOX(widget), multiple_sat->swin, TRUE, TRUE, 0);
+    gtk_widget_show_all(widget);
+
+    return widget;
 }

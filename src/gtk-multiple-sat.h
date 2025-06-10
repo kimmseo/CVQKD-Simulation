@@ -15,6 +15,8 @@ extern "C" {
 /* *INDENT-ON* */
 
 #define NUMBER_OF_SATS 10
+#define SATS_PER_ROW 2
+
 
 /* Symbolic references to columns */
 typedef enum {
@@ -77,6 +79,21 @@ typedef enum {
     MULTIPLE_SAT_FLAG_SKR_NEAREST = 1 << MULTIPLE_SAT_FIELD_SKR_NEAREST
 } single_sat_flag_t;
 
+// Helper struct to define a satellite panel
+typedef struct {
+    GtkWidget *header;
+    GtkWidget *table;
+    GtkWidget *popup_button;
+    GtkWidget *labels[MULTIPLE_SAT_FIELD_NUMBER];
+    gint selected_catnum;
+} SatPanel;
+
+// Helper struct for popup callback (when clicked signal is triggered)
+typedef struct {
+    GtkWidget *parent;
+    guint index;
+} PopupCallbackData;
+
 #define GTK_TYPE_MULTIPLE_SAT           (gtk_multiple_sat_get_type())
 #define GTK_MULTIPLE_SAT(obj)           G_TYPE_CHECK_INSTANCE_CAST(obj,\
                                            gtk_multiple_sat_get_type (),\
@@ -97,6 +114,7 @@ struct _gtk_multiple_sat {
     GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
 
     GtkWidget       *swin;      // Scrolled window
+    GtkWidget       *panels[NUMBER_OF_SATS];    // SatPanels list
     GtkWidget       *table[NUMBER_OF_SATS];     // Table
     
     GtkWidget       *popup_button[NUMBER_OF_SATS];  // Popup button
@@ -123,7 +141,7 @@ GType           gtk_multiple_sat_get_type(void);
 GtkWidget       *gtk_multiple_sat_new(GKeyFile * cfgdata,
                                       GHashTable * sats,
                                       qth_t * qth, guint fields);
-void            gtk_multiple_sat_update(GtkWidget * widget);
+void            gtk_multiple_sat_update(GtkWidget * widget, guint index);
 void            gtk_multiple_sat_reconf(GtkWidget * widget,
                                         GKeyFile * newcfg,
                                         GHashTable * sats,
@@ -131,7 +149,8 @@ void            gtk_multiple_sat_reconf(GtkWidget * widget,
 
 void            gtk_multiple_sat_reload_sats(GtkWidget * multiple_sat,
                                              GHashTable * sats);
-void            gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum);
+void            gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum,
+                                            guint index);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
