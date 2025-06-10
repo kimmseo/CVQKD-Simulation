@@ -114,7 +114,7 @@ struct _gtk_multiple_sat {
     GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
 
     GtkWidget       *swin;      // Scrolled window
-    GtkWidget       *panels[NUMBER_OF_SATS];    // SatPanels list
+    SatPanel        *panels[NUMBER_OF_SATS];    // SatPanels list
     GtkWidget       *table[NUMBER_OF_SATS];     // Table
     
     GtkWidget       *popup_button[NUMBER_OF_SATS];  // Popup button
@@ -130,7 +130,7 @@ struct _gtk_multiple_sat {
 
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 
-    void            (*update) (GtkWidget * widget);     // update function
+    void            (*update) (GtkWidget * widget, guint index);     /*!< update function */
 };
 
 struct _GtkMultipleSatClass {

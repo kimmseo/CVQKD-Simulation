@@ -89,7 +89,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
 {
     GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(widget);
     guint i;
-    guint *satlist[NUMBER_OF_SATS];
+    gint *satlist[NUMBER_OF_SATS];
     gboolean check = FALSE;
 
     for (i = 0; i < NUMBER_OF_SATS; ++i)
@@ -97,7 +97,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
         sat_t *sat = SAT(g_slist_nth_data(msat->sats, msat->selected[i]));
         if (sat != NULL)
         {
-            satlist[i] = sat->tle.catnr;
+            *satlist[i] = sat->tle.catnr;
             check = TRUE;
         }
         else
@@ -108,7 +108,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
     if (check)
     {
         g_key_file_set_integer_list(msat->cfgdata, MOD_CFG_MULTIPLE_SAT_SECTION,
-                                    MOD_CFG_MULTIPLE_SAT_SELECT, satlist,
+                                    MOD_CFG_MULTIPLE_SAT_SELECT, *satlist,
                                     NUMBER_OF_SATS);
     }
 
@@ -145,7 +145,7 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     gchar       *fmtstr;
     gchar       *alstr;
     sat_vis_t   vis;
-    gdouble     skr;
+    //gdouble     skr;
 
     // sanity checks
     if (msat->labels[index][i] == NULL)
@@ -728,11 +728,13 @@ GType gtk_multiple_sat_get_type()
     return gtk_multiple_sat_type;
 }
 
-static SatPanel *create_sat_panel(GKeyFile * cfgdata, guint index, guint32 flags,
-                                  GtkWidget * parent)
+static SatPanel *create_sat_panel(guint index, guint32 flags,
+                                  GtkWidget * parent, GSList * sats)
 {
     SatPanel * panel = g_new0(SatPanel, 1);
     GtkWidget *label1, *label2;
+    sat_t *sat;
+    sat = SAT(g_slist_nth_data(sats, index));
 
     // Create popup button
     panel->popup_button = gpredict_mini_mod_button("gpredict-mod-popup.png",
@@ -744,7 +746,7 @@ static SatPanel *create_sat_panel(GKeyFile * cfgdata, guint index, guint32 flags
                      G_CALLBACK(gtk_multiple_sat_popup_cb), cb_data);
     
     // Create header
-    gchar *title = g_markup_printf_escaped("<b>Satellite: </b>", index + 1);
+    gchar *title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat->nickname);
     panel->header = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(panel->header), title);
     g_free(title);
@@ -780,9 +782,9 @@ static SatPanel *create_sat_panel(GKeyFile * cfgdata, guint index, guint32 flags
         {
             panel->labels[i] = NULL;
         }
-
-        return panel;
     }
+
+    return panel;
 }
 
 GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
@@ -790,13 +792,8 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 {
     GtkWidget       *widget;
     GtkMultipleSat  *multiple_sat;
-    GtkWidget       *hbox;  // Horizontal box for header
-    GtkWidget       *label1;
-    GtkWidget       *label2;
-    sat_t           *sat;
-    gchar           *title;
     guint           i;
-    gint            *selectedcatnum[NUMBER_OF_SATS];
+    gint            selectedcatnum[NUMBER_OF_SATS];
 
     widget = g_object_new(GTK_TYPE_MULTIPLE_SAT, NULL);
     gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
@@ -858,14 +855,11 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
     for (i = 0; i < NUMBER_OF_SATS; ++i)
     {
-        SatPanel *panel = create_sat_panel(cfgdata, i, multiple_sat->flags, widget);
+        SatPanel *panel = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
         multiple_sat->panels[i] = panel;
 
         // Load selected catnum from config
-        panel->selected_catnum = mod_cfg_get_int_from_list(cfgdata,
-                                                           MOD_CFG_MULTIPLE_SAT_SECTION,
-                                                           MOD_CFG_MULTIPLE_SAT_SELECT,
-                                                           i, SAT_CFG_INT_MULTIPLE_SAT_SELECT);
+        panel->selected_catnum = selectedcatnum[i];
         // Build vbox for header+table
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_box_pack_start(GTK_BOX(vbox), panel->popup_button, FALSE, FALSE, 0);
