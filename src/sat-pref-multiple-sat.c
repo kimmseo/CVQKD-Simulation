@@ -77,7 +77,7 @@ static void toggle_cb(GtkToggleButton * toggle, gpointer data)
     else
         flags &= ~(1 << GPOINTER_TO_UINT(data));
 
-    // Clear dirty flag if we are back where we started
+    // clear dirty flag if we are back where we started
     dirty = (flags != startflags);
 }
 
@@ -98,7 +98,7 @@ static void reset_cb(GtkWidget * button, gpointer cfg)
         flags = sat_cfg_get_int(SAT_CFG_INT_MULTIPLE_SAT_FIELDS);
     }
 
-    for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+    for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; i++)
     {
         gtk_toggle_button_set_active(GTK_TOGGLE_BUTTON(check[i]),
                                      flags & (1 << i));
@@ -165,7 +165,7 @@ GtkWidget       *sat_pref_multiple_sat_create(GKeyFile * cfg)
         flags = sat_cfg_get_int(SAT_CFG_INT_MULTIPLE_SAT_FIELDS);
     }
 
-    for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+    for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; i++)
     {
         check[i] =
             gtk_check_button_new_with_label(MULTIPLE_SAT_FIELD_TITLE[i]);

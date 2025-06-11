@@ -92,7 +92,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
     gint *satlist[NUMBER_OF_SATS];
     gboolean check = FALSE;
 
-    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         sat_t *sat = SAT(g_slist_nth_data(msat->sats, msat->selected[i]));
         if (sat != NULL)
@@ -542,7 +542,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
     // Select sat
-    for (i = 0; i < n; ++i)
+    for (i = 0; i < n; i++)
     {
         sati = SAT(g_slist_nth_data(multiple_sat->sats, i));
 
@@ -632,7 +632,7 @@ void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint in
 
     // Find satellite with catnum
     n = g_slist_length(msat->sats);
-    for (i = 0; i < n; ++i)
+    for (i = 0; i < n; i++)
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: iteration %d", __FILE__, __LINE__, i);
         sat = SAT(g_slist_nth_data(msat->sats, i));
@@ -698,7 +698,7 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
         }
 
         // Update visible fields one by one
-        for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+        for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; i++)
         {
             if (msat->flags & (1 << i))
                 update_field(msat, i, index);
@@ -768,7 +768,7 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
     gtk_grid_set_row_spacing(GTK_GRID(panel->table), 0);
     gtk_grid_set_column_spacing(GTK_GRID(panel->table), 5);
 
-    for (guint i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; ++i)
+    for (guint i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; i++)
     {
         if (flags & (1 << i))
         {
@@ -779,6 +779,7 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
             label2 = gtk_label_new("-");
             g_object_set(label2, "xalign", 0.0f, "yalign", 0.5f, NULL);
             gtk_grid_attach(GTK_GRID(panel->table), label2, 2, i, 1, 1);
+            // TODO: Fix here, labels is a list
             panel->labels[i] = label2;
             
             // Add tooltips
@@ -790,6 +791,7 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
         }
         else
         {
+            // TODO: Fix here, labels is a list
             panel->labels[i] = NULL;
         }
     }
@@ -816,7 +818,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     /* ... */
 
     g_hash_table_foreach(sats, store_sats, widget);
-    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         multiple_sat->selected[i] = 0;
     }
@@ -844,7 +846,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     multiple_sat->counter = 1;
 
     // Get selected catnum if available
-    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         selectedcatnum[i] = mod_cfg_get_int_from_list(cfgdata,
                                                       MOD_CFG_MULTIPLE_SAT_SECTION,
@@ -863,12 +865,16 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
     gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
 
-    for (i = 0; i < NUMBER_OF_SATS; ++i)
+    for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         SatPanel *panel = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         multiple_sat->panels[i] = panel;
+        for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
+        {
+            multiple_sat->labels[i][j] = panel->labels[j];
+        }
 
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Load selected catnum from config
