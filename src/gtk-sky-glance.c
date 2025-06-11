@@ -840,7 +840,7 @@ GtkWidget      *gtk_sky_glance_new(GHashTable * sats, qth_t * qth, gdouble ts)
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: line %d breakpoint log", __FILE__, __LINE__);
     // Below line crashes program with 100% CPU usage, possibly within create_sat
     g_hash_table_foreach(skg->sats, create_sat, skg);
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: line %d breakpoint log", __FILE__, __LINE__);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: line %d breakpoint log", __FILE__, __LINE__);
 
     gtk_box_pack_start(GTK_BOX(skg), skg->canvas, TRUE, TRUE, 0);
 

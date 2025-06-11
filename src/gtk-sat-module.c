@@ -721,6 +721,7 @@ static void update_child(GtkWidget * child, gdouble tstamp)
             // TODO: Make a function here that checks that the current sat is not null
             // Might need API with child widget to get sat at index i
             // Store this sat as a temp sat_t var then check if sat is NULL
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, i is %d", __FILE__, __LINE__, i);
             gtk_multiple_sat_update(child, i);
         }
     }
@@ -1646,7 +1647,11 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
         }
         else if (IS_GTK_MULTIPLE_SAT(child))
         {
-            gtk_multiple_sat_select_sat(child, catnum, 0);
+            for (guint i = 0; i < NUMBER_OF_SATS; i++)
+            {
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint, i = %d", __FILE__, __LINE__, i);
+                gtk_multiple_sat_select_sat(child, catnum, i);
+            }
         }
         else
         {

@@ -155,7 +155,7 @@ static void update_field(GtkSingleSat * ssat, guint i)
         return;
     }
 
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: flags = %u", __FILE__, __LINE__, ssat->flags);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: flags = %u", __FILE__, __LINE__, ssat->flags);
 
     /* get selected satellite */
     sat = SAT(g_slist_nth_data(ssat->sats, ssat->selected));

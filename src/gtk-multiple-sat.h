@@ -88,11 +88,16 @@ typedef struct {
     gint selected_catnum;
 } SatPanel;
 
-// Helper struct for popup callback (when clicked signal is triggered)
+// Helper structs for callback
 typedef struct {
     GtkWidget *parent;
     guint index;
 } PopupCallbackData;
+
+typedef struct {
+    GtkWidget *parent;
+    guint index;
+} SelectSatCallbackData;
 
 #define GTK_TYPE_MULTIPLE_SAT           (gtk_multiple_sat_get_type())
 #define GTK_MULTIPLE_SAT(obj)           G_TYPE_CHECK_INSTANCE_CAST(obj,\
@@ -108,8 +113,6 @@ typedef struct _GtkMultipleSatClass GtkMultipleSatClass;
 
 struct _gtk_multiple_sat {
     GtkBox          vbox;
-
-    GtkWidget       *header[NUMBER_OF_SATS];   // Header label for first satellite
 
     GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
 
