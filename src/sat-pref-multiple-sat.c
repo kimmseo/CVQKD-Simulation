@@ -174,6 +174,9 @@ GtkWidget       *sat_pref_multiple_sat_create(GKeyFile * cfg)
                                      flags & (1 << i));
         g_signal_connect(check[i], "toggled",
                          G_CALLBACK(toggle_cb), GUINT_TO_POINTER(i));
+
+        gtk_grid_attach(GTK_GRID(table), check[i],
+                        i % COLUMNS, Y0 + i / COLUMNS, 1, 1);
     }
 
     // Create a vertical box
