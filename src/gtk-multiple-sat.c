@@ -150,6 +150,7 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     // sanity checks
     if (msat->labels[index][i] == NULL)
     {
+        // Keeps on getting caught here
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s:%d: Can not update invisible field (I:%d F:%d)"),
                     __FILE__, __LINE__, i, msat->flags);
@@ -633,6 +634,7 @@ void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint in
     n = g_slist_length(msat->sats);
     for (i = 0; i < n; ++i)
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: iteration %d", __FILE__, __LINE__, i);
         sat = SAT(g_slist_nth_data(msat->sats, i));
         if (sat->tle.catnr == catnum)
         {
@@ -643,16 +645,17 @@ void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint in
             // Exit loop
             i = n;
         }
+        if (!foundsat)
+        {
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _("%s: Could not find satellite with catalog number %d"),
+                        __func__, catnum);
+            //return;
+            msat->selected[index] = i;
+        }
     }
 
-    if (!foundsat)
-    {
-        sat_log_log(SAT_LOG_LEVEL_ERROR,
-                    _("%s: Could not find satellite with catalog number %d"),
-                    __func__, catnum);
-        return;
-    }
-    title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat->nickname);
+    title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "NONE");
     gtk_label_set_markup(GTK_LABEL(msat->header[index]), title);
     g_free(title);
 }
@@ -672,8 +675,11 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
     }
 
     // Check refresh rate
+    // have integer overflow, temporarily setting refresh to 1
+    msat->refresh = 1;
     if (msat->counter < msat->refresh)
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: counter = %u, refresh = %u", __FILE__, __LINE__, msat->counter, msat->refresh);
         msat->counter++;
     }
     else
@@ -731,14 +737,18 @@ GType gtk_multiple_sat_get_type()
 static SatPanel *create_sat_panel(guint index, guint32 flags,
                                   GtkWidget * parent, GSList * sats)
 {
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called, iteration %d", __FILE__, __LINE__, __func__, index);
     SatPanel * panel = g_new0(SatPanel, 1);
     GtkWidget *label1, *label2;
     sat_t *sat;
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     sat = SAT(g_slist_nth_data(sats, index));
 
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     // Create popup button
     panel->popup_button = gpredict_mini_mod_button("gpredict-mod-popup.png",
                                                    _("Satellite options / shortcuts"));
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     PopupCallbackData *cb_data = g_new(PopupCallbackData, 1);
     cb_data->parent = parent;
     cb_data->index = index;
@@ -746,7 +756,7 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
                      G_CALLBACK(gtk_multiple_sat_popup_cb), cb_data);
     
     // Create header
-    gchar *title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat->nickname);
+    gchar *title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "NULL");
     panel->header = gtk_label_new(NULL);
     gtk_label_set_markup(GTK_LABEL(panel->header), title);
     g_free(title);
@@ -855,29 +865,39 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
     for (i = 0; i < NUMBER_OF_SATS; ++i)
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         SatPanel *panel = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         multiple_sat->panels[i] = panel;
 
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Load selected catnum from config
         panel->selected_catnum = selectedcatnum[i];
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Build vbox for header+table
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
         gtk_box_pack_start(GTK_BOX(vbox), panel->popup_button, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), panel->header, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), panel->table, FALSE, FALSE, 0);
 
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Place it in the 2xN grid
         guint row = i / SATS_PER_ROW;
         guint col = i % SATS_PER_ROW;
         gtk_grid_attach(GTK_GRID(grid), vbox, col, row, 1, 1);
 
+        // Currently broken
         // Apply selection if available
+        /*
         if (panel->selected_catnum)
         {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: line called", __FILE__, __LINE__);
             gtk_multiple_sat_select_sat(widget, panel->selected_catnum, i);
         }
+        */
     }
-
+    
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     gtk_container_add(GTK_CONTAINER(multiple_sat->swin), grid);
     gtk_box_pack_end(GTK_BOX(widget), multiple_sat->swin, TRUE, TRUE, 0);
     gtk_widget_show_all(widget);
