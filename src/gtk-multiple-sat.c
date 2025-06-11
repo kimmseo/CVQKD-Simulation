@@ -473,7 +473,7 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
     sat_t               *sat;
     guint               index = cb_data->index;
 
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite called and started", __FILE__, __LINE__);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite called and started, index = %d", __FILE__, __LINE__, index);
     // There are many ghost triggering of this signal, but we only need to
     // make a new selection when the received menuitem is selected
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(menuitem)))
@@ -488,9 +488,15 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
         // This is probably the issue
         // Header is not updating
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
-        gtk_label_set_markup(GTK_LABEL(msat->panels[i]->header), title);
+        gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
         gtk_widget_queue_draw(msat->panels[i]->header);
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[i]->header = %s", __FILE__, __LINE__, msat->panels[i]->header);
+        if (msat->panels[index]->header == NULL) {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NULL!", __FILE__, __LINE__);
+        } else {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NOT NULL!", __FILE__, __LINE__);
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[index]->header = %s",
+                        __FILE__, __LINE__, msat->panels[index]->header);
+        }
         g_free(title);
     }
 }
@@ -509,6 +515,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     guint               i, n;
 
     guint index = cb_data->index;
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: callback started, index = %u", __FILE__, __LINE__, index);
 
     sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[index]));
     if (sat == NULL)
@@ -715,7 +722,10 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
         for (i = 0; i < MULTIPLE_SAT_FIELD_NUMBER; i++)
         {
             if (msat->flags & (1 << i))
+            {
+                //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... index = %d, i = %d", __FILE__, __LINE__, index, i);
                 update_field(msat, i, index);
+            }
         }
         msat->counter = 1;
     }
@@ -749,14 +759,14 @@ GType gtk_multiple_sat_get_type()
 }
 
 static SatPanel *create_sat_panel(guint index, guint32 flags,
-                                  GtkWidget * parent, GSList * sats)
+                                  GtkWidget * parent, GSList * sats, guint selectedSatIndex)
 {
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called, iteration %d", __FILE__, __LINE__, __func__, index);
     SatPanel * panel = g_new0(SatPanel, 1);
     GtkWidget *label1, *label2;
     sat_t *sat;
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-    sat = SAT(g_slist_nth_data(sats, index));
+    sat = SAT(g_slist_nth_data(sats, selectedSatIndex));
 
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     // Create popup button
@@ -826,6 +836,10 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     multiple_sat = GTK_MULTIPLE_SAT(widget);
 
     multiple_sat->update = gtk_multiple_sat_update;
+    for (i = 0; i < NUMBER_OF_SATS; i++)
+    {
+        selectedcatnum[i] = multiple_sat->selected[i];
+    }
 
     // Read configuration data
     /* ... */
@@ -880,8 +894,10 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
+        guint index = multiple_sat->selected[i];
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... index = %u", index);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
-        multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
+        multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         
         for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
