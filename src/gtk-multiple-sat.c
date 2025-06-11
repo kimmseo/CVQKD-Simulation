@@ -881,31 +881,31 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
-        SatPanel *panel = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
+        multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         
         for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
         {
-            multiple_sat->labels[i][j] = panel->labels[j];
+            multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
         }
         // Some debugging stuff
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: current iteration - %d", __FILE__, __LINE__, i);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Load selected catnum from config
-        panel->selected_catnum = selectedcatnum[i];
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Panel catnum - %d", __FILE__, __LINE__, panel->selected_catnum);
+        multiple_sat->panels[i]->selected_catnum = selectedcatnum[i];
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Panel catnum - %d", __FILE__, __LINE__, multiple_sat->panels[i]->selected_catnum);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Build vbox for header+table
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
         GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);   // Header box
-        gtk_box_pack_start(GTK_BOX(hbox), panel->popup_button, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), panel->header, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->popup_button, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->header, TRUE, TRUE, 0);
 
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), panel->table, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), multiple_sat->panels[i]->table, FALSE, FALSE, 0);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Place it in the 2xN grid
@@ -922,8 +922,6 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
             gtk_multiple_sat_select_sat(widget, panel->selected_catnum, i);
         }
         */
-       multiple_sat->panels[i] = panel;
-       g_free(panel);
     }
     
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
