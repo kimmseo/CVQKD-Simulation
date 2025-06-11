@@ -575,7 +575,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
         SelectSatCallbackData *select_cb_data = g_new(SelectSatCallbackData, 1);
         select_cb_data->parent = cb_data->parent;
         select_cb_data->index = index;
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite callback signal triggered", __FILE__, __LINE__);
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite callback signal triggered", __FILE__, __LINE__);
         g_signal_connect_after(menuitem, "activate",
                                G_CALLBACK(select_satellite), select_cb_data);
         gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
