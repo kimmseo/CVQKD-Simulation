@@ -43,5 +43,7 @@ void            mod_cfg_set_integer_list_boolean(GKeyFile * cfgdata,
                                                  GHashTable * hash,
                                                  const gchar * cfgsection,
                                                  const gchar * cfgkey);
+gint mod_cfg_get_int_from_list (GKeyFile * f, const gchar * sec, const gchar * key,
+                                guint index, sat_cfg_int_e p);
 
 #endif

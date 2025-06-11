@@ -123,6 +123,51 @@ gint mod_cfg_get_int(GKeyFile * f, const gchar * sec, const gchar * key,
     return param;
 }
 
+gint mod_cfg_get_int_from_list (GKeyFile * f, const gchar * sec, const gchar * key,
+                                guint index, sat_cfg_int_e p)
+{
+    GError          *error = NULL;
+    gint            param;
+    gint            *list = NULL;
+    gsize           list_len = 0;
+
+    // Check whether parameter is present in GKeyFile
+    if (g_key_file_has_key(f, sec, key, NULL))
+    {
+        list = g_key_file_get_integer_list(f, sec, key, &list_len, &error);
+
+        if (error != NULL)
+        {
+            sat_log_log(SAT_LOG_LEVEL_WARN,
+                        _("%s: Failed to read integer list (%s)"),
+                        __func__, error->message);
+            g_clear_error(&error);
+            // Fall back to global config
+            param = sat_cfg_get_int(p);
+        }
+        else if (index < list_len)
+        {
+            param = list[index];
+        }
+        else
+        {
+            sat_log_log(SAT_LOG_LEVEL_WARN,
+                        _("%s: Index %u out of bounds (length: %lu)"),
+                        __func__, index, (unsigned long)list_len);
+            // Fall back to global config
+            param = sat_cfg_get_int(p);
+        }
+
+        g_free(list);
+    }
+    else
+    {
+        param = sat_cfg_get_int(p);
+    }
+
+    return param;
+}
+
 
 gchar          *mod_cfg_get_str(GKeyFile * f, const gchar * sec,
                                 const gchar * key, sat_cfg_str_e p)
