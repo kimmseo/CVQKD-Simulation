@@ -478,6 +478,8 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
     // make a new selection when the received menuitem is selected
     if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(menuitem)))
     {
+        // i is the position in the grid
+        // index is the index of the selected satellite in the satellites list
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: if condition passed for select_satellite", __FILE__, __LINE__);
         msat->selected[index] = i;
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->selected[index] is %u", __FILE__, __LINE__, msat->selected[index]);
@@ -486,7 +488,7 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
 
         title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
         // This is probably the issue
-        // Header is not updating
+        // Header is not updating (fixed - make sure i-th element in grid and index in sats is correct)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
         gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
         gtk_widget_queue_draw(msat->panels[i]->header);
@@ -494,8 +496,8 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NULL!", __FILE__, __LINE__);
         } else {
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NOT NULL!", __FILE__, __LINE__);
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[index]->header = %s",
-                        __FILE__, __LINE__, msat->panels[index]->header);
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[i]->header = %s",
+                        __FILE__, __LINE__, msat->panels[i]->header);
         }
         g_free(title);
     }
@@ -845,9 +847,21 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     /* ... */
 
     g_hash_table_foreach(sats, store_sats, widget);
+    guint sats_length = g_slist_length(multiple_sat->sats);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: sats_length = %u",
+                __FILE__, __LINE__, sats_length);
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
-        multiple_sat->selected[i] = 0;
+        if (i >= sats_length)
+            multiple_sat->selected[i] = 0;
+        else
+            multiple_sat->selected[i] = i;
+    }
+    for (i = 0; i < NUMBER_OF_SATS; i ++)
+    {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                    "%s %s: selected[%d] set to: %d", __func__, __FILE__, 
+                    i, multiple_sat->selected[i]);
     }
     multiple_sat->qth = qth;
     multiple_sat->cfgdata = cfgdata;
@@ -872,14 +886,16 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
                                             SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
     multiple_sat->counter = 1;
 
+    /*
     // Get selected catnum if available
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
-        selectedcatnum[i] = mod_cfg_get_int_from_list(cfgdata,
+        multiple_sat->selected[i] = mod_cfg_get_int_from_list(cfgdata,
                                                       MOD_CFG_MULTIPLE_SAT_SECTION,
                                                       MOD_CFG_MULTIPLE_SAT_SELECT,
                                                       i, SAT_CFG_INT_MULTIPLE_SAT_SELECT);
     }
+    */
 
     // Make a grid, then populate the grid using SatPanels
     // Create a scrollable area
@@ -894,12 +910,13 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         guint index = multiple_sat->selected[i];
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... index = %u", index);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: index set to %u", __FILE__, __LINE__, index);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-        
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+
         for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
         {
             multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
@@ -909,13 +926,15 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Load selected catnum from config
-        multiple_sat->panels[i]->selected_catnum = selectedcatnum[i];
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Panel catnum - %d", __FILE__, __LINE__, multiple_sat->panels[i]->selected_catnum);
+        //multiple_sat->panels[i]->selected_catnum = selectedcatnum[i];
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Panel catnum - %d", __FILE__, __LINE__, multiple_sat->panels[i]->selected_catnum);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Build vbox for header+table
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);   // Header box
         gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->popup_button, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->header, TRUE, TRUE, 0);
@@ -923,11 +942,13 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), multiple_sat->panels[i]->table, FALSE, FALSE, 0);
 
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Place it in the 2xN grid
         guint row = i / SATS_PER_ROW;
         guint col = i % SATS_PER_ROW;
         gtk_grid_attach(GTK_GRID(grid), vbox, col, row, 1, 1);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
         // Currently broken
         // Apply selection if available
