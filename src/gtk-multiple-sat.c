@@ -150,11 +150,12 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     // sanity checks
     if (msat->labels[index][i] == NULL)
     {
-        // Keeps on getting caught here
+        /*
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s:%d: Can not update invisible field (I:%d F:%d)"),
                     __FILE__, __LINE__, i, msat->flags);
-        return;
+        */
+        //return;
     }
 
     // Get selected satellite
@@ -164,229 +165,231 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s:%d: Can not update non-existing sat"),
                     __FILE__, __LINE__);
-        gtk_label_set_text(GTK_LABEL(msat->labels[index][i]), "NULL");
+        buff = g_strdup("NULL");
     }
-
-    // Update requested field
-    switch (i)
+    else
     {
-    case MULTIPLE_SAT_FIELD_AZ:
-        buff = g_strdup_printf("%6.2f\302\260", sat->az);
-        break;
-    case MULTIPLE_SAT_FIELD_EL:
-        buff = g_strdup_printf("%6.2f\302\260", sat->el);
-        break;
-    case MULTIPLE_SAT_FIELD_DIR:
-        if (sat->otype == ORBIT_TYPE_GEO)
+        // Update requested field
+        switch (i)
         {
-            buff = g_strdup("Geostationary");
-        }
-        else if (decayed(sat))
-        {
-            buff = g_strdup("Decayed");
-        }
-        else if (sat->range_rate > 0.0)
-        {
-            /* Receding */
-            buff = g_strdup("Receding");
-        }
-        else if (sat->range_rate < 0.0)
-        {
-            /* Approaching */
-            buff = g_strdup("Approaching");
-        }
-        else
-        {
-            buff = g_strdup("N/A");
-        }
-        break;
-    case MULTIPLE_SAT_FIELD_RA:
-        buff = g_strdup_printf("%6.2f\302\260", sat->ra);
-        break;
-    case MULTIPLE_SAT_FIELD_DEC:
-        buff = g_strdup_printf("%6.2f\302\260", sat->dec);
-        break;
-    case MULTIPLE_SAT_FIELD_RANGE:
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-            buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->range));
-        else
-            buff = g_strdup_printf("%.0f km", sat->range);
-        break;
-    case MULTIPLE_SAT_FIELD_RANGE_RATE:
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-            buff = g_strdup_printf("%.3f mi/sec", KM_TO_MI(sat->range_rate));
-        else
-            buff = g_strdup_printf("%.3f km/sec", sat->range_rate);
-        break;
-    case MULTIPLE_SAT_FIELD_NEXT_EVENT:
-        if (sat->aos > sat->los)
-        {
-            /* next event is LOS */
-            number = sat->los;
-            alstr = g_strdup("LOS: ");
-        }
-        else
-        {
-            /* next event is AOS */
-            number = sat->aos;
-            alstr = g_strdup("AOS: ");
-        }
-        if (number > 0.0)
-        {
-
-            /* format the number */
-            fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-            daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, number);
-
-            g_free(fmtstr);
-
-            buff = g_strconcat(alstr, tbuf, NULL);
-
-        }
-        else
-        {
-            buff = g_strdup(_("N/A"));
-        }
-        g_free(alstr);
-        break;
-    case MULTIPLE_SAT_FIELD_AOS:
-        if (sat->aos > 0.0)
-        {
-            /* format the number */
-            fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-            daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->aos);
-            g_free(fmtstr);
-            buff = g_strdup(tbuf);
-        }
-        else
-        {
-            buff = g_strdup(_("N/A"));
-        }
-        break;
-    case MULTIPLE_SAT_FIELD_LOS:
-        if (sat->los > 0.0)
-        {
-            fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-            daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->los);
-            g_free(fmtstr);
-            buff = g_strdup(tbuf);
-        }
-        else
-        {
-            buff = g_strdup(_("N/A"));
-        }
-        break;
-    case MULTIPLE_SAT_FIELD_LAT:
-        number = sat->ssplat;
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
-        {
-            if (number < 0.00)
+        case MULTIPLE_SAT_FIELD_AZ:
+            buff = g_strdup_printf("%6.2f\302\260", sat->az);
+            break;
+        case MULTIPLE_SAT_FIELD_EL:
+            buff = g_strdup_printf("%6.2f\302\260", sat->el);
+            break;
+        case MULTIPLE_SAT_FIELD_DIR:
+            if (sat->otype == ORBIT_TYPE_GEO)
             {
-                number = -number;
-                hmf = 'S';
+                buff = g_strdup("Geostationary");
+            }
+            else if (decayed(sat))
+            {
+                buff = g_strdup("Decayed");
+            }
+            else if (sat->range_rate > 0.0)
+            {
+                /* Receding */
+                buff = g_strdup("Receding");
+            }
+            else if (sat->range_rate < 0.0)
+            {
+                /* Approaching */
+                buff = g_strdup("Approaching");
             }
             else
             {
-                hmf = 'N';
+                buff = g_strdup("N/A");
             }
-        }
-        buff = g_strdup_printf("%.2f\302\260%c", number, hmf);
-        break;
-    case MULTIPLE_SAT_FIELD_LON:
-        number = sat->ssplon;
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
-        {
-            if (number < 0.00)
+            break;
+        case MULTIPLE_SAT_FIELD_RA:
+            buff = g_strdup_printf("%6.2f\302\260", sat->ra);
+            break;
+        case MULTIPLE_SAT_FIELD_DEC:
+            buff = g_strdup_printf("%6.2f\302\260", sat->dec);
+            break;
+        case MULTIPLE_SAT_FIELD_RANGE:
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+                buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->range));
+            else
+                buff = g_strdup_printf("%.0f km", sat->range);
+            break;
+        case MULTIPLE_SAT_FIELD_RANGE_RATE:
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+                buff = g_strdup_printf("%.3f mi/sec", KM_TO_MI(sat->range_rate));
+            else
+                buff = g_strdup_printf("%.3f km/sec", sat->range_rate);
+            break;
+        case MULTIPLE_SAT_FIELD_NEXT_EVENT:
+            if (sat->aos > sat->los)
             {
-                number = -number;
-                hmf = 'W';
+                /* next event is LOS */
+                number = sat->los;
+                alstr = g_strdup("LOS: ");
             }
             else
             {
-                hmf = 'E';
+                /* next event is AOS */
+                number = sat->aos;
+                alstr = g_strdup("AOS: ");
             }
-        }
-        buff = g_strdup_printf("%.2f\302\260%c", number, hmf);
-        break;
-    case MULTIPLE_SAT_FIELD_SSP:
-        /* SSP locator */
-        buff = g_try_malloc(7);
-        retcode = longlat2locator(sat->ssplon, sat->ssplat, buff, 3);
-        if (retcode == RIG_OK)
-        {
-            buff[6] = '\0';
-        }
-        else
-        {
-            g_free(buff);
-            buff = NULL;
-        }
+            if (number > 0.0)
+            {
 
-        break;
-    case MULTIPLE_SAT_FIELD_FOOTPRINT:
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-        {
-            buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->footprint));
+                /* format the number */
+                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
+                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, number);
+
+                g_free(fmtstr);
+
+                buff = g_strconcat(alstr, tbuf, NULL);
+
+            }
+            else
+            {
+                buff = g_strdup(_("N/A"));
+            }
+            g_free(alstr);
+            break;
+        case MULTIPLE_SAT_FIELD_AOS:
+            if (sat->aos > 0.0)
+            {
+                /* format the number */
+                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
+                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->aos);
+                g_free(fmtstr);
+                buff = g_strdup(tbuf);
+            }
+            else
+            {
+                buff = g_strdup(_("N/A"));
+            }
+            break;
+        case MULTIPLE_SAT_FIELD_LOS:
+            if (sat->los > 0.0)
+            {
+                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
+                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->los);
+                g_free(fmtstr);
+                buff = g_strdup(tbuf);
+            }
+            else
+            {
+                buff = g_strdup(_("N/A"));
+            }
+            break;
+        case MULTIPLE_SAT_FIELD_LAT:
+            number = sat->ssplat;
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
+            {
+                if (number < 0.00)
+                {
+                    number = -number;
+                    hmf = 'S';
+                }
+                else
+                {
+                    hmf = 'N';
+                }
+            }
+            buff = g_strdup_printf("%.2f\302\260%c", number, hmf);
+            break;
+        case MULTIPLE_SAT_FIELD_LON:
+            number = sat->ssplon;
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
+            {
+                if (number < 0.00)
+                {
+                    number = -number;
+                    hmf = 'W';
+                }
+                else
+                {
+                    hmf = 'E';
+                }
+            }
+            buff = g_strdup_printf("%.2f\302\260%c", number, hmf);
+            break;
+        case MULTIPLE_SAT_FIELD_SSP:
+            /* SSP locator */
+            buff = g_try_malloc(7);
+            retcode = longlat2locator(sat->ssplon, sat->ssplat, buff, 3);
+            if (retcode == RIG_OK)
+            {
+                buff[6] = '\0';
+            }
+            else
+            {
+                g_free(buff);
+                buff = NULL;
+            }
+
+            break;
+        case MULTIPLE_SAT_FIELD_FOOTPRINT:
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+            {
+                buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->footprint));
+            }
+            else
+            {
+                buff = g_strdup_printf("%.0f km", sat->footprint);
+            }
+            break;
+        case MULTIPLE_SAT_FIELD_ALT:
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+                buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->alt));
+            else
+                buff = g_strdup_printf("%.0f km", sat->alt);
+            break;
+        case MULTIPLE_SAT_FIELD_VEL:
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
+                buff = g_strdup_printf("%.3f mi/sec", KM_TO_MI(sat->velo));
+            else
+                buff = g_strdup_printf("%.3f km/sec", sat->velo);
+            break;
+        case MULTIPLE_SAT_FIELD_DOPPLER:
+            number = -100.0e06 * (sat->range_rate / 299792.4580);   // Hz
+            buff = g_strdup_printf("%.0f Hz", number);
+            break;
+        case MULTIPLE_SAT_FIELD_LOSS:
+            number = 72.4 + 20.0 * log10(sat->range);       // dB
+            buff = g_strdup_printf("%.2f dB", number);
+            break;
+        case MULTIPLE_SAT_FIELD_DELAY:
+            number = sat->range / 299.7924580;      // msec 
+            buff = g_strdup_printf("%.2f msec", number);
+            break;
+        case MULTIPLE_SAT_FIELD_MA:
+            buff = g_strdup_printf("%.2f\302\260", sat->ma);
+            break;
+        case MULTIPLE_SAT_FIELD_PHASE:
+            buff = g_strdup_printf("%.2f\302\260", sat->phase);
+            break;
+        case MULTIPLE_SAT_FIELD_ORBIT:
+            buff = g_strdup_printf("%ld", sat->orbit);
+            break;
+        case MULTIPLE_SAT_FIELD_VISIBILITY:
+            vis = get_sat_vis(sat, msat->qth, sat->jul_utc);
+            buff = vis_to_str(vis);
+            break;
+        case MULTIPLE_SAT_FIELD_SKR_DOWN:
+            // placeholder
+            buff = g_strdup_printf("placeholder for single sat downlink SKR");
+            break;
+        case MULTIPLE_SAT_FIELD_SKR_UP:
+            // placeholder
+            buff = g_strdup_printf("placeholder for single sat uplink SKR");
+            break;
+        case MULTIPLE_SAT_FIELD_SKR_NEAREST:
+            // placeholder
+            buff = g_strdup_printf("placeholder for inter sat SKR");
+            break;
+        default:
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _("%s:%d: Invalid field number (%d)"),
+                        __FILE__, __LINE__, i);
+            break;
         }
-        else
-        {
-            buff = g_strdup_printf("%.0f km", sat->footprint);
-        }
-        break;
-    case MULTIPLE_SAT_FIELD_ALT:
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-            buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->alt));
-        else
-            buff = g_strdup_printf("%.0f km", sat->alt);
-        break;
-    case MULTIPLE_SAT_FIELD_VEL:
-        if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-            buff = g_strdup_printf("%.3f mi/sec", KM_TO_MI(sat->velo));
-        else
-            buff = g_strdup_printf("%.3f km/sec", sat->velo);
-        break;
-    case MULTIPLE_SAT_FIELD_DOPPLER:
-        number = -100.0e06 * (sat->range_rate / 299792.4580);   // Hz
-        buff = g_strdup_printf("%.0f Hz", number);
-        break;
-    case MULTIPLE_SAT_FIELD_LOSS:
-        number = 72.4 + 20.0 * log10(sat->range);       // dB
-        buff = g_strdup_printf("%.2f dB", number);
-        break;
-    case MULTIPLE_SAT_FIELD_DELAY:
-        number = sat->range / 299.7924580;      // msec 
-        buff = g_strdup_printf("%.2f msec", number);
-        break;
-    case MULTIPLE_SAT_FIELD_MA:
-        buff = g_strdup_printf("%.2f\302\260", sat->ma);
-        break;
-    case MULTIPLE_SAT_FIELD_PHASE:
-        buff = g_strdup_printf("%.2f\302\260", sat->phase);
-        break;
-    case MULTIPLE_SAT_FIELD_ORBIT:
-        buff = g_strdup_printf("%ld", sat->orbit);
-        break;
-    case MULTIPLE_SAT_FIELD_VISIBILITY:
-        vis = get_sat_vis(sat, msat->qth, sat->jul_utc);
-        buff = vis_to_str(vis);
-        break;
-    case MULTIPLE_SAT_FIELD_SKR_DOWN:
-        // placeholder
-        buff = g_strdup_printf("placeholder for single sat downlink SKR");
-        break;
-    case MULTIPLE_SAT_FIELD_SKR_UP:
-        // placeholder
-        buff = g_strdup_printf("placeholder for single sat uplink SKR");
-        break;
-    case MULTIPLE_SAT_FIELD_SKR_NEAREST:
-        // placeholder
-        buff = g_strdup_printf("placeholder for inter sat SKR");
-        break;
-    default:
-        sat_log_log(SAT_LOG_LEVEL_ERROR,
-                    _("%s:%d: Invalid field number (%d)"),
-                    __FILE__, __LINE__, i);
-        break;
     }
 
     if (buff != NULL)
@@ -512,18 +515,22 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     GtkWidget           *label;
     GSList              *group = NULL;
     gchar               *buff;
-    sat_t               *sat;
+    sat_t               *sat = NULL;
     sat_t               *sati;
-    guint               i, n;
+    gint                i, n;
 
+    // Index here refers to position of the SatPanel in Multiple Sat View
     guint index = cb_data->index;
+    // selectedIndex refers to the index of the satellite selected in the SatPanel
+    gint selectedIndex = cb_data->selectedIndex;
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: callback started, index = %u", __FILE__, __LINE__, index);
 
-    sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[index]));
+    if (selectedIndex >= 0)
+        sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[selectedIndex]));
     if (sat == NULL)
     {
-        sat_log_log(SAT_LOG_LEVEL_ERROR, "%s %d: invalid satellite", __FILE__, __LINE__);
-        return;
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: invalid satellite", __FILE__, __LINE__);
+        //return;
     }
 
     n = g_slist_length(multiple_sat->sats);
@@ -539,12 +546,18 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     g_free(buff);
     gtk_container_add(GTK_CONTAINER(menuitem), label);
 
-    // Attach data to menuitem and connect callback
-    g_object_set_data(G_OBJECT(menuitem), "sat", sat);
-    g_object_set_data(G_OBJECT(menuitem), "qth", multiple_sat->qth);
-    g_signal_connect(menuitem, "activate",
-                     G_CALLBACK(show_sat_info_menu_cb),
-                     gtk_widget_get_toplevel(button));
+    if (sat != NULL)
+    {
+        // Attach data to menuitem and connect callback
+        g_object_set_data(G_OBJECT(menuitem), "sat", sat);
+        g_object_set_data(G_OBJECT(menuitem), "qth", multiple_sat->qth);
+        g_signal_connect(menuitem, "activate",
+                         G_CALLBACK(show_sat_info_menu_cb),
+                         gtk_widget_get_toplevel(button));
+    }
+    else {
+        gtk_widget_set_sensitive(menuitem, FALSE);
+    }
 
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
@@ -552,13 +565,16 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     menuitem = gtk_separator_menu_item_new();
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
 
-    // Add the menu items for current, next and future passes
-    add_pass_menu_items(menu, sat, multiple_sat->qth, &multiple_sat->tstamp, cb_data->parent);
+    if (sat != NULL)
+    {
+        // Add the menu items for current, next and future passes
+        add_pass_menu_items(menu, sat, multiple_sat->qth, &multiple_sat->tstamp, cb_data->parent);
 
-    // Separator
-    menuitem = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-
+        // Separator
+        menuitem = gtk_separator_menu_item_new();
+        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+    }
+    
     // Select sat
     for (i = 0; i < n; i++)
     {
@@ -567,7 +583,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
         menuitem = gtk_radio_menu_item_new_with_label(group, sati->nickname);
         group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(menuitem));
 
-        if (i == multiple_sat->selected[index])
+        if (i == multiple_sat->selected[selectedIndex])
         {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menuitem), TRUE);
         }
@@ -694,7 +710,7 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s: Invalid GtkMultipleSat!"), __func__);
-        return;
+        //return;
     }
 
     // Check refresh rate
@@ -760,15 +776,18 @@ GType gtk_multiple_sat_get_type()
     return gtk_multiple_sat_type;
 }
 
-static SatPanel *create_sat_panel(guint index, guint32 flags,
-                                  GtkWidget * parent, GSList * sats, guint selectedSatIndex)
+// index is the position in the grid
+// selectedSatIndex is the index of the satellite in sats
+static SatPanel *create_sat_panel(gint index, guint32 flags,
+                                  GtkWidget * parent, GSList * sats, gint selectedSatIndex)
 {
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called, iteration %d", __FILE__, __LINE__, __func__, index);
     SatPanel * panel = g_new0(SatPanel, 1);
     GtkWidget *label1, *label2;
-    sat_t *sat;
+    sat_t *sat = NULL;
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-    sat = SAT(g_slist_nth_data(sats, selectedSatIndex));
+    if (index >= 0)
+        sat = SAT(g_slist_nth_data(sats, selectedSatIndex));
 
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     // Create popup button
@@ -777,7 +796,9 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     PopupCallbackData *cb_data = g_new(PopupCallbackData, 1);
     cb_data->parent = parent;
+    // Index here represents the position of the SatPanel in the Multiple Sat View
     cb_data->index = index;
+    cb_data->selectedIndex = selectedSatIndex;
     g_signal_connect(panel->popup_button, "clicked",
                      G_CALLBACK(gtk_multiple_sat_popup_cb), cb_data);
     
@@ -805,7 +826,6 @@ static SatPanel *create_sat_panel(guint index, guint32 flags,
             label2 = gtk_label_new("-");
             g_object_set(label2, "xalign", 0.0f, "yalign", 0.5f, NULL);
             gtk_grid_attach(GTK_GRID(panel->table), label2, 2, i, 1, 1);
-            // TODO: Fix here, labels is a list
             panel->labels[i] = label2;
             
             // Add tooltips
@@ -830,7 +850,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     GtkWidget       *widget;
     GtkMultipleSat  *multiple_sat;
     guint           i;
-    gint            selectedcatnum[NUMBER_OF_SATS];
+    //gint            selectedcatnum[NUMBER_OF_SATS];
 
     widget = g_object_new(GTK_TYPE_MULTIPLE_SAT, NULL);
     gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
@@ -838,10 +858,6 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     multiple_sat = GTK_MULTIPLE_SAT(widget);
 
     multiple_sat->update = gtk_multiple_sat_update;
-    for (i = 0; i < NUMBER_OF_SATS; i++)
-    {
-        selectedcatnum[i] = multiple_sat->selected[i];
-    }
 
     // Read configuration data
     /* ... */
@@ -853,9 +869,14 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         if (i >= sats_length)
-            multiple_sat->selected[i] = 0;
+        {
+            multiple_sat->selected[i] = -1;
+            //multiple_sat->selected[i] = 0;
+        }
         else
+        {
             multiple_sat->selected[i] = i;
+        }
     }
     for (i = 0; i < NUMBER_OF_SATS; i ++)
     {
@@ -884,6 +905,13 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
                                             MOD_CFG_MULTIPLE_SAT_SECTION,
                                             MOD_CFG_MULTIPLE_SAT_REFRESH,
                                             SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
+    // Max refresh rate is 500
+    // If above 500, int overflow has ocurred
+    // Catch and set to 1 by default
+    if (multiple_sat->refresh > 500)
+    {
+        multiple_sat->refresh = 1;
+    }
     multiple_sat->counter = 1;
 
     /*
@@ -914,6 +942,8 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
         guint index = multiple_sat->selected[i];
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: index set to %u", __FILE__, __LINE__, index);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
+        // i is the position in the grid
+        // index is the index of the satellite in sats
         multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 

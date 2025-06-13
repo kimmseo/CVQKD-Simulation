@@ -92,6 +92,7 @@ typedef struct {
 typedef struct {
     GtkWidget *parent;
     guint index;
+    gint selectedIndex;
 } PopupCallbackData;
 
 typedef struct {
@@ -129,7 +130,7 @@ struct _gtk_multiple_sat {
     guint32         flags;      // Flags indicating which columns are visible
     guint           refresh;    // Refresh rate
     guint           counter;    // Cycle counter
-    guint           selected[NUMBER_OF_SATS];   // Index of selected sat
+    gint            selected[NUMBER_OF_SATS];   // Index of selected sat
 
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 
