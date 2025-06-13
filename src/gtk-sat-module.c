@@ -1649,7 +1649,7 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
         {
             for (guint i = 0; i < NUMBER_OF_SATS; i++)
             {
-                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint, i = %d", __FILE__, __LINE__, i);
+                //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint, i = %d", __FILE__, __LINE__, i);
                 gtk_multiple_sat_select_sat(child, catnum, i);
             }
         }

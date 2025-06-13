@@ -703,6 +703,8 @@ static gint window_delete(GtkWidget * widget, GdkEvent * event, gpointer data)
  *
  * This function is called automatically when the window is destroyed.
  */
+// Not used
+/*
 static void destroy_skg(GtkWidget * window, gpointer data)
 {
     GtkSatModule   *module = GTK_SAT_MODULE(data);
@@ -712,6 +714,7 @@ static void destroy_skg(GtkWidget * window, gpointer data)
     module->skgwin = NULL;
     module->skg = NULL;
 }
+    */
 
 /**
  * Invoke Sky-at-glance.
@@ -720,6 +723,8 @@ static void destroy_skg(GtkWidget * window, gpointer data)
  * in that it will make the predictions with the satellites
  * tracked in the current module.
  */
+// Not used
+/*
 static void sky_at_glance_cb(GtkWidget * menuitem, gpointer data)
 {
     GtkSatModule   *module = GTK_SAT_MODULE(data);
@@ -729,18 +734,18 @@ static void sky_at_glance_cb(GtkWidget * menuitem, gpointer data)
 
     (void)menuitem;
 
-    /* if module is busy wait until done then go on */
+    // if module is busy wait until done then go on
     g_mutex_lock(&module->busy);
     if (module->skgwin != NULL)
     {
-        /* there is already a sky at glance for this module */
+        // there is already a sky at glance for this module
         gtk_window_present(GTK_WINDOW(module->skgwin));
         g_mutex_unlock(&module->busy);
 
         return;
     }
 
-    /* create window */
+    // create window
     module->skgwin = gtk_window_new(GTK_WINDOW_TOPLEVEL);
     buff = g_strdup_printf(_("The sky at a glance (%s)"), module->name);
     gtk_window_set_title(GTK_WINDOW(module->skgwin), buff);
@@ -750,12 +755,12 @@ static void sky_at_glance_cb(GtkWidget * menuitem, gpointer data)
     g_signal_connect(G_OBJECT(module->skgwin), "destroy",
                      G_CALLBACK(destroy_skg), module);
 
-    /* window icon */
+    // window icon
     buff = icon_file_name("gpredict-planner.png");
     gtk_window_set_icon_from_file(GTK_WINDOW(module->skgwin), buff, NULL);
     g_free(buff);
 
-    /* create sky at a glance widget */
+    // create sky at a glance widget
     if (sat_cfg_get_bool(SAT_CFG_BOOL_PRED_USE_REAL_T0))
     {
         module->skg = gtk_sky_glance_new(module->satellites, module->qth, 0.0);
@@ -766,7 +771,7 @@ static void sky_at_glance_cb(GtkWidget * menuitem, gpointer data)
                                          module->tmgCdnum);
     }
 
-    /* store time at which GtkSkyGlance has been created */
+    // store time at which GtkSkyGlance has been created
     module->lastSkgUpd = module->tmgCdnum;
 
     gtk_container_set_border_width(GTK_CONTAINER(module->skgwin), 4);
@@ -776,6 +781,7 @@ static void sky_at_glance_cb(GtkWidget * menuitem, gpointer data)
 
     g_mutex_unlock(&module->busy);
 }
+*/
 
 /** Open time manager. */
 static void tmgr_cb(GtkWidget * menuitem, gpointer data)
