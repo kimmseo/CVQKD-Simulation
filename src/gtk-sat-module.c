@@ -257,6 +257,12 @@ static void gtk_sat_module_destroy(GtkWidget * widget)
         module->qth = NULL;
     }
 
+    if (module->qth2)
+    {
+        qth_data_free(module->qth2);
+        module->qth2 = NULL;
+    }
+
     /* clean up satellites */
     if (module->satellites)
     {
@@ -296,6 +302,9 @@ static void gtk_sat_module_init(GtkSatModule * module,
 
     module->qth = g_try_new0(qth_t, 1);
     qth_init(module->qth);
+
+    module->qth2 = g_try_new0(qth_t, 1);
+    qth_init(module->qth2);
 
     module->satellites = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                g_free, gtk_sat_module_free_sat);
@@ -1056,6 +1065,48 @@ static void gtk_sat_module_read_cfg_data(GtkSatModule * module,
     g_free(confdir);
     g_free(qthfile);
 
+    // Get the second qth file
+    buffer = mod_cfg_get_str(module->cfgdata,
+                             MOD_CFG_GLOBAL_SECTION,
+                             MOD_CFG_QTH_SECOND_FILE_KEY, SAT_CFG_STR_DEF_QTH_SECOND);
+    
+    confdir = get_user_conf_dir();
+    qthfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, buffer, NULL);
+
+    if (!qth_data_read(qthfile, module->qth2))
+    {
+        // QTH File was not found for some reason
+        g_free(buffer);
+        g_free(qthfile);
+
+        // Remove cfg key
+        g_key_file_remove_key(module->cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_FILE_KEY, NULL);
+        
+        // Save modified cfg data to file
+        mod_cfg_save(module->name, module->cfgdata);
+
+        // Try SAT_CFG_STR_DEF_QTH_SECOND
+        buffer = sat_cfg_get_str(SAT_CFG_STR_DEF_QTH_SECOND);
+        qthfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, buffer, NULL);
+
+        if (!qth_data_read(qthfile, module->qth2))
+        {
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _
+                        ("%s: Can not load default QTH file %s; using built-in defaults"),
+                        __func__, buffer);
+            
+            // Settings very bad, we need safe values
+            qth_safe(module->qth2);
+        }
+    }
+
+    g_free(buffer);
+    g_free(confdir);
+    g_free(qthfile);
+
     /* get timeout value */
     module->timeout = mod_cfg_get_int(module->cfgdata,
                                       MOD_CFG_GLOBAL_SECTION,
@@ -1152,6 +1203,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
 
     /*initialize the qth engine and get position */
     qth_data_update_init(module->qth);
+    qth_data_update_init(module->qth2);
 
     /* module state */
     if ((g_key_file_has_key(module->cfgdata,

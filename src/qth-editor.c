@@ -203,6 +203,99 @@ static gboolean apply_changes(qth_t * qth)
     return retcode;
 }
 
+static gboolean apply_changes_second_qth(qth_t * qth)
+{
+    const gchar    *qthname = NULL;
+    const gchar    *qthloc = NULL;
+    const gchar    *qthdesc = NULL;
+    const gchar    *qthwx = NULL;
+    const gchar    *qthqra = NULL;
+
+#ifdef HAS_LIBGPS
+    const gchar    *gpsdserver = NULL;
+    guint           gpsdport;
+    guint           gpsdenabled;
+#endif
+    gdouble         qthlat;
+    gdouble         qthlon;
+    guint           qthalt;
+    gchar          *fname, *confdir;
+    gboolean        retcode;
+
+    // Get values from widgets
+    qthname = gtk_entry_get_text(GTK_ENTRY(name));
+    qthloc = gtk_entry_get_text(GTK_ENTRY(location));
+    qthdesc = gtk_entry_get_text(GTK_ENTRY(desc));
+    qthwx = gtk_entry_get_text(GTK_ENTRY(wx));
+
+    qthlat = gtk_spin_button_get_value(GTK_SPIN_BUTTON(lat));
+    if (gtk_combo_box_get_active(GTK_COMBO_BOX(ns)))
+    {
+        qthlat = -qthlat;
+    }
+
+    qthlon = gtk_spin_button_get_value(GTK_SPIN_BUTTON(lon));
+    if (gtk_combo_box_get_active(GTK_COMBO_BOX(ew)))
+    {
+        qthlon = -qthlon;
+    }
+
+    qthalt = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(alt));
+    qthqra = gtk_entry_get_text(GTK_ENTRY(qra));
+
+#ifdef HAS_LIBGPS
+    gpsdenabled = gtk_combo_box_get_active(GTK_COMBO_BOX(type));
+    gpsdserver = gtk_entry_get_text(GTK_ENTRY(server));
+    gpsdport = gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON(port));
+#endif
+
+    // Copy new values to qth struct
+    qth->name = g_strdup(qthname);
+
+    if (qthloc != NULL)
+    {
+        qth->loc = g_strdup(qthloc);
+    }
+    
+    if (qthdesc != NULL)
+    {
+        qth->desc = g_strdup(qthdesc);
+    }
+
+    if (qthwx != NULL)
+    {
+        qth->wx = g_strdup(qthwx);
+    }
+
+    if (qthqra != NULL)
+    {
+        qth->qra = g_strdup(qthqra);
+    }
+
+#ifdef HAS_LIBGPS
+    if (gpsdserver != NULL)
+    {
+        qth->gpsd_server = g_strdup(gpsdserver);
+    }
+    qth->type = gpsdenabled;
+    qth->gpsd_port = gpsdport;
+#endif
+
+    qth->lat = qthlat;
+    qth->lon = qthlon;
+    qth->alt = qthalt;
+
+    // Store values to 2nd qth
+    confdir = get_user_conf_dir();
+    fname = g_strconcat(confdir, G_DIR_SEPARATOR_S, qth->name, ".qth2", NULL);
+
+    retcode = qth_data_save(fname, qth);
+    g_free(fname);
+    g_free(confdir);
+
+    return retcode;
+}
+
 /**
  * Manage name changes.
  *
@@ -713,7 +806,7 @@ GtkResponseType qth_editor_run(qth_t * qth, GtkWindow * parent)
                       create_editor_widgets(qth));
 
     /* this hacky-thing is to keep the dialog running in case the
-       CLEAR button is plressed. OK and CANCEL will exit the loop
+       CLEAR button is pressed. OK and CANCEL will exit the loop
      */
     while (!finished)
     {
@@ -754,6 +847,82 @@ GtkResponseType qth_editor_run(qth_t * qth, GtkWindow * parent)
             break;
 
             /* Everything else is considered CANCEL */
+        default:
+            finished = TRUE;
+            break;
+        }
+    }
+
+    gtk_widget_destroy(dialog);
+
+    return response;
+}
+
+
+GtkResponseType qth_editor_run_second(qth_t * qth2, GtkWindow * parent)
+{
+    gint        response;
+    gboolean    finished = FALSE;
+
+    // Create dialog and add contents
+    dialog = gtk_dialog_new_with_buttons(_("Edit ground station data"),
+                                         parent,
+                                         GTK_DIALOG_MODAL |
+                                         GTK_DIALOG_DESTROY_WITH_PARENT,
+                                         "_Clear", GTK_RESPONSE_REJECT,
+                                         "_Cancel", GTK_RESPONSE_CANCEL,
+                                         "_OK", GTK_RESPONSE_OK, NULL);
+    
+    // Disable OK button to begin with
+    gtk_dialog_set_response_sensitive(GTK_DIALOG(dialog),
+                                      GTK_RESPONSE_OK, FALSE);
+    
+    gtk_container_add(GTK_CONTAINER
+                      (gtk_dialog_get_content_area(GTK_DIALOG(dialog))),
+                      create_editor_widgets(qth2));
+    
+    // Keep the dialog running in case CLEAR button is pressed
+    // OK and CANCEL will exit the loop
+    while (!finished)
+    {
+        response = gtk_dialog_run(GTK_DIALOG(dialog));
+
+        switch (response)
+        {
+        // OK
+        case GTK_RESPONSE_OK:
+            if (apply_changes_second_qth(qth2))
+            {
+                finished = TRUE;
+            }
+            else
+            {
+                // Error ocucurred, try again
+                GtkWidget *errd;
+
+                errd = gtk_message_dialog_new(parent,
+                                              GTK_DIALOG_MODAL |
+                                              GTK_DIALOG_DESTROY_WITH_PARENT,
+                                              GTK_MESSAGE_ERROR,
+                                              GTK_BUTTONS_OK,
+                                              _
+                                              ("An error occurred while trying to save\n"
+                                               "ground station data to %s.qth!\n"
+                                               "Please try again using a different name."),
+                                              qth2->name);
+                
+                gtk_dialog_run(GTK_DIALOG(errd));
+                gtk_widget_destroy(errd);
+                finished = FALSE;
+            }
+            break;
+        
+        // Clear
+        case GTK_RESPONSE_REJECT:
+            clear_widgets();
+            break;
+        
+        // Everything else is considered CANCEL
         default:
             finished = TRUE;
             break;

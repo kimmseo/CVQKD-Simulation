@@ -79,6 +79,7 @@ struct _gtk_sat_module {
 
     GKeyFile       *cfgdata;    /*!< Configuration data. */
     qth_t          *qth;        /*!< QTH information. */
+    qth_t          *qth2;       /*<! Second QTH information. */
     qth_small_t     qth_event;  /*!< QTH information for last AOS/LOS update. */
     GHashTable     *satellites; /*!< Satellites. */
 

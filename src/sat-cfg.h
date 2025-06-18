@@ -147,6 +147,7 @@ typedef enum {
 typedef enum {
     SAT_CFG_STR_TIME_FORMAT = 0,        /*!< Time format. */
     SAT_CFG_STR_DEF_QTH,        /*!< Default QTH file. */
+    SAT_CFG_STR_DEF_QTH_SECOND, /*<! Default second QTH file */
     SAT_CFG_STR_OPEN_MODULES,   /*!< Open modules. */
     SAT_CFG_STR_WEB_BROWSER,    /*!< Web browser string. */
     SAT_CFG_STR_MODULE_GRID,    /*!< The grid layout of the module */

@@ -289,6 +289,49 @@ static void add_qth_cb(GtkWidget * button, gpointer data)
     }
 }
 
+static void add_second_qth_cb(GtkWidget * button, gpointer data)
+{
+    GtkWindow      *parent = GTK_WINDOW(data);
+    GtkResponseType response;
+    qth_t           qth2;
+
+    (void)button;       // Avoid unused parameter compiler warning
+    
+    qth2.name = NULL;
+    qth2.loc = NULL;
+    qth2.desc = NULL;
+    qth2.wx = NULL;
+    qth2.qra = NULL;
+    qth2.data = NULL;
+
+    response = qth_editor_run_second(&qth2, parent);
+
+    if (response == GTK_RESPONSE_OK)
+    {
+        gtk_combo_box_text_prepend_text(GTK_COMBO_BOX_TEXT(locw2), qth2.name);
+        gtk_combo_box_set_active(GTK_COMBO_BOX(locw), 0);
+
+        // Cleanup
+        g_free(qth2.name);
+        if (qth2.loc != NULL)
+        {
+            g_free(qth2.loc);
+        }
+        if (qth2.desc != NULL)
+        {
+            g_free(qth2.desc);
+        }
+        if (qth2.wx != NULL)
+        {
+            g_free(qth2.wx);
+        }
+        if (qth2.qra != NULL)
+        {
+            g_free(qth2.qra);
+        }
+    }
+}
+
 static GtkWidget *create_loc_selector(GKeyFile * cfgdata)
 {
     GtkWidget      *combo;
@@ -607,6 +650,7 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
 {
     GtkWidget      *dialog;
     GtkWidget      *add;
+    GtkWidget      *add2;
     GtkWidget      *grid;
     GtkWidget      *label;
     GtkWidget      *swin;
@@ -703,6 +747,12 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     gtk_widget_set_tooltip_text(add, _("Add a new ground station"));
     g_signal_connect(add, "clicked", G_CALLBACK(add_qth_cb), dialog);
     gtk_grid_attach(GTK_GRID(grid), add, 4, 1, 1, 1);
+
+    // Add second button
+    add2 = gtk_button_new_with_label(_("Add"));
+    gtk_widget_set_tooltip_text(add, "Add a second ground station");
+    g_signal_connect(add, "clicked", G_CALLBACK(add_second_qth_cb), dialog);
+    gtk_grid_attach(GTK_GRID(grid), add2, 4, 2, 1, 1);
 
     vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     gtk_box_pack_start(GTK_BOX(vbox), grid, FALSE, FALSE, 0);
