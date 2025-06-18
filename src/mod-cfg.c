@@ -44,6 +44,7 @@ extern GtkWidget *app;
 /* private widgets */
 static GtkWidget *namew;        /* GtkEntry widget for module name */
 static GtkWidget *locw;         /* GtkComboBox for location selection */
+static GtkWidget *locw2;        // GtkComboBox for 2nd location selection
 static GtkWidget *satlist;      /* list of selected satellites */
 
 
@@ -672,6 +673,10 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     locw = create_loc_selector(cfgdata);
     gtk_widget_set_tooltip_text(locw,
                                 _("Select a ground station for this module."));
+    
+    // Second ground station selector
+    locw2 = create_loc_selector(cfgdata);
+    gtk_widget_set_tooltip_text(locw2, "Select a second ground station for this module.");
 
     grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
@@ -683,10 +688,15 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 2, 1);
     gtk_grid_attach(GTK_GRID(grid), namew, 2, 0, 4, 1);
 
-    label = gtk_label_new(_("Ground station"));
+    label = gtk_label_new("First Ground station");
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 1, 2, 1);
     gtk_grid_attach(GTK_GRID(grid), locw, 2, 1, 2, 1);
+
+    label = gtk_label_new("Second Ground Station");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 2, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), locw2, 2, 2, 2, 1);
 
     /* add button */
     add = gtk_button_new_with_label(_("Add"));
