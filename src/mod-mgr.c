@@ -370,7 +370,7 @@ void mod_mgr_save_state()
     gchar          *buff;
     gint            page;
 
-
+    // usually not raised
     if (!nbook)
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -380,6 +380,8 @@ void mod_mgr_save_state()
     }
 
     num = g_slist_length(modules);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: length of GSList modules = %u", 
+                __FILE__, __LINE__, num);
     if (num == 0)
     {
         sat_log_log(SAT_LOG_LEVEL_INFO,
@@ -420,8 +422,14 @@ void mod_mgr_save_state()
     sat_log_log(SAT_LOG_LEVEL_INFO, _("%s: Saved states for %d modules."),
                 __func__, num);
 
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: mods = %s", __FILE__, __LINE__,
+                mods);
+
     sat_cfg_set_str(SAT_CFG_STR_OPEN_MODULES, mods);
     sat_cfg_set_int(SAT_CFG_INT_MODULE_CURRENT_PAGE, page);
+
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Successfully saved to config",
+                __FILE__, __LINE__);
 
     g_free(mods);
 }
