@@ -2,6 +2,7 @@
     "files.associations": {
         "gtk-multiple-sat.h": "c",
         "sat-pref-layout.h": "c",
-        "config-keys.h": "c"
+        "config-keys.h": "c",
+        "gtkcontainer.h": "c"
     }
 }

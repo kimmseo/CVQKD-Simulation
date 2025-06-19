@@ -973,6 +973,7 @@ static gboolean gtk_sat_module_timeout_cb(gpointer module)
  */
 static void gtk_sat_module_popup_cb(GtkWidget * button, gpointer data)
 {
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called", __FILE__, __LINE__, __func__);
     (void)button;
     gtk_sat_module_popup(GTK_SAT_MODULE(data));
 }

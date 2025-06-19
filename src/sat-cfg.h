@@ -143,11 +143,14 @@ typedef enum {
     SAT_CFG_INT_NUM,             /*!< Number of integer parameters. */
 } sat_cfg_int_e;
 
+// Note: Changing the order of certain references may cause unexpected behaviour
+// Putting SAT_CFG_STR_DEF_QTH_SECOND after SAT_CFG_STR_DEF_QTH caused openmods
+// to be null
 /** Symbolic references for string config values. */
 typedef enum {
     SAT_CFG_STR_TIME_FORMAT = 0,        /*!< Time format. */
     SAT_CFG_STR_DEF_QTH,        /*!< Default QTH file. */
-    SAT_CFG_STR_DEF_QTH_SECOND, /*<! Default second QTH file */
+    //SAT_CFG_STR_DEF_QTH_SECOND, /*<! Default second QTH file */
     SAT_CFG_STR_OPEN_MODULES,   /*!< Open modules. */
     SAT_CFG_STR_WEB_BROWSER,    /*!< Web browser string. */
     SAT_CFG_STR_MODULE_GRID,    /*!< The grid layout of the module */
@@ -164,6 +167,7 @@ typedef enum {
     SAT_CFG_STR_TLE_URLS,       /*!< ; separated list of TLE file URLs (since 1.4) */
     SAT_CFG_STR_TLE_FILE_DIR,   /*!< Local directory from which tle were last updated. */
     SAT_CFG_STR_PRED_SAVE_DIR,  /*!< Last used save directory for pass predictions */
+    SAT_CFG_STR_DEF_QTH_SECOND,
     SAT_CFG_STR_NUM             /*!< Number of string parameters */
 } sat_cfg_str_e;
 

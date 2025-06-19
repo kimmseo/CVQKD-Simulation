@@ -967,6 +967,7 @@ static void autotrack_cb(GtkCheckMenuItem * menuitem, gpointer data)
  */
 static void close_cb(GtkWidget * menuitem, gpointer data)
 {
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called", __FILE__, __LINE__, __func__);
     gtk_sat_module_close_cb(menuitem, data);
 }
 
@@ -1004,6 +1005,7 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
     switch (response)
     {
     case GTK_RESPONSE_YES:
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 		gtk_sat_module_close_cb(menuitem, data);
 		result = g_remove(file);
         if (result)
@@ -1135,7 +1137,9 @@ void gtk_sat_module_popup(GtkSatModule * module)
         return;
     }
 
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     menu = gtk_menu_new();
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
     if (module->state == GTK_SAT_MOD_STATE_DOCKED)
     {

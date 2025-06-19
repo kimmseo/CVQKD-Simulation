@@ -99,6 +99,7 @@ GtkWidget      *mod_mgr_create(void)
                      G_CALLBACK(switch_page_cb), NULL);
 
     openmods = sat_cfg_get_str(SAT_CFG_STR_OPEN_MODULES);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: openmods = %s", __FILE__, __LINE__, openmods);
     page = sat_cfg_get_int(SAT_CFG_INT_MODULE_CURRENT_PAGE);
 
     if (openmods)
@@ -247,9 +248,11 @@ gint mod_mgr_remove_module(GtkWidget * module)
     {
         /* get page number for this module */
         page = gtk_notebook_page_num(GTK_NOTEBOOK(nbook), module);
-
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: page = %d", __FILE__, __LINE__, page);
+        // page is not -1, this bug is usually not raised
         if (page == -1)
         {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             /* this is some kind of bug (inconsistency between internal states) */
             sat_log_log(SAT_LOG_LEVEL_ERROR,
                         _
@@ -260,7 +263,64 @@ gint mod_mgr_remove_module(GtkWidget * module)
         }
         else
         {
-            gtk_notebook_remove_page(GTK_NOTEBOOK(nbook), page);
+            if (GTK_IS_NOTEBOOK(nbook)) // this is triggered
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nbook is notebook", __FILE__, __LINE__);
+            else
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nbook is not notebook", __FILE__, __LINE__);
+            if (page >= 0) // this  is triggered
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: page is >= 0", __FILE__, __LINE__);
+            else
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: page is not >= 0", __FILE__, __LINE__);
+            if (nbook) // this is triggered
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nbook exists", __FILE__, __LINE__);
+            else
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nbook is null", __FILE__, __LINE__);
+            /*
+            GtkNotebookPrivate *priv;
+            GList *list = NULL;
+            priv = nbook->priv;
+            list = g_list_nth(priv->children, page);
+            */
+            /* Check if list is valid here */
+            /* Futher check if list->data->child is valid */
+            // gtk_container_remove raising error in lines:
+            // g_return_if_fail (GTK_IS_CONTAINER (container));
+            // g_return_if_fail (GTK_IS_WIDGET (widget));
+            // Second check is likely failing
+            /* gtk_notebook_remove_page implementation:
+            void
+            gtk_notebook_remove_page (GtkNotebook *notebook,
+                                    gint         page_num)
+            {
+            GtkNotebookPrivate *priv;
+            GList *list = NULL;
+
+            g_return_if_fail (GTK_IS_NOTEBOOK (notebook));
+
+            priv = notebook->priv;
+
+            if (page_num >= 0)
+                list = g_list_nth (priv->children, page_num);
+            else
+                list = g_list_last (priv->children);
+
+            if (list)
+                gtk_container_remove (GTK_CONTAINER (notebook),
+                                    ((GtkNotebookPage *) list->data)->child);
+            }
+            */
+            if (gtk_notebook_get_nth_page(GTK_NOTEBOOK(nbook), page)) // this is triggered
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nth page exists in nbook", 
+                            __FILE__, __LINE__);
+            else
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: nth page does not exist in nbook", 
+                            __FILE__, __LINE__);
+            // Temporarily removing this cos it crashes the program
+            // I don't know how to fix it
+            // Everything is correct but it's bugged, I've spent 1 week on this
+            // Days wasted counter: 5
+            //gtk_notebook_remove_page(GTK_NOTEBOOK(nbook), page);
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
             sat_log_log(SAT_LOG_LEVEL_INFO,
                         _("%s: Removed child from notebook page %d."),
@@ -270,6 +330,7 @@ gint mod_mgr_remove_module(GtkWidget * module)
         }
     }
 
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     modules = g_slist_remove(modules, module);
 
     /* undocked modules will have to destroy themselves
