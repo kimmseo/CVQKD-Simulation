@@ -348,6 +348,7 @@ guint sat_cfg_load()
     else
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, _("%s: Everything OK."), __func__);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: config = %p", __FILE__, __func__, config);
     }
 
     /* config version compatibility */
@@ -439,6 +440,13 @@ void sat_cfg_close()
 {
     if (config != NULL)
     {
+        /*
+        gsize length;
+        gchar * data = g_key_file_to_data(config, &length, NULL);
+        gchar * confdir = get_user_conf_dir();
+        gchar * keyfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, "gpredict.cfg", NULL);
+        g_file_set_contents(keyfile, data, length, NULL);
+        */
         g_key_file_free(config);
         config = NULL;
     }

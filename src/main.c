@@ -160,10 +160,13 @@ int main(int argc, char *argv[])
     gtk_main();
 
     g_option_context_free(context);
-
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Context freed", __FILE__, __LINE__);
     sat_cfg_save();
-    sat_log_close();
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config saved", __FILE__, __LINE__);
     sat_cfg_close();
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config closed, initiating sat_log_close()"
+                __FILE__, __LINE__);
+    sat_log_close();
 
 #ifdef WIN32
     CloseWinSock2();
@@ -325,17 +328,27 @@ static void gpredict_app_destroy(GtkWidget * widget, gpointer data)
     (void)data;
 
     /* stop TLE monitoring task */
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: tle_mon_stop() initiated",
+                __FILE__, __func__);
     tle_mon_stop();
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: tle_mon_stop() finished",
+                __FILE__, __func__);
 
     /* GUI timers are stopped automatically */
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: mod_mgr_save_state() initiated",
+                __FILE__, __func__);
     mod_mgr_save_state();
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: mod_mgr_save_state() finished",
+                __FILE__, __func__);
 
     /* not good, have to use configure event instead (see API doc) */
     /*     gtk_window_get_size (GTK_WINDOW (app), &w, &h);
        sat_cfg_set_int (SAT_CFG_INT_WINDOW_WIDTH, w);
        sat_cfg_set_int (SAT_CFG_INT_WINDOW_HEIGHT, h);
      */
-
+    sat_cfg_save();
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: gtk_main_quit() initiated",
+                __FILE__, __func__);
     gtk_main_quit();
 }
 

@@ -319,8 +319,8 @@ gint mod_mgr_remove_module(GtkWidget * module)
             // I don't know how to fix it
             // Everything is correct but it's bugged, I've spent 1 week on this
             // Days wasted counter: 5
-            //gtk_notebook_remove_page(GTK_NOTEBOOK(nbook), page);
-            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+            gtk_notebook_remove_page(GTK_NOTEBOOK(nbook), page);
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
             sat_log_log(SAT_LOG_LEVEL_INFO,
                         _("%s: Removed child from notebook page %d."),
@@ -424,8 +424,10 @@ void mod_mgr_save_state()
 
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: mods = %s", __FILE__, __LINE__,
                 mods);
-
+    // This line is crashing the program before open mods is updated
     sat_cfg_set_str(SAT_CFG_STR_OPEN_MODULES, mods);
+
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: page = %d", __FILE__, __LINE__, page);
     sat_cfg_set_int(SAT_CFG_INT_MODULE_CURRENT_PAGE, page);
 
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Successfully saved to config",
@@ -678,6 +680,7 @@ static void create_module_window(GtkWidget * module)
     if (g_key_file_has_key(GTK_SAT_MODULE(module)->cfgdata,
                            MOD_CFG_GLOBAL_SECTION, MOD_CFG_WIN_WIDTH, NULL))
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
         w = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                    MOD_CFG_GLOBAL_SECTION,
                                    MOD_CFG_WIN_WIDTH, NULL);
@@ -689,6 +692,7 @@ static void create_module_window(GtkWidget * module)
     if (g_key_file_has_key(GTK_SAT_MODULE(module)->cfgdata,
                            MOD_CFG_GLOBAL_SECTION, MOD_CFG_WIN_HEIGHT, NULL))
     {
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
         h = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                    MOD_CFG_GLOBAL_SECTION,
                                    MOD_CFG_WIN_HEIGHT, NULL);
@@ -736,7 +740,7 @@ static void create_module_window(GtkWidget * module)
         g_key_file_has_key(GTK_SAT_MODULE(module)->cfgdata,
                            MOD_CFG_GLOBAL_SECTION, MOD_CFG_WIN_POS_Y, NULL))
     {
-
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
         gtk_window_move(GTK_WINDOW(GTK_SAT_MODULE(module)->win),
                         g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                                MOD_CFG_GLOBAL_SECTION,
