@@ -348,6 +348,7 @@ static void docking_state_cb(GtkWidget * menuitem, gpointer data)
                                MOD_CFG_GLOBAL_SECTION,
                                MOD_CFG_WIN_WIDTH, NULL))
         {
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             w = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                        MOD_CFG_GLOBAL_SECTION,
                                        MOD_CFG_WIN_WIDTH, NULL);
@@ -360,6 +361,7 @@ static void docking_state_cb(GtkWidget * menuitem, gpointer data)
                                MOD_CFG_GLOBAL_SECTION,
                                MOD_CFG_WIN_HEIGHT, NULL))
         {
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             h = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                        MOD_CFG_GLOBAL_SECTION,
                                        MOD_CFG_WIN_HEIGHT, NULL);
@@ -413,7 +415,7 @@ static void docking_state_cb(GtkWidget * menuitem, gpointer data)
                                MOD_CFG_GLOBAL_SECTION,
                                MOD_CFG_WIN_POS_Y, NULL))
         {
-
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             gtk_window_move(GTK_WINDOW(GTK_SAT_MODULE(module)->win),
                             g_key_file_get_integer(GTK_SAT_MODULE
                                                    (module)->cfgdata,
@@ -582,6 +584,7 @@ static void screen_state_cb(GtkWidget * menuitem, gpointer data)
             (GTK_SAT_MODULE(module)->cfgdata, MOD_CFG_GLOBAL_SECTION,
              MOD_CFG_WIN_WIDTH, NULL))
         {
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             w = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                        MOD_CFG_GLOBAL_SECTION,
                                        MOD_CFG_WIN_WIDTH, NULL);
@@ -594,6 +597,7 @@ static void screen_state_cb(GtkWidget * menuitem, gpointer data)
             (GTK_SAT_MODULE(module)->cfgdata, MOD_CFG_GLOBAL_SECTION,
              MOD_CFG_WIN_HEIGHT, NULL))
         {
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             h = g_key_file_get_integer(GTK_SAT_MODULE(module)->cfgdata,
                                        MOD_CFG_GLOBAL_SECTION,
                                        MOD_CFG_WIN_HEIGHT, NULL);
@@ -613,7 +617,7 @@ static void screen_state_cb(GtkWidget * menuitem, gpointer data)
                                   MOD_CFG_GLOBAL_SECTION, MOD_CFG_WIN_POS_Y,
                                   NULL))
         {
-
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             gtk_window_move(GTK_WINDOW(GTK_SAT_MODULE(module)->win),
                             g_key_file_get_integer(GTK_SAT_MODULE
                                                    (module)->cfgdata,
@@ -1005,7 +1009,7 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
     switch (response)
     {
     case GTK_RESPONSE_YES:
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 		gtk_sat_module_close_cb(menuitem, data);
 		result = g_remove(file);
         if (result)

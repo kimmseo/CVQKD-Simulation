@@ -657,7 +657,7 @@ void sat_cfg_set_str(sat_cfg_str_e param, const gchar * value)
                 g_key_file_set_string(config,
                                       sat_cfg_str[param].group,
                                       sat_cfg_str[param].key, value);
-                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Successfully set string"
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Successfully set string",
                             __FILE__, __LINE__);
             }
             else
@@ -719,6 +719,7 @@ gint sat_cfg_get_int(sat_cfg_int_e param)
         else
         {
             /* fetch value */
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             value = g_key_file_get_integer(config,
                                            sat_cfg_int[param].group,
                                            sat_cfg_int[param].key, &error);

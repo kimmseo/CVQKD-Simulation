@@ -100,6 +100,9 @@ gint mod_cfg_get_int(GKeyFile * f, const gchar * sec, const gchar * key,
     /* check whether parameter is present in GKeyFile */
     if (g_key_file_has_key(f, sec, key, NULL))
     {
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+        if (!sec)
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: sec does not exist", __FILE__, __LINE__);
         param = g_key_file_get_integer(f, sec, key, &error);
 
         if (error != NULL)

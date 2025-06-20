@@ -135,9 +135,11 @@ gint gtk_sat_data_read_sat(gint catnum, sat_t * sat)
             Convert_Satellite_Data(rawtle, &sat->tle);
         }
         if (g_key_file_has_key(data, "Satellite", "STATUS", NULL))
+        {
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             sat->tle.status =
                 g_key_file_get_integer(data, "Satellite", "STATUS", NULL);
-
+        }
         g_free(tlestr1);
         g_free(tlestr2);
         g_free(rawtle);

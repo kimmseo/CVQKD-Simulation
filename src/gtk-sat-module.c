@@ -1212,7 +1212,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
                             MOD_CFG_STATE, NULL)) &&
         sat_cfg_get_bool(SAT_CFG_BOOL_MOD_STATE))
     {
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
         module->state = g_key_file_get_integer(module->cfgdata,
                                                MOD_CFG_GLOBAL_SECTION,
                                                MOD_CFG_STATE, NULL);
