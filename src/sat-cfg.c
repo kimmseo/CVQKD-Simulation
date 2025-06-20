@@ -647,13 +647,11 @@ void sat_cfg_set_str(sat_cfg_str_e param, const gchar * value)
         {
             if (value)
             {
-                // None of these is NULL, this is not the issue
                 sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: param = %d", param);
                 sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: group = %s", sat_cfg_str[param].group);
                 sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: key = %s", sat_cfg_str[param].key);
                 sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: value = %s", value);
                 sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: config = %p", config);
-                // This line possibly is not being triggered
                 g_key_file_set_string(config,
                                       sat_cfg_str[param].group,
                                       sat_cfg_str[param].key, value);
