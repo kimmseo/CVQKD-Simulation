@@ -318,7 +318,10 @@ gint mod_mgr_remove_module(GtkWidget * module)
             // Temporarily removing this cos it crashes the program
             // I don't know how to fix it
             // Everything is correct but it's bugged, I've spent 1 week on this
-            // Days wasted counter: 5
+            // Days wasted counter: 6
+            // IT IS FIXED
+            // THANK THE GODS PRAISE THE LORDS
+            // it works now above is fixed
             gtk_notebook_remove_page(GTK_NOTEBOOK(nbook), page);
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
