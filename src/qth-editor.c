@@ -287,7 +287,7 @@ static gboolean apply_changes_second_qth(qth_t * qth)
 
     // Store values to 2nd qth
     confdir = get_user_conf_dir();
-    fname = g_strconcat(confdir, G_DIR_SEPARATOR_S, qth->name, ".qth2", NULL);
+    fname = g_strconcat(confdir, G_DIR_SEPARATOR_S, qth->name, ".qth", NULL);
 
     retcode = qth_data_save(fname, qth);
     g_free(fname);

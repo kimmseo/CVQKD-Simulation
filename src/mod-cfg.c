@@ -295,6 +295,9 @@ static void add_second_qth_cb(GtkWidget * button, gpointer data)
     GtkResponseType response;
     qth_t           qth2;
 
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called",
+                __FILE__, __LINE__, __func__);
+
     (void)button;       // Avoid unused parameter compiler warning
     
     qth2.name = NULL;
@@ -303,8 +306,10 @@ static void add_second_qth_cb(GtkWidget * button, gpointer data)
     qth2.wx = NULL;
     qth2.qra = NULL;
     qth2.data = NULL;
-
+    
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     response = qth_editor_run_second(&qth2, parent);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
     if (response == GTK_RESPONSE_OK)
     {
@@ -751,7 +756,7 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     // Add second button
     add2 = gtk_button_new_with_label(_("Add"));
     gtk_widget_set_tooltip_text(add, "Add a second ground station");
-    g_signal_connect(add, "clicked", G_CALLBACK(add_second_qth_cb), dialog);
+    g_signal_connect(add2, "clicked", G_CALLBACK(add_second_qth_cb), dialog);
     gtk_grid_attach(GTK_GRID(grid), add2, 4, 2, 1, 1);
 
     vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
@@ -821,12 +826,15 @@ static void mod_cfg_apply(GKeyFile * cfgdata)
     guint           i;
     guint           catnum;
     gchar          *satstr = NULL;
+    gchar          *satstr2 = NULL;     // satstr for second ground station
     gchar          *buff;
+    gchar          *buff2;  // buffer for 2nd ground station selection
     GtkTreeModel   *model;
     GtkTreeIter     iter;
 
     /* store location */
     buff = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(locw));
+    buff2 = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(locw2));
 
     /* is buff == "** DEFAULT **" clear the configuration key
        otherwise store the filename
@@ -846,7 +854,25 @@ static void mod_cfg_apply(GKeyFile * cfgdata)
         g_free(satstr);
     }
 
+    // For the second ground station
+    if (!g_ascii_strcasecmp(buff2, _("** DEFAULT **")))
+    {
+        g_key_file_remove_key(cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_SECOND_FILE_KEY, NULL);
+    }
+    else
+    {
+        satstr2 = g_strconcat(buff2, ".qth", NULL);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: satstr2 = %s", __FILE__, __LINE__, satstr);
+        g_key_file_set_string(cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_SECOND_FILE_KEY, satstr2);
+        g_free(satstr2);
+    }
+
     g_free(buff);
+    g_free(buff2);
 
     /* get number of satellites already in list */
     model = gtk_tree_view_get_model(GTK_TREE_VIEW(satlist));
