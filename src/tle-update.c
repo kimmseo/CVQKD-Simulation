@@ -1235,6 +1235,7 @@ static void update_tle_in_file(const gchar * ldname,
             /* get status data */
             if (g_key_file_has_key(satdata, "Satellite", "STATUS", NULL))
             {
+                //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
                 status =
                     g_key_file_get_integer(satdata, "Satellite", "STATUS",
                                            NULL);

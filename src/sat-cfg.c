@@ -298,7 +298,8 @@ sat_cfg_str_t   sat_cfg_str[SAT_CFG_STR_NUM] = {
      "https://celestrak.org/NORAD/elements/visual.txt;"
      "https://celestrak.org/NORAD/elements/weather.txt"},
     {"TLE", "FILE_DIR", NULL},
-    {"PREDICT", "SAVE_DIR", NULL}
+    {"PREDICT", "SAVE_DIR", NULL},
+    {"GLOBAL", "DEFAULT_QTH_SECOND", "sample.qth"}
 };
 
 /* The configuration data buffer */
@@ -326,6 +327,9 @@ guint sat_cfg_load()
     config = g_key_file_new();
     confdir = get_user_conf_dir();
     keyfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, "gpredict.cfg", NULL);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: keyfile = %s",
+                __FILE__, __LINE__, keyfile);
+    // keyfile = /home/user/.config/Gpredict/gpredict.cfg
     g_free(confdir);
     g_key_file_load_from_file(config, keyfile, G_KEY_FILE_KEEP_COMMENTS,
                               &error);
@@ -344,6 +348,7 @@ guint sat_cfg_load()
     else
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, _("%s: Everything OK."), __func__);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %s: config = %p", __FILE__, __func__, config);
     }
 
     /* config version compatibility */
@@ -435,6 +440,13 @@ void sat_cfg_close()
 {
     if (config != NULL)
     {
+        /*
+        gsize length;
+        gchar * data = g_key_file_to_data(config, &length, NULL);
+        gchar * confdir = get_user_conf_dir();
+        gchar * keyfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, "gpredict.cfg", NULL);
+        g_file_set_contents(keyfile, data, length, NULL);
+        */
         g_key_file_free(config);
         config = NULL;
     }
@@ -635,9 +647,16 @@ void sat_cfg_set_str(sat_cfg_str_e param, const gchar * value)
         {
             if (value)
             {
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: param = %d", param);
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: group = %s", sat_cfg_str[param].group);
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: key = %s", sat_cfg_str[param].key);
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: value = %s", value);
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "DEBUG: config = %p", config);
                 g_key_file_set_string(config,
                                       sat_cfg_str[param].group,
                                       sat_cfg_str[param].key, value);
+                sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Successfully set string",
+                            __FILE__, __LINE__);
             }
             else
             {
@@ -698,6 +717,7 @@ gint sat_cfg_get_int(sat_cfg_int_e param)
         else
         {
             /* fetch value */
+            //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
             value = g_key_file_get_integer(config,
                                            sat_cfg_int[param].group,
                                            sat_cfg_int[param].key, &error);

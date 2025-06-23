@@ -89,7 +89,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
 {
     GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(widget);
     guint i;
-    gint *satlist[NUMBER_OF_SATS];
+    gint satlist[NUMBER_OF_SATS];
     gboolean check = FALSE;
 
     for (i = 0; i < NUMBER_OF_SATS; i++)
@@ -97,7 +97,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
         sat_t *sat = SAT(g_slist_nth_data(msat->sats, msat->selected[i]));
         if (sat != NULL)
         {
-            *satlist[i] = sat->tle.catnr;
+            satlist[i] = sat->tle.catnr;
             check = TRUE;
         }
         else
@@ -108,7 +108,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
     if (check)
     {
         g_key_file_set_integer_list(msat->cfgdata, MOD_CFG_MULTIPLE_SAT_SECTION,
-                                    MOD_CFG_MULTIPLE_SAT_SELECT, *satlist,
+                                    MOD_CFG_MULTIPLE_SAT_SELECT, satlist,
                                     NUMBER_OF_SATS);
     }
 

@@ -257,6 +257,12 @@ static void gtk_sat_module_destroy(GtkWidget * widget)
         module->qth = NULL;
     }
 
+    if (module->qth2)
+    {
+        qth_data_free(module->qth2);
+        module->qth2 = NULL;
+    }
+
     /* clean up satellites */
     if (module->satellites)
     {
@@ -296,6 +302,9 @@ static void gtk_sat_module_init(GtkSatModule * module,
 
     module->qth = g_try_new0(qth_t, 1);
     qth_init(module->qth);
+
+    module->qth2 = g_try_new0(qth_t, 1);
+    qth_init(module->qth2);
 
     module->satellites = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                g_free, gtk_sat_module_free_sat);
@@ -382,7 +391,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
 
     case GTK_SAT_MOD_VIEW_MAP:
         view = gtk_sat_map_new(module->cfgdata,
-                               module->satellites, module->qth);
+                               module->satellites, module->qth, module->qth2);
         break;
 
     case GTK_SAT_MOD_VIEW_POLAR:
@@ -964,6 +973,7 @@ static gboolean gtk_sat_module_timeout_cb(gpointer module)
  */
 static void gtk_sat_module_popup_cb(GtkWidget * button, gpointer data)
 {
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called", __FILE__, __LINE__, __func__);
     (void)button;
     gtk_sat_module_popup(GTK_SAT_MODULE(data));
 }
@@ -1049,6 +1059,48 @@ static void gtk_sat_module_read_cfg_data(GtkSatModule * module,
 
             /* settings are really screwed up; we need some safe values here */
             qth_safe(module->qth);
+        }
+    }
+
+    g_free(buffer);
+    g_free(confdir);
+    g_free(qthfile);
+
+    // Get the second qth file
+    buffer = mod_cfg_get_str(module->cfgdata,
+                             MOD_CFG_GLOBAL_SECTION,
+                             MOD_CFG_QTH_SECOND_FILE_KEY, SAT_CFG_STR_DEF_QTH_SECOND);
+    
+    confdir = get_user_conf_dir();
+    qthfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, buffer, NULL);
+
+    if (!qth_data_read(qthfile, module->qth2))
+    {
+        // QTH File was not found for some reason
+        g_free(buffer);
+        g_free(qthfile);
+
+        // Remove cfg key
+        g_key_file_remove_key(module->cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_FILE_KEY, NULL);
+        
+        // Save modified cfg data to file
+        mod_cfg_save(module->name, module->cfgdata);
+
+        // Try SAT_CFG_STR_DEF_QTH_SECOND
+        buffer = sat_cfg_get_str(SAT_CFG_STR_DEF_QTH_SECOND);
+        qthfile = g_strconcat(confdir, G_DIR_SEPARATOR_S, buffer, NULL);
+
+        if (!qth_data_read(qthfile, module->qth2))
+        {
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _
+                        ("%s: Can not load default QTH file %s; using built-in defaults"),
+                        __func__, buffer);
+            
+            // Settings very bad, we need safe values
+            qth_safe(module->qth2);
         }
     }
 
@@ -1152,6 +1204,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
 
     /*initialize the qth engine and get position */
     qth_data_update_init(module->qth);
+    qth_data_update_init(module->qth2);
 
     /* module state */
     if ((g_key_file_has_key(module->cfgdata,
@@ -1159,6 +1212,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
                             MOD_CFG_STATE, NULL)) &&
         sat_cfg_get_bool(SAT_CFG_BOOL_MOD_STATE))
     {
+        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint", __FILE__, __LINE__);
         module->state = g_key_file_get_integer(module->cfgdata,
                                                MOD_CFG_GLOBAL_SECTION,
                                                MOD_CFG_STATE, NULL);

@@ -169,6 +169,9 @@ gint qth_data_read(const gchar * filename, qth_t * qth)
     }
 
     /* QTH Altitude */
+    // possibly group_name is NULL
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: group_name = %s", __FILE__, __LINE__, QTH_CFG_MAIN_SECTION);
     qth->alt = g_key_file_get_integer(qth->data, QTH_CFG_MAIN_SECTION,
                                       QTH_CFG_ALT_KEY, &error);
     if (error != NULL)
@@ -186,6 +189,9 @@ gint qth_data_read(const gchar * filename, qth_t * qth)
     }
 
     /* QTH Type */
+    // possibly group_name is NULL
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: group_name = %s", __FILE__, __LINE__, QTH_CFG_MAIN_SECTION);
     qth->type = g_key_file_get_integer(qth->data, QTH_CFG_MAIN_SECTION,
                                        QTH_CFG_TYPE_KEY, &error);
     if (error != NULL)

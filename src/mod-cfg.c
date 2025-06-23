@@ -44,6 +44,7 @@ extern GtkWidget *app;
 /* private widgets */
 static GtkWidget *namew;        /* GtkEntry widget for module name */
 static GtkWidget *locw;         /* GtkComboBox for location selection */
+static GtkWidget *locw2;        // GtkComboBox for 2nd location selection
 static GtkWidget *satlist;      /* list of selected satellites */
 
 
@@ -288,6 +289,54 @@ static void add_qth_cb(GtkWidget * button, gpointer data)
     }
 }
 
+static void add_second_qth_cb(GtkWidget * button, gpointer data)
+{
+    GtkWindow      *parent = GTK_WINDOW(data);
+    GtkResponseType response;
+    qth_t           qth2;
+
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called",
+                __FILE__, __LINE__, __func__);
+
+    (void)button;       // Avoid unused parameter compiler warning
+    
+    qth2.name = NULL;
+    qth2.loc = NULL;
+    qth2.desc = NULL;
+    qth2.wx = NULL;
+    qth2.qra = NULL;
+    qth2.data = NULL;
+    
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+    response = qth_editor_run_second(&qth2, parent);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+
+    if (response == GTK_RESPONSE_OK)
+    {
+        gtk_combo_box_text_prepend_text(GTK_COMBO_BOX_TEXT(locw2), qth2.name);
+        gtk_combo_box_set_active(GTK_COMBO_BOX(locw), 0);
+
+        // Cleanup
+        g_free(qth2.name);
+        if (qth2.loc != NULL)
+        {
+            g_free(qth2.loc);
+        }
+        if (qth2.desc != NULL)
+        {
+            g_free(qth2.desc);
+        }
+        if (qth2.wx != NULL)
+        {
+            g_free(qth2.wx);
+        }
+        if (qth2.qra != NULL)
+        {
+            g_free(qth2.qra);
+        }
+    }
+}
+
 static GtkWidget *create_loc_selector(GKeyFile * cfgdata)
 {
     GtkWidget      *combo;
@@ -330,6 +379,124 @@ static GtkWidget *create_loc_selector(GKeyFile * cfgdata)
         defqthshort = g_strdup(defqth);
     }
 
+
+    /* scan for .qth files in the user config directory and
+       add the contents of each .qth file to the list store
+     */
+    dirname = get_user_conf_dir();
+    dir = g_dir_open(dirname, 0, &error);
+
+    if (dir)
+    {
+        while ((filename = g_dir_read_name(dir)))
+        {
+            /*create a sorted list then use it to load the combo box */
+            if (g_str_has_suffix(filename, ".qth"))
+            {
+
+                buffv = g_strsplit(filename, ".qth", 0);
+                qths =
+                    g_slist_insert_sorted(qths, g_strdup(buffv[0]),
+                                          (GCompareFunc) qth_name_compare);
+                g_strfreev(buffv);
+            }
+        }
+        n = g_slist_length(qths);
+        for (i = 0; i < n; i++)
+        {
+            qthname = g_slist_nth_data(qths, i);
+            if (qthname)
+            {
+                gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo),
+                                               qthname);
+
+                /* is this the QTH for this module? */
+                /* comparison uses short name full filename */
+                if (!g_ascii_strcasecmp(defqthshort, qthname))
+                {
+                    idx = count;
+                }
+                g_free(qthname);
+                count++;
+            }
+        }
+        g_slist_free(qths);
+    }
+    else
+    {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s:%d: Failed to open user cfg dir %s (%s)"),
+                    __FILE__, __LINE__, dirname, error->message);
+        g_clear_error(&error);
+    }
+
+    /* finally, add "** DEFAULT **" string; secting this will
+       clear the MOD_CFG_QTH_FILE_KEY module configuration
+       key ensuring that the module will use the default QTH
+     */
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(combo),
+                                   _("** DEFAULT **"));
+
+    /* select the qth of this module;
+       if idx == -1 we should select the "** DEFAULT **"
+       string corresponding to index = count
+     */
+    if (idx == -1)
+    {
+        gtk_combo_box_set_active(GTK_COMBO_BOX(combo), count);
+    }
+    else
+    {
+        gtk_combo_box_set_active(GTK_COMBO_BOX(combo), idx);
+    }
+
+    g_free(defqth);
+    g_free(defqthshort);
+    g_free(dirname);
+    g_dir_close(dir);
+
+    return combo;
+}
+
+static GtkWidget *create_loc2_selector(GKeyFile * cfgdata)
+{
+    GtkWidget      *combo;
+    GDir           *dir = NULL;
+    GError         *error = NULL;
+    gchar          *dirname;
+    const gchar    *filename;
+    gchar          *defqth = NULL;
+    gchar          *defqthshort = NULL;
+    gchar         **buffv;
+    gint            idx = -1;
+    gint            count = 0;
+    GSList         *qths = NULL;
+    gchar          *qthname;
+    gint            i, n;
+
+    combo = gtk_combo_box_text_new();
+
+    // Get QTH filename from cfgdata
+    // If cfg data has no QTH set defqth = "** DEFAULT **"
+    if (g_key_file_has_key
+        (cfgdata, MOD_CFG_GLOBAL_SECTION, MOD_CFG_QTH_SECOND_FILE_KEY, NULL))
+    {
+        defqth = g_key_file_get_string(cfgdata,
+                                       MOD_CFG_GLOBAL_SECTION,
+                                       MOD_CFG_QTH_SECOND_FILE_KEY, &error);
+        buffv = g_strsplit(defqth, ".qth", 0);
+        defqthshort = g_strdup(buffv[0]);
+
+        g_strfreev(buffv);
+    }
+    else
+    {
+        sat_log_log(SAT_LOG_LEVEL_INFO,
+                    _("%s: Module has no QTH; use default."), __func__);
+        
+        defqth = g_strdup(_("** DEFAULT **"));
+        defqthshort = g_strdup(defqth);
+    }
 
     /* scan for .qth files in the user config directory and
        add the contents of each .qth file to the list store
@@ -606,6 +773,7 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
 {
     GtkWidget      *dialog;
     GtkWidget      *add;
+    GtkWidget      *add2;
     GtkWidget      *grid;
     GtkWidget      *label;
     GtkWidget      *swin;
@@ -672,6 +840,10 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     locw = create_loc_selector(cfgdata);
     gtk_widget_set_tooltip_text(locw,
                                 _("Select a ground station for this module."));
+    
+    // Second ground station selector
+    locw2 = create_loc2_selector(cfgdata);
+    gtk_widget_set_tooltip_text(locw2, "Select a second ground station for this module.");
 
     grid = gtk_grid_new();
     gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
@@ -683,16 +855,27 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     gtk_grid_attach(GTK_GRID(grid), label, 0, 0, 2, 1);
     gtk_grid_attach(GTK_GRID(grid), namew, 2, 0, 4, 1);
 
-    label = gtk_label_new(_("Ground station"));
+    label = gtk_label_new("First Ground station");
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
     gtk_grid_attach(GTK_GRID(grid), label, 0, 1, 2, 1);
     gtk_grid_attach(GTK_GRID(grid), locw, 2, 1, 2, 1);
+
+    label = gtk_label_new("Second Ground Station");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 2, 2, 1);
+    gtk_grid_attach(GTK_GRID(grid), locw2, 2, 2, 2, 1);
 
     /* add button */
     add = gtk_button_new_with_label(_("Add"));
     gtk_widget_set_tooltip_text(add, _("Add a new ground station"));
     g_signal_connect(add, "clicked", G_CALLBACK(add_qth_cb), dialog);
     gtk_grid_attach(GTK_GRID(grid), add, 4, 1, 1, 1);
+
+    // Add second button
+    add2 = gtk_button_new_with_label(_("Add"));
+    gtk_widget_set_tooltip_text(add, "Add a second ground station");
+    g_signal_connect(add2, "clicked", G_CALLBACK(add_second_qth_cb), dialog);
+    gtk_grid_attach(GTK_GRID(grid), add2, 4, 2, 1, 1);
 
     vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
     gtk_box_pack_start(GTK_BOX(vbox), grid, FALSE, FALSE, 0);
@@ -761,12 +944,15 @@ static void mod_cfg_apply(GKeyFile * cfgdata)
     guint           i;
     guint           catnum;
     gchar          *satstr = NULL;
+    gchar          *satstr2 = NULL;     // satstr for second ground station
     gchar          *buff;
+    gchar          *buff2;  // buffer for 2nd ground station selection
     GtkTreeModel   *model;
     GtkTreeIter     iter;
 
     /* store location */
     buff = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(locw));
+    buff2 = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(locw2));
 
     /* is buff == "** DEFAULT **" clear the configuration key
        otherwise store the filename
@@ -786,7 +972,25 @@ static void mod_cfg_apply(GKeyFile * cfgdata)
         g_free(satstr);
     }
 
+    // For the second ground station
+    if (!g_ascii_strcasecmp(buff2, _("** DEFAULT **")))
+    {
+        g_key_file_remove_key(cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_SECOND_FILE_KEY, NULL);
+    }
+    else
+    {
+        satstr2 = g_strconcat(buff2, ".qth", NULL);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: satstr2 = %s", __FILE__, __LINE__, satstr);
+        g_key_file_set_string(cfgdata,
+                              MOD_CFG_GLOBAL_SECTION,
+                              MOD_CFG_QTH_SECOND_FILE_KEY, satstr2);
+        g_free(satstr2);
+    }
+
     g_free(buff);
+    g_free(buff2);
 
     /* get number of satellites already in list */
     model = gtk_tree_view_get_model(GTK_TREE_VIEW(satlist));
