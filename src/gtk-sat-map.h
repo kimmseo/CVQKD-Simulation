@@ -85,9 +85,12 @@ typedef struct {
     gdouble         left_side_lon;      /*!< Left-most longitude (used when center is not 0 lon). */
 
     GooCanvasItemModel *qthmark;        /*!< QTH marker, e.g. small rectangle. */
+    GooCanvasItemModel *qth2mark;       /*!< Second QTH Marker */
     GooCanvasItemModel *qthlabel;       /*!< Label showing the QTH name. */
+    GooCanvasItemModel *qth2label;      /*!< Label showing second QTH name */
 
     GooCanvasItemModel *locnam; /*!< Location name. */
+    GooCanvasItemModel *locnam2; /*!< Second location name */
     GooCanvasItemModel *curs;   /*!< Cursor tracking text. */
     GooCanvasItemModel *next;   /*!< Next event text. */
     GooCanvasItemModel *sel;    /*!< Text showing info about the selected satellite. */
@@ -109,6 +112,7 @@ typedef struct {
     GKeyFile       *cfgdata;    /*!< Module configuration data. */
     GHashTable     *sats;       /*!< Pointer to satellites (owned by parent GtkSatModule). */
     qth_t          *qth;        /*!< Pointer to current location. */
+    qth_t          *qth2;       /*!< Pointer to the second QTH. */
 
     GHashTable     *obj;        /*!< Canvas items representing each satellite. */
     GHashTable     *showtracks; /*!< A hash of satellites to show tracks for. */
@@ -124,6 +128,7 @@ typedef struct {
 
     gboolean        show_terminator;    // show solar terminator
     gboolean        qthinfo;    /*!< Show the QTH info. */
+    gboolean        qth2info;   /*<! Show the second QTH info. */
     gboolean        eventinfo;  /*!< Show info about the next event. */
     gboolean        cursinfo;   /*!< Track the mouse cursor. */
     gboolean        showgrid;   /*!< Show grid on map. */
@@ -142,7 +147,7 @@ struct _GtkSatMapClass {
 
 GType           gtk_sat_map_get_type(void);
 GtkWidget      *gtk_sat_map_new(GKeyFile * cfgdata,
-                                GHashTable * sats, qth_t * qth);
+                                GHashTable * sats, qth_t * qth, qth_t * qth2);
 void            gtk_sat_map_update(GtkWidget * widget);
 void            gtk_sat_map_reconf(GtkWidget * widget, GKeyFile * cfgdat);
 void            gtk_sat_map_lonlat_to_xy(GtkSatMap * m,
