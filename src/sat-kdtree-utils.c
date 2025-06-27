@@ -20,13 +20,6 @@ if (nearest) {
 kdtree_free(tree);
 */
 
-// Assume vector_t has x/y/z as double
-struct _sat_t {
-    char *name;
-    vector_t pos;
-    // ... other fields ...
-};
-
 Kdtree *sat_kdtree_create(void) {
     return kdtree_new(3);
 }

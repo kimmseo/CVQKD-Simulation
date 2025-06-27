@@ -5,9 +5,6 @@
 #include "kdtree-wrapper.h"
 #include "sgpsdp/sgp4sdp4.h"
 
-// Forward declaration
-typedef struct _sat_t sat_t;
-
 /**
  * Create a 3D kd-tree for satellites.
  */

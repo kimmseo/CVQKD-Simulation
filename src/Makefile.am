@@ -64,6 +64,8 @@ gpredict_SOURCES = \
     gtk-two-sat.c gtk-two-sat.h \
     gtk-sky-glance.c gtk-sky-glance.h \
     gui.c gui.h \
+    kdtree.c kdtree.h \
+    kdtree-wrapper.c kdtree-wrapper.h \
     loc-tree.c loc-tree.h \
     locator.c locator.h \
     main.c \
@@ -86,6 +88,7 @@ gpredict_SOURCES = \
     trsp-update.c trsp-update.h \
     sat-cfg.c sat-cfg.h \
     sat-info.c sat-info.h \
+    sat-kdtree-utils.c sat-kdtree-utils.h \
     sat-log.c sat-log.h \
     sat-log-browser.c sat-log-browser.h \
     sat-monitor.c sat-monitor.h \

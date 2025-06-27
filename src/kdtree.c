@@ -27,7 +27,7 @@ OF SUCH DAMAGE.
 /* single nearest neighbor search written by Tamas Nepusz <tamas@cs.rhul.ac.uk> */
 
 #ifdef HAVE_CONFIG_H
-#include <config.h>
+#include <build-config.h>
 #endif
 
 #include <stdio.h>
@@ -35,6 +35,7 @@ OF SUCH DAMAGE.
 #include <string.h>
 #include <math.h>
 #include "kdtree.h"
+#include <alloca.h>
 
 #if defined(WIN32) || defined(__WIN32__)
 #include <malloc.h>
