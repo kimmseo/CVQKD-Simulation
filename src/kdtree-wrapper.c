@@ -1,11 +1,6 @@
 #include "kdtree-wrapper.h"
 #include "kdtree.h"
 
-struct _Kdtree {
-    struct kdtree *tree;
-    gint dimensions;
-};
-
 Kdtree *kdtree_new(gint k) {
     g_return_val_if_fail(k > 0, NULL);
 

@@ -3,6 +3,7 @@
         "gtk-multiple-sat.h": "c",
         "sat-pref-layout.h": "c",
         "config-keys.h": "c",
-        "gtkcontainer.h": "c"
+        "gtkcontainer.h": "c",
+        "gtk-event-list-popup.h": "c"
     }
 }

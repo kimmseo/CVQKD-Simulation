@@ -8,6 +8,11 @@ G_BEGIN_DECLS
 // Opaque kd-tree object
 typedef struct _Kdtree Kdtree;
 
+struct _Kdtree {
+    struct kdtree *tree;
+    gint dimensions;
+};
+
 // Create a new kd-tree with `k` dimensions
 Kdtree *kdtree_new(gint k);
 
