@@ -128,35 +128,40 @@ gdouble dot_product(const vector_t *a, const vector_t *b)
 // Return value false means los is not clear (sat to sat link blocked by Earth)
 gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
 {
-    vector_t sat1_vector = {sat1->pos.x, sat1->pos.y, sat1->pos.z, sat1->pos.w};
-    vector_t sat2_vector = {sat2->pos.x, sat2->pos.y, sat2->pos.z, sat2->pos.w};
+    gdouble a, b, c, discriminant;
+    vector_t A, B, d;
+    A.x = sat1->pos.x;
+    A.y = sat1->pos.y;
+    A.z = sat1->pos.z;
 
-    vector_t a_to_b;
-    a_to_b.x = sat2_vector.x - sat1_vector.x;
-    a_to_b.y = sat2_vector.y - sat1_vector.y;
-    a_to_b.z = sat2_vector.z - sat1_vector.z;
-    a_to_b.w = 0.0;
+    B.x = sat2->pos.x;
+    B.y = sat2->pos.y;
+    B.z = sat2->pos.z;
 
-    gdouble a = dot_product(&a_to_b, &a_to_b);
-    gdouble b = 2 * dot_product(&sat1_vector, &a_to_b);
-    gdouble c = dot_product(&sat1_vector, &sat1_vector) -
-                (EARTH_RADIUS + 20) * (EARTH_RADIUS + 20);
+    d.x = B.x - A.x;
+    d.y = B.y - A.y;
+    d.z = B.z - A.z;
 
-    gdouble discriminant = b * b - 4 * a * c;
+    a = dot_product(&d, &d);
+    b = 2 * dot_product(&A, &d);
+    c = dot_product(&A, &A) - (EARTH_RADIUS + 20)*(EARTH_RADIUS + 20);
+
+    discriminant = b*b - 4*a*c;
 
     if (discriminant < 0)
+        return TRUE; // no intersection: LOS is clear
+
+    // intersection points
+    gdouble t1 = (-b - sqrt(discriminant)) / (2*a);
+    gdouble t2 = (-b + sqrt(discriminant)) / (2*a);
+
+    if ((t1 >= 0.0 && t1 <= 1.0) || (t2 >= 0.0 && t2 <= 1.0))
     {
-        return TRUE; // No intersection with Earth
+        // One of the intersections lies between sat1 and sat2
+        return FALSE; // LOS is blocked
     }
     else
     {
-        double sqrt_disc = sqrt(discriminant);
-        double t1 = (-b - sqrt_disc) / (2 * a);
-        double t2 = (-b + sqrt_disc) / (2 * a);
-
-        if ((t1 >= 0.0 && t1 <= 1.0) || (t2 >= 0.0 && t2 <= 1.0))
-            return FALSE; // LOS blocked
-        else
-            return TRUE; // LOS clear
+        return TRUE; // LOS is clear
     }
 }
