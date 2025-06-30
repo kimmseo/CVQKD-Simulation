@@ -28,12 +28,6 @@ void sat_kdtree_insert(Kdtree *tree, sat_t *sat) {
     kdtree_insert3(tree, sat->pos.x, sat->pos.y, sat->pos.z, sat);
 }
 
-void sat_kdtree_insert_all(Kdtree *tree, sat_t **sats, gsize count) {
-    for (gsize i = 0; i < count; ++i) {
-        sat_kdtree_insert(tree, sats[i]);
-    }
-}
-
 sat_t *sat_kdtree_find_nearest_other(Kdtree *tree, const sat_t *query_sat) {
     gdouble x = query_sat->pos.x;
     gdouble y = query_sat->pos.y;

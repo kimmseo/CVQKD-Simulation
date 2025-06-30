@@ -16,11 +16,6 @@ Kdtree *sat_kdtree_create(void);
 void sat_kdtree_insert(Kdtree *tree, sat_t *sat);
 
 /**
- * Bulk insert multiple satellites into the kd-tree.
- */
-void sat_kdtree_insert_all(Kdtree *tree, sat_t **sats, gsize count);
-
-/**
  * Find the nearest satellite to a given satellite (excluding itself).
  */
 sat_t *sat_kdtree_find_nearest_other(Kdtree *tree, const sat_t *query_sat);

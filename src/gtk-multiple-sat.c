@@ -21,6 +21,8 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "sat-pass-dialogs.h"
 #include "time-tools.h"
+#include "sat-kdtree-utils.h"
+#include "calc-dist-two-sat.h"
 
 
 /* Column titles indexed with column symb. refs */
@@ -145,6 +147,9 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     gchar       *fmtstr;
     gchar       *alstr;
     sat_vis_t   vis;
+    sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
+    gdouble     dist;   // Distance to nsat
+    gboolean    los_vis;   // Is LOS clear from sat to nsat
     //gdouble     skr;
 
     // sanity checks
@@ -384,8 +389,18 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             buff = g_strdup_printf("placeholder for single sat uplink SKR");
             break;
         case MULTIPLE_SAT_FIELD_SKR_NEAREST:
-            // placeholder
-            buff = g_strdup_printf("placeholder for inter sat SKR");
+            nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);
+            los_vis = is_los_clear(sat, nsat);
+            if (los_vis)
+            {
+                // line of sight is clear, calculate dist
+                dist = dist_calc(sat, nsat);
+                buff = g_strdup_printf("%s, %.2lf km", nsat->nickname, dist);
+            }
+            else    // line of sight not clearn
+            {
+                buff = g_strdup_printf("No LOS");
+            }
             break;
         default:
             sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -855,6 +870,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     GtkMultipleSat  *multiple_sat;
     guint           i;
     //gint            selectedcatnum[NUMBER_OF_SATS];
+    sat_t           *sati;
 
     widget = g_object_new(GTK_TYPE_MULTIPLE_SAT, NULL);
     gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
@@ -882,7 +898,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
             multiple_sat->selected[i] = i;
         }
     }
-    for (i = 0; i < NUMBER_OF_SATS; i ++)
+    for (i = 0; i < NUMBER_OF_SATS; i++)
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG,
                     "%s %s: selected[%d] set to: %d", __func__, __FILE__, 
@@ -890,6 +906,18 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     multiple_sat->qth = qth;
     multiple_sat->cfgdata = cfgdata;
+
+    // Populate k-d tree for calcuating nearest sat
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init(&iter, sats);
+    multiple_sat->kdtree = sat_kdtree_create();
+    while (g_hash_table_iter_next(&iter, &key, &value))
+    {
+        sati = SAT(value);
+        sat_kdtree_insert(multiple_sat->kdtree, sati);
+    }
 
     // Initialise column flags
     if (fields > 0)

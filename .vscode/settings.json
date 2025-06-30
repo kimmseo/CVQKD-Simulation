@@ -7,6 +7,8 @@
         "gtk-event-list-popup.h": "c",
         "stdio.h": "c",
         "stdlib.h": "c",
-        "sgp4sdp4.h": "c"
+        "sgp4sdp4.h": "c",
+        "gi18n.h": "c",
+        "kdtree-wrapper.h": "c"
     }
 }

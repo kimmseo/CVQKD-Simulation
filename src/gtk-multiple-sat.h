@@ -7,6 +7,8 @@
 
 #include "gtk-sat-data.h"
 #include "gtk-sat-module.h"
+#include "sat-kdtree-utils.h"
+#include "calc-dist-two-sat.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -135,6 +137,8 @@ struct _gtk_multiple_sat {
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 
     void            (*update) (GtkWidget * widget, guint index);     /*!< update function */
+
+    Kdtree          *kdtree;    // k-d tree to hold satellites
 };
 
 struct _GtkMultipleSatClass {

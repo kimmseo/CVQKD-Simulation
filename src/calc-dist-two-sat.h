@@ -1,8 +1,8 @@
 
 // have not been included in makefile, include when ready
 
-#ifndef CALC_DIST_TWO_SAT_H
-#define CALC_DIST_TWO_SAT_H 1
+#ifndef __CALC_DIST_TWO_SAT_H__
+#define __CALC_DIST_TWO_SAT_H__ 1
 
 #include <glib.h>
 #include "gtk-sat-data.h"

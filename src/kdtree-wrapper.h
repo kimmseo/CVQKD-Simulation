@@ -2,6 +2,7 @@
 #define __KDTREE_WRAPPER_H__
 
 #include <glib.h>
+#include "kdtree.h"
 
 G_BEGIN_DECLS
 
