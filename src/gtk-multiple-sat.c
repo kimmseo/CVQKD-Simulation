@@ -381,12 +381,25 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             buff = vis_to_str(vis);
             break;
         case MULTIPLE_SAT_FIELD_SKR_DOWN:
-            // placeholder
-            buff = g_strdup_printf("placeholder for single sat downlink SKR");
+            if (sat->el < 30)
+            {
+                buff = g_strdup_printf("Below elevation threshold");
+            }
+            else
+            {
+                // Sat is in viable elevation
+                buff = g_strdup_printf("Viable elevation");
+            }
             break;
         case MULTIPLE_SAT_FIELD_SKR_UP:
-            // placeholder
-            buff = g_strdup_printf("placeholder for single sat uplink SKR");
+            if (sat->el < 30)
+            {
+                buff = g_strdup_printf("Below elevation threshold");
+            }
+            else
+            {
+                buff = g_strdup_printf("Viable elevation");
+            }
             break;
         case MULTIPLE_SAT_FIELD_SKR_NEAREST:
             nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);

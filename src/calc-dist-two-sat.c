@@ -126,10 +126,13 @@ gdouble dot_product(const vector_t *a, const vector_t *b)
 // cannot pass through.
 // Return value true means los is clear (sat to sat link can be established)
 // Return value false means los is not clear (sat to sat link blocked by Earth)
+// This is done by checking whether the straight line between them intersects
+// the Earth
 gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
 {
     gdouble a, b, c, discriminant;
     vector_t A, B, d;
+    
     A.x = sat1->pos.x;
     A.y = sat1->pos.y;
     A.z = sat1->pos.z;
