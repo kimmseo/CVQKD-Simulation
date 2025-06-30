@@ -136,28 +136,27 @@ gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
     a_to_b.y = sat2_vector.y - sat1_vector.y;
     a_to_b.z = sat2_vector.z - sat1_vector.z;
     a_to_b.w = 0.0;
-    compute_magnitude(&a_to_b);
 
     gdouble a = dot_product(&a_to_b, &a_to_b);
     gdouble b = 2 * dot_product(&sat1_vector, &a_to_b);
     gdouble c = dot_product(&sat1_vector, &sat1_vector) -
                 (EARTH_RADIUS + 20) * (EARTH_RADIUS + 20);
-    
+
     gdouble discriminant = b * b - 4 * a * c;
 
     if (discriminant < 0)
     {
-        // No intersection
-        return TRUE;
+        return TRUE; // No intersection with Earth
     }
     else
     {
-        // Compute intersection points
         double sqrt_disc = sqrt(discriminant);
         double t1 = (-b - sqrt_disc) / (2 * a);
         double t2 = (-b + sqrt_disc) / (2 * a);
 
-        // If either t1 or t2 is between 0 and 1, los is not clear
-        return !(t1 >= 0.0 && t1 <= 1.0) && !(t2 >= 0.0 && t2 <= 1.0);
+        if ((t1 >= 0.0 && t1 <= 1.0) || (t2 >= 0.0 && t2 <= 1.0))
+            return FALSE; // LOS blocked
+        else
+            return TRUE; // LOS clear
     }
 }
