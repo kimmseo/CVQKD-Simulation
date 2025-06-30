@@ -397,9 +397,9 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
                 dist = dist_calc(sat, nsat);
                 buff = g_strdup_printf("%s, %.2lf km", nsat->nickname, dist);
             }
-            else    // line of sight not clearn
+            else    // line of sight not clear
             {
-                buff = g_strdup_printf("No LOS");
+                buff = g_strdup_printf("%s, No LOS", nsat->nickname);
             }
             break;
         default:
