@@ -124,7 +124,7 @@ static void update_field(GtkSecondSat * ssat, guint i)
     gchar          *fmtstr;
     gchar          *alstr;
     sat_vis_t       vis;
-    gdouble         skr;
+    //gdouble         skr;
 
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: function called for second sat", __func__);
 
@@ -688,9 +688,11 @@ void gtk_second_sat_update(GtkWidget * widget)
         {
             if (ssat->flags & (1 << i))
                 update_field(ssat, i);
-            else
+	    else
+	    {
                 //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: (ssat->flags & (1 << i)) is false", __func__);
                 ;   // no op
+	    }
         }
         ssat->counter = 1;
     }
