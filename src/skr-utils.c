@@ -25,13 +25,20 @@ gdouble fibre_link(qth_t ground1, qth_t ground2)
     return skr;
 }
 
+/*
 gdouble underwater_link(qth_t station1, qth_t station2)
 {
     gdouble skr;
     // Do SKR calculation here
     return skr;
 }
+*/
 
+/*
+    Function for calculating the SKR for ground-to-sat uplink
+    ground = Ground station from which the link starts from
+    sat = target satellite
+*/
 gdouble ground_to_sat_uplink(qth_t ground, sat_t sat)
 {
     gdouble skr;
@@ -39,6 +46,11 @@ gdouble ground_to_sat_uplink(qth_t ground, sat_t sat)
     return skr;
 }
 
+/*
+    Function for calculating the SKR for sat-to-ground downlink
+    sat = origin satellite
+    ground = target ground station
+*/
 gdouble sat_to_ground_downlink(sat_t sat, qth_t ground)
 {
     gdouble skr;
@@ -46,6 +58,11 @@ gdouble sat_to_ground_downlink(sat_t sat, qth_t ground)
     return skr;
 }
 
+/*
+    Function for calculating the SKR for inter-satellite link
+    sat1 = origin satellite
+    sat2 = target satellite
+*/
 gdouble inter_sat_link(sat_t sat1, sat_t sat2)
 {
     gdouble skr;
