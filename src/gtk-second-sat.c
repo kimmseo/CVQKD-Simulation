@@ -352,12 +352,27 @@ static void update_field(GtkSecondSat * ssat, guint i)
         buff = vis_to_str(vis);
         break;
     case SECOND_SAT_FIELD_SKR_DOWN:
-        skr = sat_to_ground_downlink(sat, ssat->qth);
-        buff = g_strdup_printf("%lf", skr);
+        if (sat->el < 30)
+        {
+            buff = g_strdup_printf("Below elevation threshold");
+        }
+        else
+        {
+            // Sat is in viable elevation
+            skr = sat_to_ground_downlink(sat, ssat->qth);
+            buff = g_strdup_printf("%lf", skr);
+        }
         break;
     case SECOND_SAT_FIELD_SKR_UP:
-        skr = ground_to_sat_uplink(ssat->qth, sat);
-        buff = g_strdup_printf("%lf", skr);
+        if (sat->el < 30)
+        {
+            buff = g_strdup_printf("Below elevation threshold");
+        }
+        else
+        {
+            skr = ground_to_sat_uplink(ssat->qth, sat);
+            buff = g_strdup_printf("%lf", skr);
+        }
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
