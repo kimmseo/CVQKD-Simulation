@@ -122,6 +122,7 @@ gpredict_SOURCES = \
     sat-pref-sky-at-glance.c sat-pref-sky-at-glance.h \
     sat-vis.c sat-vis.h \
     save-pass.c save-pass.h \
+    skr-utils.c skr-utils.h \
     time-tools.c time-tools.h \
     tle-tools.c tle-tools.h \
     tle-update.c tle-update.h \
