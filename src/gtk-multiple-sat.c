@@ -398,6 +398,7 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             }
             else
             {
+                // Sat is in viable elevation
                 buff = g_strdup_printf("Viable elevation");
             }
             break;
