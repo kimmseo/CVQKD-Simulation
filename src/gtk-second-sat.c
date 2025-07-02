@@ -20,6 +20,7 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "sat-pass-dialogs.h"
 #include "time-tools.h"
+#include "skr-utils.h"
 
 /* Column titles indexed with column symb. refs. */
 const gchar    *SECOND_SAT_FIELD_TITLE[SECOND_SAT_FIELD_NUMBER] = {
@@ -124,7 +125,7 @@ static void update_field(GtkSecondSat * ssat, guint i)
     gchar          *fmtstr;
     gchar          *alstr;
     sat_vis_t       vis;
-    //gdouble         skr;
+    gdouble         skr;
 
     //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s: function called for second sat", __func__);
 
@@ -351,12 +352,12 @@ static void update_field(GtkSecondSat * ssat, guint i)
         buff = vis_to_str(vis);
         break;
     case SECOND_SAT_FIELD_SKR_DOWN:
-        // placeholder
-        buff = g_strdup_printf("placeholder for downlink SKR, second sat");
+        skr = sat_to_ground_downlink(sat, ssat->qth);
+        buff = g_strdup_printf("%lf", skr);
         break;
     case SECOND_SAT_FIELD_SKR_UP:
-        // placeholder
-        buff = g_strdup_printf("placeholder for uplink SKR, second sat");
+        skr = ground_to_sat_uplink(ssat->qth, sat);
+        buff = g_strdup_printf("%lf", skr);
         break;
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,

@@ -7,6 +7,7 @@
 
 #include "gtk-sat-data.h"
 #include "gtk-sat-module.h"
+#include "skr-utils.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
