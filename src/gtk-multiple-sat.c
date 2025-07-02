@@ -23,6 +23,7 @@
 #include "time-tools.h"
 #include "sat-kdtree-utils.h"
 #include "calc-dist-two-sat.h"
+#include "skr-utils.h"
 
 
 /* Column titles indexed with column symb. refs */
@@ -150,7 +151,7 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
     gdouble     dist;   // Distance to nsat
     gboolean    los_vis;   // Is LOS clear from sat to nsat
-    //gdouble     skr;
+    gdouble     skr;
 
     // sanity checks
     if (msat->labels[index][i] == NULL)
@@ -388,7 +389,8 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             else
             {
                 // Sat is in viable elevation
-                buff = g_strdup_printf("Viable elevation");
+                skr = sat_to_ground_downlink(sat, msat->qth);
+                buff = g_strdup_printf("%lf", skr);
             }
             break;
         case MULTIPLE_SAT_FIELD_SKR_UP:
@@ -399,7 +401,8 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             else
             {
                 // Sat is in viable elevation
-                buff = g_strdup_printf("Viable elevation");
+                skr = ground_to_sat_uplink(msat->qth, sat);
+                buff = g_strdup_printf("%lf", skr);
             }
             break;
         case MULTIPLE_SAT_FIELD_SKR_NEAREST:
@@ -409,6 +412,7 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             {
                 // line of sight is clear, calculate dist
                 dist = dist_calc(sat, nsat);
+                //skr = inter_sat_link(sat, nsat);
                 buff = g_strdup_printf("%s, %.2lf km", nsat->nickname, dist);
             }
             else    // line of sight not clear

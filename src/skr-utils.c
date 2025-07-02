@@ -18,18 +18,22 @@
     ground1 = First ground station
     ground2 = Second ground station
 */
-gdouble fibre_link(qth_t ground1, qth_t ground2)
+gdouble fibre_link(qth_t *ground1, qth_t *ground2)
 {
     gdouble skr;
     // Do SKR calculation here
+    // temporary placeholder
+    skr = 0.0;
     return skr;
 }
 
 /*
-gdouble underwater_link(qth_t station1, qth_t station2)
+gdouble underwater_link(qth_t *station1, qth_t *station2)
 {
     gdouble skr;
     // Do SKR calculation here
+    // temporary placeholder
+    skr = 0.0;
     return skr;
 }
 */
@@ -39,10 +43,12 @@ gdouble underwater_link(qth_t station1, qth_t station2)
     ground = Ground station from which the link starts from
     sat = target satellite
 */
-gdouble ground_to_sat_uplink(qth_t ground, sat_t sat)
+gdouble ground_to_sat_uplink(qth_t *ground, sat_t *sat)
 {
     gdouble skr;
     // Do SKR calculation here
+    // temporary placeholder
+    skr = 0.0;
     return skr;
 }
 
@@ -51,10 +57,12 @@ gdouble ground_to_sat_uplink(qth_t ground, sat_t sat)
     sat = origin satellite
     ground = target ground station
 */
-gdouble sat_to_ground_downlink(sat_t sat, qth_t ground)
+gdouble sat_to_ground_downlink(sat_t *sat, qth_t *ground)
 {
     gdouble skr;
     // Do SKR calculation here
+    // temporary placeholder
+    skr = 0.0;
     return skr;
 }
 
@@ -63,9 +71,11 @@ gdouble sat_to_ground_downlink(sat_t sat, qth_t ground)
     sat1 = origin satellite
     sat2 = target satellite
 */
-gdouble inter_sat_link(sat_t sat1, sat_t sat2)
+gdouble inter_sat_link(sat_t *sat1, sat_t *sat2)
 {
     gdouble skr;
     // Do SKR calculation here
+    // temporary placeholder
+    skr = 0.0;
     return skr;
 }

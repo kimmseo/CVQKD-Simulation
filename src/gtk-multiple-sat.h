@@ -9,6 +9,7 @@
 #include "gtk-sat-module.h"
 #include "sat-kdtree-utils.h"
 #include "calc-dist-two-sat.h"
+#include "skr-utils.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
