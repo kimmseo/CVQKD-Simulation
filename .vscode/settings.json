@@ -9,6 +9,7 @@
         "stdlib.h": "c",
         "sgp4sdp4.h": "c",
         "gi18n.h": "c",
-        "kdtree-wrapper.h": "c"
+        "kdtree-wrapper.h": "c",
+        "gtk-sat-popup-common.h": "c"
     }
 }
