@@ -25,6 +25,7 @@
 #include "sat-log.h"
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
+#include "qth-data.h"
 
 
 // Driver function for calculating distance between two satellites
@@ -167,4 +168,41 @@ gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
     {
         return TRUE; // LOS is clear
     }
+}
+
+gdouble sat_qth_distance(sat_t *sat, qth_t *qth)
+{
+    if (!sat || !qth)
+        return DBL_MAX;
+
+    // Extract satellite's sub-point and altitude
+    gdouble sat_lat_rad = DEG_TO_RAD(sat->ssplat);
+    gdouble sat_lon_rad = DEG_TO_RAD(sat->ssplon);
+    gdouble sat_alt_km = sat->alt;
+
+    // Ground station position
+    gdouble qth_lat_rad = DEG_TO_RAD(qth->lat);
+    gdouble qth_lon_rad = DEG_TO_RAD(qth->lon);
+    gdouble qth_alt_km = qth->alt / 1000.0;
+
+    // Earth radius in km
+    const gdouble R = 6371.0;
+    gdouble r1 = R + sat_alt_km;
+    gdouble r2 = R + qth_alt_km;
+
+    // Convert to 3D Cartesian coordinates
+    gdouble x1 = r1 * cos(sat_lat_rad) * cos(sat_lon_rad);
+    gdouble y1 = r1 * cos(sat_lat_rad) * sin(sat_lon_rad);
+    gdouble z1 = r1 * sin(sat_lat_rad);
+
+    gdouble x2 = r2 * cos(qth_lat_rad) * cos(qth_lon_rad);
+    gdouble y2 = r2 * cos(qth_lat_rad) * sin(qth_lon_rad);
+    gdouble z2 = r2 * sin(qth_lat_rad);
+
+    // Euclidean distance in 3D space
+    gdouble dx = x1 - x2;
+    gdouble dy = y1 - y2;
+    gdouble dz = z1 - z2;
+
+    return sqrt(dx * dx + dy * dy + dz * dz); // in kilometers
 }

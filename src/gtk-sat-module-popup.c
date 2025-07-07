@@ -1117,32 +1117,45 @@ static gint sat_nickname_compare(const sat_t * a, const sat_t * b)
 static void shortest_path_cb(GtkWidget *widget, gpointer data)
 {
     GtkSatModule *module = GTK_SAT_MODULE(data);
-    if (!module) return;
+    if (!module || !module->qth || !module->qth2)
+        return;
 
     (void)widget;
 
     sat_t *start = NULL, *end = NULL;
+    gdouble min_dist1 = DBL_MAX, min_dist2 = DBL_MAX;
+
     GList *sats = g_hash_table_get_values(module->satellites);
     for (GList *l = sats; l; l = l->next)
     {
         sat_t *sat = SAT(l->data);
-        if (sat->tle.catnr == module->target)
+
+        gdouble dist1 = sat_qth_distance(sat, module->qth);   // Closest to QTH1
+        if (dist1 < min_dist1)
+        {
+            min_dist1 = dist1;
             start = sat;
-        if (sat->tle.catnr == module->target2)
+        }
+
+        gdouble dist2 = sat_qth_distance(sat, module->qth2);  // Closest to QTH2
+        if (dist2 < min_dist2)
+        {
+            min_dist2 = dist2;
             end = sat;
+        }
     }
     g_list_free(sats);
 
     if (!start || !end)
     {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
-            GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
-            "One or both satellites not selected.");
+        GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+            "Could not find satellites closest to QTH1 and QTH2.");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
         return;
     }
 
+    // Build the graph
     SatGraph *graph = sat_graph_new();
     GList *keys = g_hash_table_get_values(module->satellites);
     for (GList *l1 = keys; l1; l1 = l1->next)
@@ -1188,6 +1201,7 @@ static void shortest_path_cb(GtkWidget *widget, gpointer data)
     g_string_free(path_str, TRUE);
     sat_graph_free(graph);
 }
+
 
 
 /**
