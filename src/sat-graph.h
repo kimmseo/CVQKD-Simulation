@@ -3,24 +3,25 @@
 
 #include <glib.h>
 #include "sgpsdp/sgp4sdp4.h"
+#include "calc-dist-two-sat.h"
 
-// Edge between two satellites with a weight
 typedef struct {
-    sat_t *target;
-    double weight;
-} edge_t;
+    // Key: sat_t* (pointer), Value: GList* of neighbors (sat_t*)
+    GHashTable *vertices;
+    // Key: "sat1|sat2" string, Value: gdouble* (distance)
+    GHashTable *edges;
+} SatGraph;
 
-// Graph structure
-typedef struct {
-    // Key: sat_t*, Value: GList* of edge_t*
-    GHashTable *adj_list;
-} graph_t;
+// Graph functions
+SatGraph* sat_graph_new(void);
+void sat_graph_add_vertex(SatGraph *graph, sat_t *sat);
+void sat_graph_add_edge(SatGraph *graph, sat_t *sat1, sat_t *sat2);
+void sat_graph_free(SatGraph *graph);
 
-// Graph operations
-graph_t *graph_new(void);
-void graph_add_vertex(graph_t *g, sat_t *sat);
-void graph_add_edge(graph_t *g, sat_t *a, sat_t *b, double weight);
-void graph_free(graph_t *g);
-void graph_print(graph_t *g);
+// Shortest path (Dijkstra)
+GList* sat_graph_dijkstra(SatGraph *graph, sat_t *start, sat_t *end);
+
+// Minimum Spanning Tree (Prim)
+SatGraph* sat_graph_prims(SatGraph *graph);
 
 #endif // SAT_GRAPH_H
