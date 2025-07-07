@@ -591,7 +591,8 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
                          G_CALLBACK(show_sat_info_menu_cb),
                          gtk_widget_get_toplevel(button));
     }
-    else {
+    else
+    {
         gtk_widget_set_sensitive(menuitem, FALSE);
     }
 

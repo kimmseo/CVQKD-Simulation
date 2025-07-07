@@ -190,7 +190,8 @@ SatGraph* sat_graph_prims(SatGraph *graph)
             sat_graph_add_vertex(mst, to);
             sat_graph_add_edge(mst, from, to);
             g_hash_table_insert(visited, to, GINT_TO_POINTER(TRUE));
-        } else
+        }
+        else
         {
             break;  // No more reachable vertices
         }
