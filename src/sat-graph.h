@@ -5,6 +5,12 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "calc-dist-two-sat.h"
 
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+extern "C" {
+#endif
+/* *INDENT-ON* */
+
 typedef struct {
     // Key: sat_t* (pointer), Value: GList* of neighbors (sat_t*)
     GHashTable *vertices;
@@ -23,5 +29,11 @@ GList* sat_graph_dijkstra(SatGraph *graph, sat_t *start, sat_t *end);
 
 // Minimum Spanning Tree (Prim)
 SatGraph* sat_graph_prims(SatGraph *graph);
+
+/* *INDENT-OFF* */
+#ifdef __cplusplus
+}
+#endif
+/* *INDENT-ON* */
 
 #endif // SAT_GRAPH_H
