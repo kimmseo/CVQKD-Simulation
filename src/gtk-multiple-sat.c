@@ -24,6 +24,7 @@
 #include "sat-kdtree-utils.h"
 #include "calc-dist-two-sat.h"
 #include "skr-utils.h"
+#include "sat-graph.h"
 
 
 /* Column titles indexed with column symb. refs */

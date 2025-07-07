@@ -40,6 +40,8 @@
 #include "sat-cfg.h"
 #include "sat-log.h"
 #include "sgpsdp/sgp4sdp4.h"
+#include "sat-graph.h"
+#include "calc-dist-two-sat.h"
 
 
 extern GtkWidget *app;          /* in main.c */
@@ -1112,6 +1114,82 @@ static gint sat_nickname_compare(const sat_t * a, const sat_t * b)
     return gpredict_strcmp(a->nickname, b->nickname);
 }
 
+static void shortest_path_cb(GtkWidget *widget, gpointer data)
+{
+    GtkSatModule *module = GTK_SAT_MODULE(data);
+    if (!module) return;
+
+    (void)widget;
+
+    sat_t *start = NULL, *end = NULL;
+    GList *sats = g_hash_table_get_values(module->satellites);
+    for (GList *l = sats; l; l = l->next)
+    {
+        sat_t *sat = SAT(l->data);
+        if (sat->tle.catnr == module->target)
+            start = sat;
+        if (sat->tle.catnr == module->target2)
+            end = sat;
+    }
+    g_list_free(sats);
+
+    if (!start || !end)
+    {
+        GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+            GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+            "One or both satellites not selected.");
+        gtk_dialog_run(GTK_DIALOG(dialog));
+        gtk_widget_destroy(dialog);
+        return;
+    }
+
+    SatGraph *graph = sat_graph_new();
+    GList *keys = g_hash_table_get_values(module->satellites);
+    for (GList *l1 = keys; l1; l1 = l1->next)
+    {
+        sat_t *sat1 = SAT(l1->data);
+        sat_graph_add_vertex(graph, sat1);
+    }
+    for (GList *l1 = keys; l1; l1 = l1->next)
+    {
+        sat_t *sat1 = SAT(l1->data);
+        for (GList *l2 = keys; l2; l2 = l2->next)
+        {
+            sat_t *sat2 = SAT(l2->data);
+            if (sat1 != sat2)
+                sat_graph_add_edge(graph, sat1, sat2);
+        }
+    }
+    g_list_free(keys);
+
+    GList *path = sat_graph_dijkstra(graph, start, end);
+
+    GString *path_str = g_string_new(NULL);
+    if (!path)
+    {
+        g_string_printf(path_str, "No path found between %s and %s.", start->nickname, end->nickname);
+    }
+    else
+    {
+        g_string_append(path_str, "Shortest path:\n");
+        for (GList *l = path; l != NULL; l = l->next)
+        {
+            sat_t *sat = SAT(l->data);
+            g_string_append_printf(path_str, "• %s\n", sat->nickname);
+        }
+        g_list_free(path);
+    }
+
+    GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
+                                               GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
+                                               "%s", path_str->str);
+    gtk_dialog_run(GTK_DIALOG(dialog));
+    gtk_widget_destroy(dialog);
+    g_string_free(path_str, TRUE);
+    sat_graph_free(graph);
+}
+
+
 /**
  * Create and run GtkSatModule popup menu.
  *
@@ -1295,6 +1373,15 @@ void gtk_sat_module_popup(GtkSatModule * module)
     menuitem = gtk_menu_item_new_with_label(_("Close"));
     gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
     g_signal_connect(menuitem, "activate", G_CALLBACK(close_cb), module);
+
+    /* separator */
+    menuitem = gtk_separator_menu_item_new();
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+
+    /* Find shortest path */
+    menuitem = gtk_menu_item_new_with_label(_("Find Shortest Path"));
+    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
+    g_signal_connect(menuitem, "activate", G_CALLBACK(shortest_path_cb), module);
 
     gtk_widget_show_all(menu);
 

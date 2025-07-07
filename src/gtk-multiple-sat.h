@@ -10,6 +10,7 @@
 #include "sat-kdtree-utils.h"
 #include "calc-dist-two-sat.h"
 #include "skr-utils.h"
+#include "sat-graph.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

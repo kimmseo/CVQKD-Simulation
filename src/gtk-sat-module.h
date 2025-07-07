@@ -7,6 +7,8 @@
 
 #include "qth-data.h"
 #include "gtk-sat-data.h"
+#include "sat-graph.h"
+#include "calc-dist-two-sat.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
