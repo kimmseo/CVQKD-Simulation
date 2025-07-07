@@ -87,6 +87,7 @@ gpredict_SOURCES = \
     trsp-conf.c trsp-conf.h \
     trsp-update.c trsp-update.h \
     sat-cfg.c sat-cfg.h \
+    sat-graph.c sat-graph.h \
     sat-info.c sat-info.h \
     sat-kdtree-utils.c sat-kdtree-utils.h \
     sat-log.c sat-log.h \

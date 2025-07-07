@@ -5,8 +5,9 @@
 
 static gchar* make_edge_key(sat_t *a, sat_t *b)
 {
-    // Use pointer values for uniqueness
-    return g_strdup_printf("%p|%p", a < b ? a : b, a < b ? b : a);
+    return g_strdup_printf("%p|%p",
+        (void *)(a < b ? a : b),
+        (void *)(a < b ? b : a));
 }
 
 SatGraph* sat_graph_new(void)
