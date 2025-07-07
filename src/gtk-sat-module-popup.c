@@ -1148,7 +1148,8 @@ static void shortest_path_cb(GtkWidget *widget, gpointer data)
 
     if (!start || !end)
     {
-        GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
+        GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, 
+            GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
             "Could not find satellites closest to QTH1 and QTH2.");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
@@ -1182,14 +1183,38 @@ static void shortest_path_cb(GtkWidget *widget, gpointer data)
     {
         g_string_printf(path_str, "No path found between %s and %s.", start->nickname, end->nickname);
     }
-    else
-    {
-        g_string_append(path_str, "Shortest path:\n");
-        for (GList *l = path; l != NULL; l = l->next)
-        {
-            sat_t *sat = SAT(l->data);
-            g_string_append_printf(path_str, "• %s\n", sat->nickname);
+    else {
+        g_string_append(path_str, "Shortest path with distances:\n");
+
+        gdouble total_dist = 0.0;
+
+        // Distance from qth1 to the first satellite
+        sat_t *first = SAT(path->data);
+        gdouble dist_start = sat_qth_distance(first, module->qth);
+        g_string_append_printf(path_str, "Ground → %s : %.2f km\n",
+                            first->nickname, dist_start);
+        total_dist += dist_start;
+
+        // Distance between satellites
+        for (GList *l = path; l && l->next; l = l->next) {
+            sat_t *from = SAT(l->data);
+            sat_t *to = SAT(l->next->data);
+
+            gdouble dist = dist_calc(from, to);
+            g_string_append_printf(path_str, "• %s → %s : %.2f km\n",
+                                from->nickname, to->nickname, dist);
+            total_dist += dist;
         }
+
+        // Distance from last satellite to qth2
+        sat_t *last = SAT(g_list_last(path)->data);
+        gdouble dist_end = sat_qth_distance(last, module->qth2);
+        g_string_append_printf(path_str, "%s → Ground : %.2f km\n",
+                            last->nickname, dist_end);
+        total_dist += dist_end;
+
+        g_string_append_printf(path_str, "\nTotal path distance: %.2f km\n", total_dist);
+
         g_list_free(path);
     }
 
