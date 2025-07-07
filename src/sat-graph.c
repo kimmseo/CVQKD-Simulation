@@ -63,12 +63,16 @@ GList* sat_graph_dijkstra(SatGraph *graph, sat_t *start, sat_t *end)
     for (GList *l = keys; l != NULL; l = l->next)
     {
         sat_t *sat = l->data;
-        g_hash_table_insert(dist, sat, GDOUBLE_TO_POINTER(DBL_MAX));
+        gdouble *DBL_MAX_PTR = g_new(gdouble, 1);
+        *DBL_MAX_PTR = DBL_MAX;
+        g_hash_table_insert(dist, sat, DBL_MAX_PTR);
         g_hash_table_insert(prev, sat, NULL);
     }
     g_list_free(keys);
 
-    g_hash_table_replace(dist, start, GDOUBLE_TO_POINTER(0.0));
+    gdouble *zero_ptr = g_new(gdouble, 1);
+    *zero_ptr = 0.0;
+    g_hash_table_replace(dist, start, zero_ptr);
     g_queue_push_tail(queue, start);
 
     while (!g_queue_is_empty(queue))
@@ -81,7 +85,7 @@ GList* sat_graph_dijkstra(SatGraph *graph, sat_t *start, sat_t *end)
             sat_t *s = l->data;
             if (!g_hash_table_contains(visited, s))
             {
-                gdouble d = GPOINTER_TO_DOUBLE(g_hash_table_lookup(dist, s));
+                gdouble d = *(gdouble *)g_hash_table_lookup(dist, s);
                 if (d < min_dist)
                 {
                     u = s;
@@ -95,17 +99,22 @@ GList* sat_graph_dijkstra(SatGraph *graph, sat_t *start, sat_t *end)
         g_queue_remove(queue, u);
 
         GList *neighbors = g_hash_table_lookup(graph->vertices, u);
-        for (GList *l = neighbors; l != NULL; l = l->next) {
+        for (GList *l = neighbors; l != NULL; l = l->next)
+        {
             sat_t *v = l->data;
             if (g_hash_table_contains(visited, v)) continue;
 
             gchar *edge_key = make_edge_key(u, v);
             gdouble *w = g_hash_table_lookup(graph->edges, edge_key);
             g_free(edge_key);
-            gdouble alt = GPOINTER_TO_DOUBLE(g_hash_table_lookup(dist, u)) + *w;
+            gdouble *du = g_hash_table_lookup(dist, u);
+            gdouble alt = *du + *w;
 
-            if (alt < GPOINTER_TO_DOUBLE(g_hash_table_lookup(dist, v))) {
-                g_hash_table_replace(dist, v, GDOUBLE_TO_POINTER(alt));
+            if (alt < *(gdouble *)g_hash_table_lookup(dist, v)) 
+            {
+                gdouble *alt_ptr = g_new(gdouble, 1);
+                *alt_ptr = alt;
+                g_hash_table_replace(dist, v, alt_ptr);
                 g_hash_table_replace(prev, v, u);
                 g_queue_push_tail(queue, v);
             }
