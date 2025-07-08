@@ -13,6 +13,7 @@
         "gtk-sat-popup-common.h": "c",
         "gtk-sat-data.h": "c",
         "calc-dist-two-sat.h": "c",
-        "time-tools.h": "c"
+        "time-tools.h": "c",
+        "math.h": "c"
     }
 }
