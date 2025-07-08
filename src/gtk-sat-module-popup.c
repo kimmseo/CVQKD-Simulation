@@ -45,6 +45,7 @@
 #include "calc-dist-two-sat.h"
 #include "predict-tools.h"
 #include "orbit-tools.h"
+#include "skr-utils.h"
 
 
 extern GtkWidget *app;          /* in main.c */
@@ -1113,6 +1114,23 @@ static gint sat_nickname_compare(const sat_t * a, const sat_t * b)
 }
 
 /**
+ * @brief Formats a SKR value into a human-readable string (bps, Kbps, Mbps).
+ * @param skr_bps The SKR value in bits per second.
+ * @return A newly allocated string with the formatted SKR. Must be freed.
+ */
+static gchar* format_skr(gdouble skr_bps)
+{
+    if (skr_bps >= 1e6) {
+        return g_strdup_printf("%.2f Mbps", skr_bps / 1e6);
+    } else if (skr_bps >= 1e3) {
+        return g_strdup_printf("%.2f Kbps", skr_bps / 1e3);
+    } else {
+        return g_strdup_printf("%.2f bps", skr_bps);
+    }
+}
+
+
+/**
  * @brief Formats a satellite path into a human-readable string.
  * * @param str The GString to append the formatted text to.
  * @param path A GList of sat_t objects representing the path.
@@ -1131,28 +1149,51 @@ static void format_path_string(GString *str, GList *path, qth_t *qth1, qth_t *qt
     }
 
     gdouble total_dist = 0.0;
+    gdouble min_skr = DBL_MAX;
+    gchar *skr_str;
+
+    /* Uplink from ground to first satellite */
     sat_t *first = SAT(path->data);
     gdouble dist_start = sat_qth_distance(first, qth1);
-    g_string_append_printf(str, "  Ground → %s : %.2f km\n",
-                        first->nickname, dist_start);
+    gdouble skr_start = ground_to_sat_uplink(qth1, first);
+    min_skr = MIN(min_skr, skr_start);
+    skr_str = format_skr(skr_start);
+    g_string_append_printf(str, "  Ground → %s : %.2f km, SKR: %s\n",
+                        first->nickname, dist_start, skr_str);
+    g_free(skr_str);
     total_dist += dist_start;
 
+    /* Inter-satellite links */
     for (GList *l = path; l && l->next; l = l->next) {
         sat_t *from = SAT(l->data);
         sat_t *to = SAT(l->next->data);
         gdouble dist = dist_calc(from, to);
-        g_string_append_printf(str, "  • %s → %s : %.2f km\n",
-                            from->nickname, to->nickname, dist);
+        gdouble skr_inter = inter_sat_link(from, to);
+        min_skr = MIN(min_skr, skr_inter);
+        skr_str = format_skr(skr_inter);
+        g_string_append_printf(str, "  • %s → %s : %.2f km, SKR: %s\n",
+                            from->nickname, to->nickname, dist, skr_str);
+        g_free(skr_str);
         total_dist += dist;
     }
 
+    /* Downlink from last satellite to ground */
     sat_t *last = SAT(g_list_last(path)->data);
     gdouble dist_end = sat_qth_distance(last, qth2);
-    g_string_append_printf(str, "  %s → Ground : %.2f km\n",
-                        last->nickname, dist_end);
+    gdouble skr_end = sat_to_ground_downlink(last, qth2);
+    min_skr = MIN(min_skr, skr_end);
+    skr_str = format_skr(skr_end);
+    g_string_append_printf(str, "  %s → Ground : %.2f km, SKR: %s\n",
+                        last->nickname, dist_end, skr_str);
+    g_free(skr_str);
     total_dist += dist_end;
 
-    g_string_append_printf(str, "<b>Total Distance: %.2f km</b>\n\n", total_dist);
+    g_string_append_printf(str, "<b>Total Distance: %.2f km</b>\n", total_dist);
+
+    /* The total path SKR is the minimum SKR of any link in the path (bottleneck) */
+    skr_str = format_skr(min_skr);
+    g_string_append_printf(str, "<b>Total Path SKR: %s</b>\n\n", skr_str);
+    g_free(skr_str);
 }
 
 
