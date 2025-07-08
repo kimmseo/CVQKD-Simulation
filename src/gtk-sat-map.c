@@ -301,6 +301,23 @@ static void gtk_sat_map_destroy(GtkWidget * widget)
         if (idx != -1)
             goo_canvas_item_model_remove_child(root, idx);
         satmap->map = NULL;
+        
+        /* Clean up shortest path lines */
+        if (shortest_path_line_qth1_sat) {
+            idx = goo_canvas_item_model_find_child(root, shortest_path_line_qth1_sat);
+            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+            shortest_path_line_qth1_sat = NULL;
+        }
+        if (shortest_path_line_sats) {
+            idx = goo_canvas_item_model_find_child(root, shortest_path_line_sats);
+            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+            shortest_path_line_sats = NULL;
+        }
+        if (shortest_path_line_sat_qth2) {
+            idx = goo_canvas_item_model_find_child(root, shortest_path_line_sat_qth2);
+            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+            shortest_path_line_sat_qth2 = NULL;
+        }
     }
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
 }
@@ -571,6 +588,28 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
                                             "font", "Sans 8",
                                             "fill-color-rgba", col,
                                             "use-markup", TRUE, NULL);
+
+    /* Create shortest path lines (initially invisible) */
+    shortest_path_line_qth1_sat = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                               "parent", root,
+                                               "stroke-color", "#00FF00", /* Bright green */
+                                               "line-width", 2.0,
+                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
+                                               NULL);
+
+    shortest_path_line_sats = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                           "parent", root,
+                                           "stroke-color", "#00FF00", /* Bright green */
+                                           "line-width", 2.0,
+                                           "visibility", GOO_CANVAS_ITEM_HIDDEN,
+                                           NULL);
+
+    shortest_path_line_sat_qth2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                               "parent", root,
+                                               "stroke-color", "#00FF00", /* Bright green */
+                                               "line-width", 2.0,
+                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
+                                               NULL);
 
     return root;
 }
@@ -2521,6 +2560,7 @@ static void draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root)
     guint32         col;
     guint           i;
     gchar          *buf, hmf = ' ';
+    GooCanvasPoints *points;
 
     /* initialize algo parameters */
     col = mod_cfg_get_int(satmap->cfgdata,
@@ -2530,21 +2570,24 @@ static void draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root)
     xstep = (gdouble) (30.0 * satmap->width / 360.0);
     ystep = (gdouble) (30.0 * satmap->height / 180.0);
 
-#define MKLINE goo_canvas_polyline_model_new_line
-
     /* horizontal grid */
     for (i = 0; i < 5; i++)
     {
+        points = goo_canvas_points_new(2);
+        points->coords[0] = (gdouble) satmap->x0;
+        points->coords[1] = (gdouble) (satmap->y0 + (i + 1) * ystep);
+        points->coords[2] = (gdouble) (satmap->x0 + satmap->width);
+        points->coords[3] = (gdouble) (satmap->y0 + (i + 1) * ystep);
+
         /* line */
-        satmap->gridh[i] = MKLINE(root,
-                                  (gdouble) satmap->x0,
-                                  (gdouble) (satmap->y0 + (i + 1) * ystep),
-                                  (gdouble) (satmap->x0 + satmap->width),
-                                  (gdouble) (satmap->y0 + (i + 1) * ystep),
+        satmap->gridh[i] = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                  "parent", root,
+                                  "points", points,
                                   "stroke-color-rgba", col,
                                   "line-cap", CAIRO_LINE_CAP_SQUARE,
                                   "line-join", CAIRO_LINE_JOIN_MITER,
                                   "line-width", 0.5, NULL);
+        goo_canvas_points_unref(points);
 
         /* FIXME: Use dotted line pattern? */
 
@@ -2596,16 +2639,21 @@ static void draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root)
     /* vertical grid */
     for (i = 0; i < 11; i++)
     {
+        points = goo_canvas_points_new(2);
+        points->coords[0] = (gdouble) (satmap->x0 + (i + 1) * xstep);
+        points->coords[1] = (gdouble) satmap->y0;
+        points->coords[2] = (gdouble) (satmap->x0 + (i + 1) * xstep);
+        points->coords[3] = (gdouble) (satmap->y0 + satmap->height);
+
         /* line */
-        satmap->gridv[i] = MKLINE(root,
-                                  (gdouble) (satmap->x0 + (i + 1) * xstep),
-                                  (gdouble) satmap->y0,
-                                  (gdouble) (satmap->x0 + (i + 1) * xstep),
-                                  (gdouble) (satmap->y0 + satmap->height),
+        satmap->gridv[i] = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                  "parent", root,
+                                  "points", points,
                                   "stroke-color-rgba", col,
                                   "line-cap", CAIRO_LINE_CAP_SQUARE,
                                   "line-join", CAIRO_LINE_JOIN_MITER,
                                   "line-width", 0.5, NULL);
+        goo_canvas_points_unref(points);
 
         /* label */
         xy_to_lonlat(satmap, satmap->x0 + (i + 1) * xstep, satmap->y0, &lon,
@@ -2882,8 +2930,6 @@ static void reset_ground_track(gpointer key, gpointer value,
 
 static void draw_shortest_path_on_map(GtkSatMap *satmap)
 {
-    GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(satmap->canvas));
-    gfloat x1, y1, x2, y2;
     GooCanvasPoints *points;
     GList *sat_list = NULL;
     SatGraph *graph = NULL;
@@ -2891,29 +2937,13 @@ static void draw_shortest_path_on_map(GtkSatMap *satmap)
     sat_t *closest_sat2 = NULL;
     gdouble min_dist1 = DBL_MAX;
     gdouble min_dist2 = DBL_MAX;
-
-    /* Clear previous path lines */
-    if (shortest_path_line_qth1_sat) {
-        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_qth1_sat);
-        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-        g_object_unref(shortest_path_line_qth1_sat);
-        shortest_path_line_qth1_sat = NULL;
-    }
-    if (shortest_path_line_sats) {
-        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_sats);
-        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-        g_object_unref(shortest_path_line_sats);
-        shortest_path_line_sats = NULL;
-    }
-    if (shortest_path_line_sat_qth2) {
-        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_sat_qth2);
-        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-        g_object_unref(shortest_path_line_sat_qth2);
-        shortest_path_line_sat_qth2 = NULL;
-    }
+    GList *path = NULL;
 
     /* Ensure ground stations and satellites exist */
     if (!satmap->qth || !satmap->qth2 || !satmap->sats || g_hash_table_size(satmap->sats) == 0) {
+        g_object_set(shortest_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+        g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+        g_object_set(shortest_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
         return;
     }
 
@@ -2958,79 +2988,69 @@ static void draw_shortest_path_on_map(GtkSatMap *satmap)
     }
     
     if (!closest_sat1 || !closest_sat2) {
-        g_list_free(sat_list);
-        sat_graph_free(graph);
-        return; /* No closest satellites found */
-    }
-
-    /* 2. Calculate shortest path between closest satellites */
-    GList *path = NULL;
-    if (closest_sat1 != closest_sat2) {
-        path = sat_graph_dijkstra(graph, closest_sat1, closest_sat2);
+        path = NULL; /* No closest satellites found */
     } else {
-        path = g_list_append(NULL, closest_sat1);
+        /* 2. Calculate shortest path between closest satellites */
+        if (closest_sat1 != closest_sat2) {
+            path = sat_graph_dijkstra(graph, closest_sat1, closest_sat2);
+        } else {
+            path = g_list_append(NULL, closest_sat1);
+        }
     }
 
     if (!path) {
-        g_list_free(sat_list);
-        sat_graph_free(graph);
-        return; /* No path found */
-    }
+        /* No path found, hide the lines */
+        g_object_set(shortest_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+        g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+        g_object_set(shortest_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+    } else {
+        /* 3. A path was found, draw the lines */
+        gfloat x1, y1, x2, y2;
 
-    /* 3. Draw the lines */
-    /* Line 1: From QTH1 to first satellite on path */
-    sat_t *start_sat = (sat_t *)path->data;
-    lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x1, &y1);
-    lonlat_to_xy(satmap, start_sat->ssplon, start_sat->ssplat, &x2, &y2);
-    
-    points = goo_canvas_points_new(2);
-    points->coords[0] = x1; points->coords[1] = y1;
-    points->coords[2] = x2; points->coords[3] = y2;
-    shortest_path_line_qth1_sat = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
-                                                         "points", points,
-                                                         "stroke-color", "green",
-                                                         "line-width", 2.0,
-                                                         NULL);
-    goo_canvas_points_unref(points);
+        /* Line 1: From QTH1 to first satellite on path */
+        sat_t *start_sat = (sat_t *)path->data;
+        lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x1, &y1);
+        lonlat_to_xy(satmap, start_sat->ssplon, start_sat->ssplat, &x2, &y2);
+        
+        points = goo_canvas_points_new(2);
+        points->coords[0] = x1; points->coords[1] = y1;
+        points->coords[2] = x2; points->coords[3] = y2;
+        g_object_set(shortest_path_line_qth1_sat, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
+        goo_canvas_points_unref(points);
 
-    /* Line 2: Path over satellites */
-    if (g_list_length(path) > 1) {
-        points = goo_canvas_points_new(g_list_length(path));
-        gint i = 0;
-        for (GList *l = path; l != NULL; l = g_list_next(l)) {
-            sat_t *sat_on_path = (sat_t *)l->data;
-            gfloat temp_x, temp_y;
-            lonlat_to_xy(satmap, sat_on_path->ssplon, sat_on_path->ssplat,
-                         &temp_x, &temp_y);
-            points->coords[i*2] = temp_x;
-            points->coords[i*2+1] = temp_y;
-            i++;
+        /* Line 2: Path over satellites */
+        if (g_list_length(path) > 1) {
+            points = goo_canvas_points_new(g_list_length(path));
+            gint i = 0;
+            for (GList *l = path; l != NULL; l = g_list_next(l)) {
+                sat_t *sat_on_path = (sat_t *)l->data;
+                gfloat temp_x, temp_y;
+                lonlat_to_xy(satmap, sat_on_path->ssplon, sat_on_path->ssplat,
+                             &temp_x, &temp_y);
+                points->coords[i*2] = temp_x;
+                points->coords[i*2+1] = temp_y;
+                i++;
+            }
+            g_object_set(shortest_path_line_sats, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
+            goo_canvas_points_unref(points);
+        } else {
+            g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
         }
-        shortest_path_line_sats = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
-                                                          "points", points,
-                                                          "stroke-color", "green",
-                                                          "line-width", 2.0,
-                                                          NULL);
+
+        /* Line 3: From last satellite on path to QTH2 */
+        sat_t *end_sat = (sat_t *)g_list_last(path)->data;
+        lonlat_to_xy(satmap, end_sat->ssplon, end_sat->ssplat, &x1, &y1);
+        lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x2, &y2);
+        points = goo_canvas_points_new(2);
+        points->coords[0] = x1; points->coords[1] = y1;
+        points->coords[2] = x2; points->coords[3] = y2;
+        g_object_set(shortest_path_line_sat_qth2, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
         goo_canvas_points_unref(points);
     }
 
-    /* Line 3: From last satellite on path to QTH2 */
-    sat_t *end_sat = (sat_t *)g_list_last(path)->data;
-    lonlat_to_xy(satmap, end_sat->ssplon, end_sat->ssplat, &x1, &y1);
-    lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x2, &y2);
-    points = goo_canvas_points_new(2);
-    points->coords[0] = x1; points->coords[1] = y1;
-    points->coords[2] = x2; points->coords[3] = y2;
-    shortest_path_line_sat_qth2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
-                                                          "points", points,
-                                                          "stroke-color", "green",
-                                                          "line-width", 2.0,
-                                                          NULL);
-    goo_canvas_points_unref(points);
-
     /* Clean up */
     g_list_free(sat_list);
-    g_list_free(path); /* Free the GList, not the sat_t objects */
+    if (path) g_list_free(path); 
     sat_graph_free(graph);
 }
 
