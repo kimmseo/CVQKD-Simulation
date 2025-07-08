@@ -26,6 +26,7 @@
 #include <glib/gstdio.h>
 #include <gtk/gtk.h>
 #include <string.h>		// strerror
+#include <float.h>
 
 #include "compat.h"
 #include "config-keys.h"
@@ -42,6 +43,8 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "sat-graph.h"
 #include "calc-dist-two-sat.h"
+#include "predict-tools.h"
+#include "orbit-tools.h"
 
 
 extern GtkWidget *app;          /* in main.c */
@@ -649,13 +652,11 @@ static void screen_state_cb(GtkWidget * menuitem, gpointer data)
  * New first satellite selected.
  *
  * @param data Pointer to the GtkSatModule widget
- * 
- * This menu item is activated when a new satellite is selected in the 
+ * * This menu item is activated when a new satellite is selected in the 
  * "Select First Satellite" submenu of the module pop-up. This will trigger a call
  * to the select_sat() function of the module, which in turn will call the
  * select_sat() function of each child view.
- * 
- * The catalog number of the selected satellite is attached to the menu item
+ * * The catalog number of the selected satellite is attached to the menu item
  */
 static void sat_selected_cb(GtkWidget * menuitem, gpointer data)
 {
@@ -671,13 +672,11 @@ static void sat_selected_cb(GtkWidget * menuitem, gpointer data)
  * New second satellite selected.
  *
  * @param data Pointer to the GtkSatModule widget
- * 
- * This menu item is activated when a new satellite is selected in the 
+ * * This menu item is activated when a new satellite is selected in the 
  * "Select Second Satellite" submenu of the module pop-up. This will trigger a call
  * to the select_sat() function of the module, which in turn will call the
  * select_sat() function of each child view.
- * 
- * The catalog number of the selected satellite is attached to the menu item
+ * * The catalog number of the selected satellite is attached to the menu item
  */
 static void sat_selected_cb_second(GtkWidget * menuitem, gpointer data)
 {
@@ -883,8 +882,7 @@ static void rigctrl_cb(GtkWidget * menuitem, gpointer data)
  *
  * @param window Pointer to the rotator control window.
  * @param data Pointer to the GtkSatModule to which this controller is attached.
- * 
- * This function is called automatically when the window is destroyed.
+ * * This function is called automatically when the window is destroyed.
  */
 static void destroy_rotctrl(GtkWidget * window, gpointer data)
 {
@@ -1050,8 +1048,8 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
  * position and size of the module window.
  *
  * @note unfortunately GdkEventConfigure ignores the window gravity, while
- *       the only way we have of setting the position doesn't. We have to
- *       call get_position because it does pay attention to the gravity.
+ * the only way we have of setting the position doesn't. We have to
+ * call get_position because it does pay attention to the gravity.
  *
  * @note The logic in the code has been borrowed from gaim/pidgin http://pidgin.im/
  *
@@ -1114,6 +1112,50 @@ static gint sat_nickname_compare(const sat_t * a, const sat_t * b)
     return gpredict_strcmp(a->nickname, b->nickname);
 }
 
+/**
+ * @brief Formats a satellite path into a human-readable string.
+ * * @param str The GString to append the formatted text to.
+ * @param path A GList of sat_t objects representing the path.
+ * @param qth1 The starting ground station.
+ * @param qth2 The ending ground station.
+ * @param title A title for this path section.
+ */
+static void format_path_string(GString *str, GList *path, qth_t *qth1, qth_t *qth2, const gchar *title)
+{
+    g_string_append_printf(str, "<b>%s</b>\n", title);
+
+    if (!path)
+    {
+        g_string_append(str, "No path found.\n\n");
+        return;
+    }
+
+    gdouble total_dist = 0.0;
+    sat_t *first = SAT(path->data);
+    gdouble dist_start = sat_qth_distance(first, qth1);
+    g_string_append_printf(str, "  Ground → %s : %.2f km\n",
+                        first->nickname, dist_start);
+    total_dist += dist_start;
+
+    for (GList *l = path; l && l->next; l = l->next) {
+        sat_t *from = SAT(l->data);
+        sat_t *to = SAT(l->next->data);
+        gdouble dist = dist_calc(from, to);
+        g_string_append_printf(str, "  • %s → %s : %.2f km\n",
+                            from->nickname, to->nickname, dist);
+        total_dist += dist;
+    }
+
+    sat_t *last = SAT(g_list_last(path)->data);
+    gdouble dist_end = sat_qth_distance(last, qth2);
+    g_string_append_printf(str, "  %s → Ground : %.2f km\n",
+                        last->nickname, dist_end);
+    total_dist += dist_end;
+
+    g_string_append_printf(str, "<b>Total Distance: %.2f km</b>\n\n", total_dist);
+}
+
+
 static void shortest_path_cb(GtkWidget *widget, gpointer data)
 {
     GtkSatModule *module = GTK_SAT_MODULE(data);
@@ -1122,109 +1164,93 @@ static void shortest_path_cb(GtkWidget *widget, gpointer data)
 
     (void)widget;
 
-    sat_t *start = NULL, *end = NULL;
+    sat_t *start_sat = NULL, *end_sat = NULL;
     gdouble min_dist1 = DBL_MAX, min_dist2 = DBL_MAX;
 
+    // Find closest satellites to each QTH
     GList *sats = g_hash_table_get_values(module->satellites);
     for (GList *l = sats; l; l = l->next)
     {
         sat_t *sat = SAT(l->data);
+        if (decayed(sat)) continue;
 
-        gdouble dist1 = sat_qth_distance(sat, module->qth);   // Closest to QTH1
+        gdouble dist1 = sat_qth_distance(sat, module->qth);
         if (dist1 < min_dist1)
         {
             min_dist1 = dist1;
-            start = sat;
+            start_sat = sat;
         }
 
-        gdouble dist2 = sat_qth_distance(sat, module->qth2);  // Closest to QTH2
+        gdouble dist2 = sat_qth_distance(sat, module->qth2);
         if (dist2 < min_dist2)
         {
             min_dist2 = dist2;
-            end = sat;
+            end_sat = sat;
         }
     }
-    g_list_free(sats);
 
-    if (!start || !end)
+    if (!start_sat || !end_sat)
     {
         GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL, 
             GTK_MESSAGE_WARNING, GTK_BUTTONS_OK,
             "Could not find satellites closest to QTH1 and QTH2.");
         gtk_dialog_run(GTK_DIALOG(dialog));
         gtk_widget_destroy(dialog);
+        g_list_free(sats);
         return;
     }
 
-    // Build the graph
-    SatGraph *graph = sat_graph_new();
-    GList *keys = g_hash_table_get_values(module->satellites);
-    for (GList *l1 = keys; l1; l1 = l1->next)
-    {
+    GString *dialog_text = g_string_new(NULL);
+
+    // --- 1. Unrealistic Path (fully connected graph) ---
+    SatGraph *unrealistic_graph = sat_graph_new();
+    for (GList *l1 = sats; l1; l1 = l1->next) {
         sat_t *sat1 = SAT(l1->data);
-        sat_graph_add_vertex(graph, sat1);
-    }
-    for (GList *l1 = keys; l1; l1 = l1->next)
-    {
-        sat_t *sat1 = SAT(l1->data);
-        for (GList *l2 = keys; l2; l2 = l2->next)
-        {
+        if (decayed(sat1)) continue;
+        sat_graph_add_vertex(unrealistic_graph, sat1);
+        for (GList *l2 = g_list_next(l1); l2; l2 = g_list_next(l2)) {
             sat_t *sat2 = SAT(l2->data);
-            if (sat1 != sat2)
-                sat_graph_add_edge(graph, sat1, sat2);
+            if (decayed(sat2)) continue;
+            sat_graph_add_edge(unrealistic_graph, sat1, sat2);
         }
     }
-    g_list_free(keys);
+    GList *unrealistic_path = sat_graph_dijkstra(unrealistic_graph, start_sat, end_sat);
+    format_path_string(dialog_text, unrealistic_path, module->qth, module->qth2, "Unrealistic Path (Ignoring Line of Sight)");
+    if (unrealistic_path) g_list_free(unrealistic_path);
+    sat_graph_free(unrealistic_graph);
 
-    GList *path = sat_graph_dijkstra(graph, start, end);
 
-    GString *path_str = g_string_new(NULL);
-    if (!path)
-    {
-        g_string_printf(path_str, "No path found between %s and %s.", start->nickname, end->nickname);
-    }
-    else {
-        g_string_append(path_str, "Shortest path with distances:\n");
-
-        gdouble total_dist = 0.0;
-
-        // Distance from qth1 to the first satellite
-        sat_t *first = SAT(path->data);
-        gdouble dist_start = sat_qth_distance(first, module->qth);
-        g_string_append_printf(path_str, "Ground → %s : %.2f km\n",
-                            first->nickname, dist_start);
-        total_dist += dist_start;
-
-        // Distance between satellites
-        for (GList *l = path; l && l->next; l = l->next) {
-            sat_t *from = SAT(l->data);
-            sat_t *to = SAT(l->next->data);
-
-            gdouble dist = dist_calc(from, to);
-            g_string_append_printf(path_str, "• %s → %s : %.2f km\n",
-                                from->nickname, to->nickname, dist);
-            total_dist += dist;
+    // --- 2. Realistic Path (LOS-constrained graph) ---
+    SatGraph *realistic_graph = sat_graph_new();
+    for (GList *l1 = sats; l1; l1 = l1->next) {
+        sat_t *sat1 = SAT(l1->data);
+        if (decayed(sat1)) continue;
+        sat_graph_add_vertex(realistic_graph, sat1);
+        for (GList *l2 = g_list_next(l1); l2; l2 = g_list_next(l2)) {
+            sat_t *sat2 = SAT(l2->data);
+            if (decayed(sat2)) continue;
+            if (is_los_clear(sat1, sat2)) { // The key difference!
+                sat_graph_add_edge(realistic_graph, sat1, sat2);
+            }
         }
-
-        // Distance from last satellite to qth2
-        sat_t *last = SAT(g_list_last(path)->data);
-        gdouble dist_end = sat_qth_distance(last, module->qth2);
-        g_string_append_printf(path_str, "%s → Ground : %.2f km\n",
-                            last->nickname, dist_end);
-        total_dist += dist_end;
-
-        g_string_append_printf(path_str, "\nTotal path distance: %.2f km\n", total_dist);
-
-        g_list_free(path);
     }
+    GList *realistic_path = sat_graph_dijkstra(realistic_graph, start_sat, end_sat);
+    format_path_string(dialog_text, realistic_path, module->qth, module->qth2, "Realistic Path (With Line of Sight)");
+    if (realistic_path) g_list_free(realistic_path);
+    sat_graph_free(realistic_graph);
 
+
+    // --- Display Dialog ---
     GtkWidget *dialog = gtk_message_dialog_new(NULL, GTK_DIALOG_MODAL,
                                                GTK_MESSAGE_INFO, GTK_BUTTONS_OK,
-                                               "%s", path_str->str);
+                                               NULL);
+    gtk_message_dialog_set_markup(GTK_MESSAGE_DIALOG(dialog), dialog_text->str);
     gtk_dialog_run(GTK_DIALOG(dialog));
     gtk_widget_destroy(dialog);
-    g_string_free(path_str, TRUE);
-    sat_graph_free(graph);
+
+    // --- Cleanup ---
+    g_string_free(dialog_text, TRUE);
+    g_list_free(sats);
 }
 
 
