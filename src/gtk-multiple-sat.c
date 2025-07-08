@@ -150,9 +150,9 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     gchar       *alstr;
     sat_vis_t   vis;
     sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
-    gdouble     dist;   // Distance to nsat
+    //gdouble     dist;   // Distance to nsat
     gboolean    los_vis;   // Is LOS clear from sat to nsat
-    gdouble     skr;
+    gdouble     up_skr, down_skr, inter_sat_skr;
 
     // sanity checks
     if (msat->labels[index][i] == NULL)
@@ -389,11 +389,12 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             }
             else
             {
-                // Sat is in viable elevation
-                skr = sat_to_ground_downlink(sat, msat->qth);
-                buff = g_strdup_printf("%lf", skr);
+                // Sat is in viable elevation, calculate downlink SKR
+                down_skr = sat_to_ground_downlink(sat, msat->qth);
+                buff = g_strdup_printf("%.2e bps", down_skr);
             }
             break;
+
         case MULTIPLE_SAT_FIELD_SKR_UP:
             if (sat->el < 30)
             {
@@ -401,20 +402,21 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             }
             else
             {
-                // Sat is in viable elevation
-                skr = ground_to_sat_uplink(msat->qth, sat);
-                buff = g_strdup_printf("%lf", skr);
+                // Sat is in viable elevation, calculate uplink SKR
+                up_skr = ground_to_sat_uplink(msat->qth, sat);
+                buff = g_strdup_printf("%.2e bps", up_skr);
             }
             break;
+
         case MULTIPLE_SAT_FIELD_SKR_NEAREST:
             nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);
             los_vis = is_los_clear(sat, nsat);
             if (los_vis)
             {
-                // line of sight is clear, calculate dist
-                dist = dist_calc(sat, nsat);
-                //skr = inter_sat_link(sat, nsat);
-                buff = g_strdup_printf("%s, %.2lf km", nsat->nickname, dist);
+                // Line of sight is clear, calculate distance and inter-satellite SKR
+                //gdouble dist = dist_calc(sat, nsat);
+                inter_sat_skr = inter_sat_link(sat, nsat);
+                buff = g_strdup_printf("%s, %.2e bps", nsat->nickname, inter_sat_skr);
             }
             else    // line of sight not clear
             {
@@ -531,14 +533,18 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
         // Header is not updating (fixed - make sure i-th element in grid and index in sats is correct)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
         gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
-        gtk_widget_queue_draw(msat->panels[i]->header);
+        
+        // bugged line: gtk_widget_queue_draw(msat->panels[i]->header);
+        gtk_widget_queue_draw(msat->panels[index]->header);
+        
         if (msat->panels[index]->header == NULL) {
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NULL!", __FILE__, __LINE__);
         } else {
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NOT NULL!", __FILE__, __LINE__);
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[i]->header = %s",
-                        __FILE__, __LINE__, msat->panels[i]->header);
+            // OLD, BUGGY LINE: sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[i]->header = %s", __FILE__, __LINE__, msat->panels[i]->header);
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[index]->header content updated", __FILE__, __LINE__);
         }
+        
         g_free(title);
     }
 }
