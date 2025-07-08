@@ -27,6 +27,7 @@
 #include <glib/gi18n.h>
 #include <math.h>
 #include <string.h>
+#include <float.h>
 
 #include "compat.h"
 #include "config-keys.h"
@@ -45,6 +46,9 @@
 #include "sat-log.h"
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
+#include "calc-dist-two-sat.h"
+#include "sat-graph.h"
+#include "qth-data.h"
 
 #define MARKER_SIZE_HALF    1
 
@@ -108,10 +112,14 @@ static void     gtk_sat_map_load_hide_coverages(GtkSatMap * map);
 static void     gtk_sat_map_store_hidecovs(GtkSatMap * satmap);
 static void     reset_ground_track(gpointer key, gpointer value,
                                    gpointer user_data);
+static void     draw_shortest_path_on_map(GtkSatMap *satmap);
 
 static GtkVBoxClass *parent_class = NULL;
 static GooCanvasPoints *points1;
 static GooCanvasPoints *points2;
+static GooCanvasItemModel *shortest_path_line_qth1_sat = NULL;
+static GooCanvasItemModel *shortest_path_line_sats = NULL;
+static GooCanvasItemModel *shortest_path_line_sat_qth2 = NULL;
 
 
 GType gtk_sat_map_get_type()
@@ -375,9 +383,9 @@ GtkWidget      *gtk_sat_map_new(GKeyFile * cfgdata, GHashTable * sats,
        even though the map shrinks => better to set default size of
        main container window.
      */
-    /*  gtk_widget_set_size_request (satmap->canvas, */
-    /*  gdk_pixbuf_get_width (satmap->origmap), */
-    /*  gdk_pixbuf_get_height (satmap->origmap)); */
+    /* gtk_widget_set_size_request (satmap->canvas, */
+    /* gdk_pixbuf_get_width (satmap->origmap), */
+    /* gdk_pixbuf_get_height (satmap->origmap)); */
 
     goo_canvas_set_bounds(GOO_CANVAS(satmap->canvas), 0, 0,
                           gdk_pixbuf_get_width(satmap->origmap),
@@ -591,7 +599,7 @@ static void update_map_size(GtkSatMap * satmap)
         if (satmap->keepratio)
         {
             /* Use allocation->width and allocation->height to calculate
-             *  new X0 Y0 width and height. Map proportions must be kept.
+             * new X0 Y0 width and height. Map proportions must be kept.
              */
             ratio = gdk_pixbuf_get_width(satmap->origmap) /
                 gdk_pixbuf_get_height(satmap->origmap);
@@ -871,6 +879,11 @@ void gtk_sat_map_update(GtkWidget * widget)
         else
         {
             g_object_set(satmap->next, "text", "", NULL);
+        }
+
+        /* Draw the shortest path if both ground stations are present */
+        if (satmap->qth && satmap->qth2) {
+            draw_shortest_path_on_map(satmap);
         }
     }
 }
@@ -1191,10 +1204,10 @@ void gtk_sat_map_reconf(GtkWidget * widget, GKeyFile * cfgdat)
  * The function ensures that satmap->origmap will contain a valid GdkPixpuf, by
  * using the following logic:
  *
- *   - Get either module specific or global map file using mod_cfg_get_str
- *   - If the returned file does not exist try sat_cfg_get_str_def
- *   - If loading of default map does not succeed, create a dummy GdkPixbuf
- *     (and raise all possible alarms)
+ * - Get either module specific or global map file using mod_cfg_get_str
+ * - If the returned file does not exist try sat_cfg_get_str_def
+ * - If loading of default map does not succeed, create a dummy GdkPixbuf
+ * (and raise all possible alarms)
  *
  * @note satmap->cfgdata should contain a valid GKeyFile.
  *
@@ -1405,19 +1418,19 @@ static gboolean mirror_lon(sat_t * sat, gdouble rangelon, gdouble * mlon,
  * one of the following three actions:
  *
  * 1. If the footprint covers the North or South pole, we need to sort the points
- *    and add two extra points: One to begin the range circle (e.g. -180,90) and
- *    one to end the range circle (e.g. 180,90). This is necessary to create a
- *    complete and consistent set of points suitable for a polyline. The addition
- *    of the extra points is done by the sort_points function.
+ * and add two extra points: One to begin the range circle (e.g. -180,90) and
+ * one to end the range circle (e.g. 180,90). This is necessary to create a
+ * complete and consistent set of points suitable for a polyline. The addition
+ * of the extra points is done by the sort_points function.
  *
  * 2. Else if parts of the range circle is on one side of the map, while parts of
- *    it is on the right side of the map, i.e. the range circle runs off the border
- *    of the map, it calls the split_points function to split the points into two
- *    complete and consistent sets of points that are suitable to create two 
- *    poly-lines.
+ * it is on the right side of the map, i.e. the range circle runs off the border
+ * of the map, it calls the split_points function to split the points into two
+ * complete and consistent sets of points that are suitable to create two 
+ * poly-lines.
  *
  * 3. Else nothing needs to be done since the points are already suitable for
- *    a polyline.
+ * a polyline.
  *
  * The function will re-initialise points1 and points2 according to its needs. The
  * total number of points will always be 360, even with the addition of the two
@@ -1524,11 +1537,11 @@ static guint calculate_footprint(GtkSatMap * satmap, sat_t * sat)
  * @param points2 A GooCanvasPoints structure containing the second set of points.
  * @param sspx Canvas based x-coordinate of SSP.
  * @bug We should ensure that the endpoints in points1 have x=x0, while in
- *      the endpoints in points2 should have x=x0+width (TBC).
+ * the endpoints in points2 should have x=x0+width (TBC).
  *
  * @note This function works on canvas-based coordinates rather than lat/lon
  * @note DO NOT USE this function when the footprint covers one of the poles
- *       (the end result may freeze the X-server requiring a hard-reset!)
+ * (the end result may freeze the X-server requiring a hard-reset!)
  */
 static void split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx)
 {
@@ -1709,20 +1722,20 @@ static void split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx)
  * @param sat The satellite data structure.
  * @param points The points to sort.
  * @param num The number of points. By specifying it as parameter we can
- *            sort incomplete arrays.
+ * sort incomplete arrays.
  *
  * This function sorts the points in ascending order with respect
  * to their x value. After sorting the function adds two extra points
  * to the array using the following algorithms:
  *
- *   move point at position 0 to position 1
- *   move point at position N to position N-1
- *   if (ssplat > 0)
- *         insert (x0,y0) into position 0
- *         insert (x0+width,y0) into position N
- *   else
- *         insert (x0,y0+height) into position 0
- *         insert (x0+width,y0+height) into position N
+ * move point at position 0 to position 1
+ * move point at position N to position N-1
+ * if (ssplat > 0)
+ * insert (x0,y0) into position 0
+ * insert (x0+width,y0) into position N
+ * else
+ * insert (x0,y0+height) into position 0
+ * insert (x0+width,y0+height) into position N
  *
  * This way we loose the points at position 1 and N-1, but that does not
  * make any big difference anyway, since we have 360 points in total.
@@ -1774,7 +1787,7 @@ static void sort_points_x(GtkSatMap * satmap, sat_t * sat,
  * @param sat The satellite data structure.
  * @param points The points to sort.
  * @param num The number of points. By specifying it as parameter we can
- *            sort incomplete arrays.
+ * sort incomplete arrays.
  *
  * This function sorts the points in ascending order with respect
  * to their y value.
@@ -2036,12 +2049,12 @@ static void plot_sat(gpointer key, gpointer value, gpointer data)
     obj->oldrcnum = obj->newrcnum;
 
     /* invisible footprint for decayed sats (STS fix) */
-    /*     if (sat->otype == ORBIT_TYPE_DECAYED) { */
-    /*         col = 0x00000000; */
-    /*     } */
+    /* if (sat->otype == ORBIT_TYPE_DECAYED) { */
+    /* col = 0x00000000; */
+    /* } */
 
     /* always create first part of range circle */
-    obj->range1 = goo_canvas_polyline_model_new(root, FALSE, 0,
+    obj->range1 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
                                                 "points", points1,
                                                 "line-width", 1.0,
                                                 "fill-color-rgba", covcol,
@@ -2058,7 +2071,7 @@ static void plot_sat(gpointer key, gpointer value, gpointer data)
     {
         //g_print ("N1:%d  N2:%d\n", points1->num_points, points2->num_points);
 
-        obj->range2 = goo_canvas_polyline_model_new(root, FALSE, 0,
+        obj->range2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
                                                     "points", points2,
                                                     "line-width", 1.0,
                                                     "fill-color-rgba", covcol,
@@ -2326,7 +2339,7 @@ static void update_sat(gpointer key, gpointer value, gpointer data)
                 {
                     covcol = 0x00000000;
                 }
-                obj->range2 = goo_canvas_polyline_model_new(root, FALSE, 0,
+                obj->range2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
                                                             "points", points2,
                                                             "line-width", 1.0,
                                                             "fill-color-rgba",
@@ -2660,7 +2673,7 @@ static void draw_terminator(GtkSatMap * satmap, GooCanvasItemModel * root)
     /* We do not set any polygon vertices here, but trust that the redraw_terminator
        will be called in due course to do the job. */
 
-    satmap->terminator = goo_canvas_polyline_model_new(root, FALSE, 0,
+    satmap->terminator = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
                                                        "line-width", 1.0,
                                                        "fill-color-rgba",
                                                        globe_shadow_col,
@@ -2867,6 +2880,160 @@ static void reset_ground_track(gpointer key, gpointer value,
     obj->track_orbit = 0;
 }
 
+static void draw_shortest_path_on_map(GtkSatMap *satmap)
+{
+    GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(satmap->canvas));
+    gfloat x1, y1, x2, y2;
+    GooCanvasPoints *points;
+    GList *sat_list = NULL;
+    SatGraph *graph = NULL;
+    sat_t *closest_sat1 = NULL;
+    sat_t *closest_sat2 = NULL;
+    gdouble min_dist1 = DBL_MAX;
+    gdouble min_dist2 = DBL_MAX;
+
+    /* Clear previous path lines */
+    if (shortest_path_line_qth1_sat) {
+        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_qth1_sat);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+        g_object_unref(shortest_path_line_qth1_sat);
+        shortest_path_line_qth1_sat = NULL;
+    }
+    if (shortest_path_line_sats) {
+        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_sats);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+        g_object_unref(shortest_path_line_sats);
+        shortest_path_line_sats = NULL;
+    }
+    if (shortest_path_line_sat_qth2) {
+        gint idx = goo_canvas_item_model_find_child(root, shortest_path_line_sat_qth2);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+        g_object_unref(shortest_path_line_sat_qth2);
+        shortest_path_line_sat_qth2 = NULL;
+    }
+
+    /* Ensure ground stations and satellites exist */
+    if (!satmap->qth || !satmap->qth2 || !satmap->sats || g_hash_table_size(satmap->sats) == 0) {
+        return;
+    }
+
+    /* 1. Build the satellite graph and find closest satellites */
+    graph = sat_graph_new();
+    GHashTableIter iter;
+    gpointer key, value;
+
+    g_hash_table_iter_init(&iter, satmap->sats);
+    while (g_hash_table_iter_next(&iter, &key, &value))
+    {
+        sat_t *current_sat = (sat_t *)value;
+        if (decayed(current_sat)) continue;
+
+        sat_graph_add_vertex(graph, current_sat);
+        sat_list = g_list_append(sat_list, current_sat);
+
+        /* Find closest sat to qth1 */
+        gdouble dist1 = sat_qth_distance(current_sat, satmap->qth);
+        if (dist1 < min_dist1) {
+            min_dist1 = dist1;
+            closest_sat1 = current_sat;
+        }
+
+        /* Find closest sat to qth2 */
+        gdouble dist2 = sat_qth_distance(current_sat, satmap->qth2);
+        if (dist2 < min_dist2) {
+            min_dist2 = dist2;
+            closest_sat2 = current_sat;
+        }
+    }
+
+    /* Add edges between all satellites with clear Line-Of-Sight */
+    for (GList *l1 = sat_list; l1 != NULL; l1 = l1->next) {
+        for (GList *l2 = g_list_next(l1); l2 != NULL; l2 = g_list_next(l2)) {
+            sat_t *s1 = (sat_t *)l1->data;
+            sat_t *s2 = (sat_t *)l2->data;
+            if (is_los_clear(s1, s2)) {
+                sat_graph_add_edge(graph, s1, s2);
+            }
+        }
+    }
+    
+    if (!closest_sat1 || !closest_sat2) {
+        g_list_free(sat_list);
+        sat_graph_free(graph);
+        return; /* No closest satellites found */
+    }
+
+    /* 2. Calculate shortest path between closest satellites */
+    GList *path = NULL;
+    if (closest_sat1 != closest_sat2) {
+        path = sat_graph_dijkstra(graph, closest_sat1, closest_sat2);
+    } else {
+        path = g_list_append(NULL, closest_sat1);
+    }
+
+    if (!path) {
+        g_list_free(sat_list);
+        sat_graph_free(graph);
+        return; /* No path found */
+    }
+
+    /* 3. Draw the lines */
+    /* Line 1: From QTH1 to first satellite on path */
+    sat_t *start_sat = (sat_t *)path->data;
+    lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x1, &y1);
+    lonlat_to_xy(satmap, start_sat->ssplon, start_sat->ssplat, &x2, &y2);
+    
+    points = goo_canvas_points_new(2);
+    points->coords[0] = x1; points->coords[1] = y1;
+    points->coords[2] = x2; points->coords[3] = y2;
+    shortest_path_line_qth1_sat = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
+                                                         "points", points,
+                                                         "stroke-color", "green",
+                                                         "line-width", 2.0,
+                                                         NULL);
+    goo_canvas_points_unref(points);
+
+    /* Line 2: Path over satellites */
+    if (g_list_length(path) > 1) {
+        points = goo_canvas_points_new(g_list_length(path));
+        gint i = 0;
+        for (GList *l = path; l != NULL; l = g_list_next(l)) {
+            sat_t *sat_on_path = (sat_t *)l->data;
+            gfloat temp_x, temp_y;
+            lonlat_to_xy(satmap, sat_on_path->ssplon, sat_on_path->ssplat,
+                         &temp_x, &temp_y);
+            points->coords[i*2] = temp_x;
+            points->coords[i*2+1] = temp_y;
+            i++;
+        }
+        shortest_path_line_sats = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
+                                                          "points", points,
+                                                          "stroke-color", "green",
+                                                          "line-width", 2.0,
+                                                          NULL);
+        goo_canvas_points_unref(points);
+    }
+
+    /* Line 3: From last satellite on path to QTH2 */
+    sat_t *end_sat = (sat_t *)g_list_last(path)->data;
+    lonlat_to_xy(satmap, end_sat->ssplon, end_sat->ssplat, &x1, &y1);
+    lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x2, &y2);
+    points = goo_canvas_points_new(2);
+    points->coords[0] = x1; points->coords[1] = y1;
+    points->coords[2] = x2; points->coords[3] = y2;
+    shortest_path_line_sat_qth2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL, "parent", root,
+                                                          "points", points,
+                                                          "stroke-color", "green",
+                                                          "line-width", 2.0,
+                                                          NULL);
+    goo_canvas_points_unref(points);
+
+    /* Clean up */
+    g_list_free(sat_list);
+    g_list_free(path); /* Free the GList, not the sat_t objects */
+    sat_graph_free(graph);
+}
+
 static gchar   *aoslos_time_to_str(GtkSatMap * satmap, sat_t * sat)
 {
     guint           h, m, s;
@@ -2883,7 +3050,7 @@ static gchar   *aoslos_time_to_str(GtkSatMap * satmap, sat_t * sat)
     {
         number = sat->aos - now;
     }
-
+    
     /* convert julian date to seconds */
     s = (guint) (number * 86400);
 

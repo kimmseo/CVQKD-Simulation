@@ -8,6 +8,9 @@
 #include <gtk/gtk.h>
 
 #include "gtk-sat-data.h"
+#include "calc-dist-two-sat.h"
+#include "sat-graph.h"
+#include "qth-data.h"
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

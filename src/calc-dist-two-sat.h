@@ -1,6 +1,3 @@
-
-// have not been included in makefile, include when ready
-
 #ifndef __CALC_DIST_TWO_SAT_H__
 #define __CALC_DIST_TWO_SAT_H__ 1
 
