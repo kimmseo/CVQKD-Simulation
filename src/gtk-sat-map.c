@@ -3143,6 +3143,12 @@ static void draw_shortest_path_on_map(GtkSatMap *satmap)
         sat_graph_free(unrealistic_graph);
     }
     
+    /* --- 4. SET STACKING ORDER --- */
+    /* Raise the green line to be on top of the red line in case of overlap */
+    goo_canvas_item_model_raise(shortest_path_line_qth1_sat, NULL);
+    goo_canvas_item_model_raise(shortest_path_line_sats, NULL);
+    goo_canvas_item_model_raise(shortest_path_line_sat_qth2, NULL);
+
     /* Clean up */
     g_list_free(sat_list);
 }
