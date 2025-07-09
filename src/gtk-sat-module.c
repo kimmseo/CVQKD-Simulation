@@ -2,7 +2,7 @@
  * Gpredict: Real-time satellite tracking and orbit prediction program
  *
  * Copyright (C)  2001-2019  Alexandru Csete, OZ9AEC
- *                           Charles Suprin, AA1VS
+ * Charles Suprin, AA1VS
  *
  * This program is free software; you can redistribute it and/or modify
  * it under the terms of the GNU General Public License as published by
@@ -26,8 +26,7 @@
  *
  * The views are organized in a grid (GtkTable) where each view can occupy one
  * or more squares, see the create_module_layout() function.
- * 
- * A module can have a GtkRigCtrl, a GtkRotCtrl and a GtkSkyGlance widget
+ * * A module can have a GtkRigCtrl, a GtkRotCtrl and a GtkSkyGlance widget
  * associated to it. These associations exist because theu share QTH and
  * satellite data.
  */
@@ -248,6 +247,13 @@ static void gtk_sat_module_destroy(GtkWidget * widget)
         view = GTK_WIDGET(g_slist_nth_data(module->views, i));
         gtk_widget_destroy(view);
     }
+    
+    // Free module views
+    if (module->views) 
+    {
+        g_slist_free(module->views);
+        module->views = NULL;
+    }
     module->nviews = 0;
 
     /* clean up QTH */
@@ -276,6 +282,13 @@ static void gtk_sat_module_destroy(GtkWidget * widget)
         module->grid = NULL;
     }
 
+    // Free module name
+    if (module->name)
+    {
+        g_free(module->name);
+        module->name = NULL;
+    }
+
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
 }
 
@@ -299,6 +312,7 @@ static void gtk_sat_module_init(GtkSatModule * module,
 
     /* initialise data structures */
     module->win = NULL;
+    module->name = NULL;
 
     module->qth = g_try_new0(qth_t, 1);
     qth_init(module->qth);
@@ -376,7 +390,7 @@ GType gtk_sat_module_get_type()
  * @param module Pointer to the parent GtkSatModule widget
  * @param num The number ID of the view to create, see gtk_sat_mod_view_t
  * @return Pointer to a new GtkWidget of type corresponding to num. If num
- *         is invalid, a GtkSatList is returned.
+ * is invalid, a GtkSatList is returned.
  */
 static GtkWidget *create_view(GtkSatModule * module, guint num)
 {
@@ -586,6 +600,7 @@ static void gtk_sat_module_load_sats(GtkSatModule * module)
 
                 /* it is not needed in this case */
                 g_free(sat);
+                g_free(key); /* Also free the key */
             }
 
         }
@@ -1170,7 +1185,7 @@ static void gtk_sat_module_read_cfg_data(GtkSatModule * module,
  * @param cfgfile The name of the configuration file (.mod)
  *
  * @bug Program goes into infinite loop when there is something
- *      wrong with cfg file.
+ * wrong with cfg file.
  */
 GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
 {
@@ -1289,7 +1304,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
  * well.
  *
  * NOTE: Don't use button, since we don't know what kind of widget it is
- *       (it may be button or menu item).
+ * (it may be button or menu item).
  */
 void gtk_sat_module_close_cb(GtkWidget * button, gpointer data)
 {
@@ -1408,7 +1423,7 @@ void gtk_sat_module_close_cb(GtkWidget * button, gpointer data)
  * as the dialog used to create a new module.
  *
  * NOTE: Don't use button, since we don't know what kind of widget it is
- *       (it may be button or menu item).
+ * (it may be button or menu item).
  */
 void gtk_sat_module_config_cb(GtkWidget * button, gpointer data)
 {
@@ -1611,12 +1626,7 @@ static void reload_sats_in_child(GtkWidget * widget, GtkSatModule * module)
  *
  * @param module Pointer to a GtkSatModule widget.
  *
- * This function is used to reload the satellites in a module. This is can be
- * useful when:
- *
- *   1. The TLE files have been updated.
- *   2. The module configuration has changed (i.e. which satellites to track).
- *
+ * This function is used to reload the satellites in a module.
  * The function assumes that module->cfgdata has already been updated, and so
  * all it has to do is to free module->satellites and re-execute the satellite
  * loading sequence.
@@ -1759,7 +1769,7 @@ void gtk_sat_module_select_sat_second(GtkSatModule * module, gint catnum)
  *
  * @param module The module.
  * @param local Flag indicating whether reconfiguration is requested from 
- *              local configuration dialog.
+ * local configuration dialog.
  *
  */
 void gtk_sat_module_reconf(GtkSatModule * module, gboolean local)

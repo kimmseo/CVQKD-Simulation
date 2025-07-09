@@ -164,7 +164,7 @@ int main(int argc, char *argv[])
     sat_cfg_save();
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config saved", __FILE__, __LINE__);
     sat_cfg_close();
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config closed, initiating sat_log_close()"
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config closed, initiating sat_log_close()",
                 __FILE__, __LINE__);
     sat_log_close();
 
@@ -342,7 +342,7 @@ static void gpredict_app_destroy(GtkWidget * widget, gpointer data)
                 __FILE__, __func__);
 
     /* not good, have to use configure event instead (see API doc) */
-    /*     gtk_window_get_size (GTK_WINDOW (app), &w, &h);
+    /* gtk_window_get_size (GTK_WINDOW (app), &w, &h);
        sat_cfg_set_int (SAT_CFG_INT_WINDOW_WIDTH, w);
        sat_cfg_set_int (SAT_CFG_INT_WINDOW_HEIGHT, h);
      */
@@ -363,8 +363,8 @@ static void gpredict_app_destroy(GtkWidget * widget, gpointer data)
  * position and size of the main window.
  *
  * @note unfortunately GdkEventConfigure ignores the window gravity, while
- *       the only way we have of setting the position doesn't. We have to
- *       call get_position because it does pay attention to the gravity.
+ * the only way we have of setting the position doesn't. We have to
+ * call get_position because it does pay attention to the gravity.
  *
  * @note The logic in the code has been borrowed from gaim/pidgin http://pidgin.im/
  *
@@ -487,9 +487,9 @@ static gboolean tle_mon_task(gpointer data)
     if ((now - last) < thrld)
     {
         /* too early */
-        /*           sat_log_log (SAT_LOG_LEVEL_DEBUG, */
-        /*                           _("%s: Threshold has not been passed yet."), */
-        /*                           __func__, last, now, thrld); */
+        /* sat_log_log (SAT_LOG_LEVEL_DEBUG, */
+        /* _("%s: Threshold has not been passed yet."), */
+        /* __func__, last, now, thrld); */
     }
     else
     {
