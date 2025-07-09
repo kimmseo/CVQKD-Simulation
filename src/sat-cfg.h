@@ -68,8 +68,8 @@ typedef enum {
     SAT_CFG_INT_MODULE_VIEW_2,  /*!< Type of view 2 */
     SAT_CFG_INT_MODULE_VIEW_3,  /*!< Type of view 3 */
     SAT_CFG_INT_MODULE_VIEW_4,  /*!< Type of view 4 */
-    SAT_CFG_INT_MODULE_VIEW_5,
-    SAT_CFG_INT_MODULE_VIEW_6,
+    SAT_CFG_INT_MODULE_VIEW_5,  /*!< Type of view 5 */
+    SAT_CFG_INT_MODULE_VIEW_6,  /*!< Type of view 6 */
     SAT_CFG_INT_MODULE_CURRENT_PAGE,    /*!< Number of integer parameters. */
     SAT_CFG_INT_WARP_FACTOR,    /*!< Time compression factor. */
     SAT_CFG_INT_LIST_REFRESH,   /*!< List refresh rate (cycle). */
