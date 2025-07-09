@@ -163,10 +163,12 @@ int main(int argc, char *argv[])
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Context freed", __FILE__, __LINE__);
     sat_cfg_save();
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config saved", __FILE__, __LINE__);
-    sat_cfg_close();
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Config closed, initiating sat_log_close()",
-                __FILE__, __LINE__);
+    
+    /* Close the log first, as it might use the config module. */
     sat_log_close();
+
+    /* Now it's safe to close the config module. */
+    sat_cfg_close();
 
 #ifdef WIN32
     CloseWinSock2();
