@@ -972,6 +972,30 @@ static void autotrack_cb(GtkCheckMenuItem * menuitem, gpointer data)
  */
 static void close_cb(GtkWidget * menuitem, gpointer data)
 {
+    GtkSatModule *module = GTK_SAT_MODULE(data);
+
+    /*
+     * FIX: Lock the module's busy mutex. This ensures that we wait for any
+     * pending timeout/update operation to complete before we proceed with
+     * closing the module. This prevents a race condition where the timer
+     * callback tries to access widgets that are being destroyed.
+     */
+    g_mutex_lock(&module->busy);
+
+    /*
+     * Disable the update timer before closing the module.
+     */
+    if (module->timerid > 0)
+    {
+        g_source_remove(module->timerid);
+        module->timerid = 0; /* Prevent double-removal */
+    }
+
+    /*
+     * Release the lock before calling the main close function.
+     */
+    g_mutex_unlock(&module->busy);
+
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called", __FILE__, __LINE__, __func__);
     gtk_sat_module_close_cb(menuitem, data);
 }
@@ -1010,7 +1034,28 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
     switch (response)
     {
     case GTK_RESPONSE_YES:
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+        /*
+         * FIX: Lock the module's busy mutex. This ensures that we wait for any
+         * pending timeout/update operation to complete before we proceed with
+         * deleting the module. This prevents a race condition where the timer
+         * callback tries to access widgets that are being destroyed.
+         */
+        g_mutex_lock(&module->busy);
+
+        /*
+         * Disable the update timer before closing the module.
+         */
+        if (module->timerid > 0)
+        {
+            g_source_remove(module->timerid);
+            module->timerid = 0; /* Prevent double-removal */
+        }
+
+        /*
+         * Release the lock before calling the main close function.
+         */
+        g_mutex_unlock(&module->busy);
+        
 		gtk_sat_module_close_cb(menuitem, data);
 		result = g_remove(file);
         if (result)
