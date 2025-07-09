@@ -191,8 +191,8 @@ sat_cfg_int_t   sat_cfg_int[SAT_CFG_INT_NUM] = {
     {"MODULES", "VIEW_3", GTK_SAT_MOD_VIEW_SINGLE},     /* FIXME */
     /* BELOW LINE NEEDS FIXING, ENABLING IT BREAKS CONFIG */
 //    {"MODULES", "VIEW_4", GTK_SAT_MOD_VIEW_SECOND},     /* FIXME */
-//  {"MODULES", "VIEW_5", GTK_SAT_MOD_VIEW_TWO},        /* FIXME */
-//  {"MODULES", "VIEW_6", GTK_SAT_MOD_VIEW_MULTIPLE},   /* FIXME */
+//    {"MODULES", "VIEW_5", GTK_SAT_MOD_VIEW_TWO},        /* FIXME */
+//    {"MODULES", "VIEW_6", GTK_SAT_MOD_VIEW_MULTIPLE},   /* FIXME */
     {"GLOBAL", "CURRENT_PAGE", -1},     /* FIXME */
     {"GLOBAL", "WARP", 1},
     {"MODULES", "LIST_REFRESH", 1},
