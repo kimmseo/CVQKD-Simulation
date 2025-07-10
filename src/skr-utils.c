@@ -23,13 +23,13 @@
 /* Constant parameters for SKR calculation based on the provided Python scripts and paper */
 #define ALPHA_MOD_AMP 2.236       // sqrt(5) -> Corresponds to VA = 5 SNU
 #define EXCESS_NOISE 0.03         // Excess noise (ksi) in SNU
-#define RECONCILIATION_EFF 0.9    // Initial reconciliation efficiency (beta)
-#define LASER_REPETITION_RATE 50e6 // Repetition rate (f) in Hz
+#define RECONCILIATION_EFF 0.98   // Initial reconciliation efficiency (beta)
+#define LASER_REPETITION_RATE 100e6 // Repetition rate (f) in Hz
 #define WAVELENGTH 1550e-9        // Wavelength of the laser in meters
 #define TRANSMITTER_APT_DIAMETER 1.0 // Transmitter aperture diameter (Dt) in meters for ground
 #define RECEIVER_APT_DIAMETER 0.3  // Receiver aperture diameter (Dr) in meters for satellite
-#define TRANSMITTER_OPTICS_EFF 0.9 // Transmitter optics efficiency (Tt)
-#define RECEIVER_OPTICS_EFF 0.9    // Receiver optics efficiency (Tr)
+#define TRANSMITTER_OPTICS_EFF 0.95 // Transmitter optics efficiency (Tt)
+#define RECEIVER_OPTICS_EFF 0.95    // Receiver optics efficiency (Tr)
 #define POINTING_LOSS 0.1          // Pointing loss (Lp)
 #define ATMOSPHERE_THICKNESS 20.0  // Effective atmosphere thickness in km
 #define VISIBILITY 200.0           // Atmospheric visibility in km
@@ -419,10 +419,6 @@ gdouble inter_sat_link(sat_t *sat1, sat_t *sat2)
 {
     if (!sat1 || !sat2) {
         return 0.0;
-    }
-
-    if (!is_los_clear(sat1, sat2)) {
-        return 0.0; // LOS is blocked
     }
 
     gdouble distance = dist_calc(sat1, sat2);
