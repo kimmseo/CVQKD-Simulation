@@ -410,11 +410,18 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
 
         case MULTIPLE_SAT_FIELD_SKR_NEAREST:
             nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);
+            
+            // Add a NULL check for nsat to avoid SEGFAULT
+            if (nsat == NULL) 
+            {
+                buff = g_strdup("N/A");
+                break;
+            }
+            
             los_vis = is_los_clear(sat, nsat);
             if (los_vis)
             {
                 // Line of sight is clear, calculate distance and inter-satellite SKR
-                //gdouble dist = dist_calc(sat, nsat);
                 inter_sat_skr = inter_sat_link(sat, nsat);
                 buff = g_strdup_printf("%s, %.2e bps", nsat->nickname, inter_sat_skr);
             }
@@ -422,11 +429,6 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
             {
                 buff = g_strdup_printf("%s, No LOS", nsat->nickname);
             }
-            break;
-        default:
-            sat_log_log(SAT_LOG_LEVEL_ERROR,
-                        _("%s:%d: Invalid field number (%d)"),
-                        __FILE__, __LINE__, i);
             break;
         }
     }
