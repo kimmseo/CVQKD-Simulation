@@ -430,6 +430,11 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
                 buff = g_strdup_printf("%s, No LOS", nsat->nickname);
             }
             break;
+        default:
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _("%s:%d: Invalid field number (%d)"),
+                        __FILE__, __LINE__, i);
+            break;
         }
     }
 
