@@ -39,6 +39,7 @@ GRTAGS
 GPATH
 conf424192
 conf424192.file
+conf424192.dir
 ### VisualStudioCode ###
 .vscode/*      # Maybe .vscode/**/* instead - see comments
 !.vscode/settings.json
