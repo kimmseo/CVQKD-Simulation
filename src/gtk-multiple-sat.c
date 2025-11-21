@@ -782,9 +782,14 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
             sat_t           *sat =
                 SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
 
-            Calculate_RADec(sat, msat->qth, &astro);
-            sat->ra = Degrees(astro.ra);
-            sat->dec = Degrees(astro.dec);
+            //TEMP FIX: when g_array is implemented for gtk-multiple-sat then
+            //should remove if statement
+            if (index < msat->dyn_num_sat) {
+                Calculate_RADec(sat, msat->qth, &astro);
+                sat->ra = Degrees(astro.ra);
+                sat->dec = Degrees(astro.dec);
+ 
+            }
         }
 
         // Update visible fields one by one
@@ -916,6 +921,10 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     /* ... */
 
     g_hash_table_foreach(sats, store_sats, widget);
+
+    multiple_sat->dyn_num_sat = g_slist_length(multiple_sat->sats);
+    sat_log_log(SAT_LOG_LEVEL_DEBUG, "dyn_num_sat set to %d", multiple_sat->dyn_num_sat);
+
     guint sats_length = g_slist_length(multiple_sat->sats);
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: sats_length = %u",
                 __FILE__, __LINE__, sats_length);
@@ -1001,7 +1010,7 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
     gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
 
-    for (i = 0; i < NUMBER_OF_SATS; i++)
+    for (i = 0; i < multiple_sat->dyn_num_sat; i++)
     {
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         guint index = multiple_sat->selected[i];

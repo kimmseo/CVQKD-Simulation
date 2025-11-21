@@ -119,6 +119,8 @@ typedef struct _GtkMultipleSatClass GtkMultipleSatClass;
 struct _gtk_multiple_sat {
     GtkBox          vbox;
 
+    gint            dyn_num_sat;    //number of satellites currently loaded
+
     GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
 
     GtkWidget       *swin;      // Scrolled window
