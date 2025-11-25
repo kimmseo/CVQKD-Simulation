@@ -124,7 +124,8 @@ struct _gtk_multiple_sat {
     GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
 
     GtkWidget       *swin;      // Scrolled window
-    SatPanel        *panels[NUMBER_OF_SATS];    // SatPanels list
+    //SatPanel        *panels[NUMBER_OF_SATS];    // SatPanels list (array of SatPanel Pointers)
+    GArray          *panels;
     GtkWidget       *table[NUMBER_OF_SATS];     // Table
     
     GtkWidget       *popup_button[NUMBER_OF_SATS];  // Popup button
@@ -136,7 +137,9 @@ struct _gtk_multiple_sat {
     guint32         flags;      // Flags indicating which columns are visible
     guint           refresh;    // Refresh rate
     guint           counter;    // Cycle counter
-    gint            selected[NUMBER_OF_SATS];   // Index of selected sat
+    //gint            selected[NUMBER_OF_SATS];   // Index of selected sat
+
+    GArray          *selected;
 
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 

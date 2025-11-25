@@ -95,25 +95,33 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
     guint i;
     gint satlist[NUMBER_OF_SATS];
     gboolean check = FALSE;
+    
+    //Free memory (gpredict call this function twice for some reason
+    // so we use sanity check before free)
+    if (msat->dyn_num_sat != NULL) { 
 
-    for (i = 0; i < NUMBER_OF_SATS; i++)
-    {
-        sat_t *sat = SAT(g_slist_nth_data(msat->sats, msat->selected[i]));
-        if (sat != NULL)
+        for (i = 0; i < NUMBER_OF_SATS; i++)
         {
-            satlist[i] = sat->tle.catnr;
-            check = TRUE;
+            sat_t *sat = SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, i)));
+            if (sat != NULL)
+            {
+                satlist[i] = sat->tle.catnr;
+                check = TRUE;
+            }
+            else
+            {
+                satlist[i] = 0;
+            }
         }
-        else
-        {
-            satlist[i] = 0;
-        }
-    }
-    if (check)
-    {
+        
         g_key_file_set_integer_list(msat->cfgdata, MOD_CFG_MULTIPLE_SAT_SECTION,
                                     MOD_CFG_MULTIPLE_SAT_SELECT, satlist,
                                     NUMBER_OF_SATS);
+
+        g_array_free(msat->selected, TRUE);
+        g_array_free(msat->panels, TRUE);
+
+        msat->dyn_num_sat = NULL;
     }
 
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
@@ -166,7 +174,10 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     }
 
     // Get selected satellite
-    sat = SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
+
+    //sat = SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
+    sat = SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, index)));
+
     if (!sat)
     {
         /*
@@ -530,7 +541,11 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
         // i is the position in the grid
         // index is the index of the selected satellite in the satellites list
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: if condition passed for select_satellite", __FILE__, __LINE__);
-        msat->selected[index] = i;
+
+        //msat->selected[index] = i;
+        guint *selected_index  = &g_array_index(msat->selected, guint, index);
+        *selected_index = i;
+
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->selected[index] is %u", __FILE__, __LINE__, msat->selected[index]);
 
         sat = SAT(g_slist_nth_data(msat->sats, i));
@@ -539,12 +554,15 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
         // This is probably the issue
         // Header is not updating (fixed - make sure i-th element in grid and index in sats is correct)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
-        gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
+        //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
+        SatPanel *panelI = g_array_index(msat->panels, SatPanel *, i);
+        gtk_label_set_markup(GTK_LABEL(panelI->header), title);
         
         // bugged line: gtk_widget_queue_draw(msat->panels[i]->header);
-        gtk_widget_queue_draw(msat->panels[index]->header);
-        
-        if (msat->panels[index]->header == NULL) {
+        //gtk_widget_queue_draw(msat->panels[index]->header);
+        gtk_widget_queue_draw(panelI->header);
+
+        if (panelI->header == NULL) {
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NULL!", __FILE__, __LINE__);
         } else {
             sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NOT NULL!", __FILE__, __LINE__);
@@ -576,7 +594,11 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: callback started, index = %u", __FILE__, __LINE__, index);
 
     if (selectedIndex >= 0)
-        sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[selectedIndex]));
+    {
+        //sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[selectedIndex]));
+        guint selectedNum = g_array_index(multiple_sat->selected, guint, selectedIndex);
+        sat = SAT(g_slist_nth_data(multiple_sat->sats, selectedNum));
+    }
     if (sat == NULL)
     {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: invalid satellite", __FILE__, __LINE__);
@@ -634,7 +656,8 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
         menuitem = gtk_radio_menu_item_new_with_label(group, sati->nickname);
         group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(menuitem));
 
-        if (i == multiple_sat->selected[selectedIndex])
+        //if (i == multiple_sat->selected[selectedIndex])
+        if (i == g_array_index(multiple_sat->selected, guint, index))
         {
             gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menuitem), TRUE);
         }
@@ -728,7 +751,9 @@ void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint in
         if (sat->tle.catnr == catnum)
         {
             // Found satellite
-            msat->selected[index] = i;
+            //msat->selected[index] = i;
+            guint *selected_index  = &g_array_index(msat->selected, guint, index);
+            *selected_index = i;
             foundsat = TRUE;
 
             // Exit loop
@@ -740,13 +765,18 @@ void gtk_multiple_sat_select_sat(GtkWidget * multiple_sat, gint catnum, guint in
                         _("%s: Could not find satellite with catalog number %d"),
                         __func__, catnum);
             //return;
-            msat->selected[index] = i;
+            //msat->selected[index] = i;
+            guint *selected_index  = &g_array_index(msat->selected, guint, index);
+            *selected_index = i;
         }
     }
 
     title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
-    gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
-    gtk_widget_queue_draw(msat->panels[i]->header);
+    //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
+    //gtk_widget_queue_draw(msat->panels[i]->header);
+    SatPanel *panelPointer = g_array_index(msat->panels, SatPanel *, i);
+    gtk_label_set_markup(GTK_LABEL(panelPointer->header), title);
+    gtk_widget_queue_draw(panelPointer->header);
     g_free(title);
 }
 
@@ -780,7 +810,8 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
         {
             obs_astro_t     astro;
             sat_t           *sat =
-                SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
+                //SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
+                SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, index)));
 
             //TEMP FIX: when g_array is implemented for gtk-multiple-sat then
             //should remove if statement
@@ -925,26 +956,17 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     multiple_sat->dyn_num_sat = g_slist_length(multiple_sat->sats);
     sat_log_log(SAT_LOG_LEVEL_DEBUG, "dyn_num_sat set to %d", multiple_sat->dyn_num_sat);
 
-    guint sats_length = g_slist_length(multiple_sat->sats);
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: sats_length = %u",
-                __FILE__, __LINE__, sats_length);
-    for (i = 0; i < NUMBER_OF_SATS; i++)
+    multiple_sat->selected = g_array_sized_new(FALSE, TRUE, sizeof(guint), multiple_sat->dyn_num_sat);
+ 
+    for (i = 0; i < multiple_sat->dyn_num_sat; i++)
     {
-        if (i >= sats_length)
-        {
-            multiple_sat->selected[i] = -1;
-            //multiple_sat->selected[i] = 0;
-        }
-        else
-        {
-            multiple_sat->selected[i] = i;
-        }
+        g_array_append_val(multiple_sat->selected, i);
     }
-    for (i = 0; i < NUMBER_OF_SATS; i++)
-    {
+    for (i = 0; i < multiple_sat->dyn_num_sat; i++)
+    { 
         sat_log_log(SAT_LOG_LEVEL_DEBUG,
                     "%s %s: selected[%d] set to: %d", __func__, __FILE__, 
-                    i, multiple_sat->selected[i]);
+                    i, g_array_index(multiple_sat->selected, guint, i));
     }
     multiple_sat->qth = qth;
     multiple_sat->cfgdata = cfgdata;
@@ -1010,20 +1032,31 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
     gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
 
+    multiple_sat->panels = g_array_sized_new(FALSE, TRUE, sizeof(SatPanel *), multiple_sat->dyn_num_sat);
+
     for (i = 0; i < multiple_sat->dyn_num_sat; i++)
     {
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
-        guint index = multiple_sat->selected[i];
+        guint index = g_array_index(multiple_sat->selected, guint, i);
+
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: index set to %u", __FILE__, __LINE__, index);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
         // i is the position in the grid
         // index is the index of the satellite in sats
-        multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
+
+        //multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
+
+        //Array of SatPanel pointers. We get the pointer to the element in the array, then derefrence it to 
+        //assign the new satpanel pointer value to it.
+        SatPanel **satPanelI  = &g_array_index(multiple_sat->panels, SatPanel *, i);
+        *satPanelI = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
+
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
 
         for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
-        {
-            multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
+        { 
+            //multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
+            SatPanel *satPanel = g_array_index(multiple_sat->panels, SatPanel *, i);
+            multiple_sat->labels[i][j] = satPanel->labels[j];
         }
         // Some debugging stuff
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: current iteration - %d", __FILE__, __LINE__, i);
@@ -1040,11 +1073,11 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);   // Header box
-        gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->popup_button, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), multiple_sat->panels[i]->header, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), ((SatPanel *)*satPanelI)->popup_button, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), ((SatPanel*)*satPanelI)->header, TRUE, TRUE, 0);
 
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), multiple_sat->panels[i]->table, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), ((SatPanel *)*satPanelI)->table, FALSE, FALSE, 0);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
