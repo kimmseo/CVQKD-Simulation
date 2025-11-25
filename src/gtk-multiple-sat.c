@@ -812,7 +812,7 @@ void gtk_multiple_sat_update(GtkWidget * widget, guint index)
             sat_t           *sat =
                 //SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
                 SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, index)));
-
+ 
             //TEMP FIX: when g_array is implemented for gtk-multiple-sat then
             //should remove if statement
             if (index < msat->dyn_num_sat) {
