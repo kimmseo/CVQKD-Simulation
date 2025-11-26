@@ -93,14 +93,14 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
 {
     GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(widget);
     guint i;
-    gint satlist[NUMBER_OF_SATS];
+    gint satlist[msat->dyn_num_sat];
     gboolean check = FALSE;
     
     //Free memory (gpredict call this function twice for some reason
     // so we use sanity check before free)
     if (msat->dyn_num_sat != NULL) { 
 
-        for (i = 0; i < NUMBER_OF_SATS; i++)
+        for (i = 0; i < msat->dyn_num_sat; i++)
         {
             sat_t *sat = SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, i)));
             if (sat != NULL)
@@ -116,7 +116,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
         
         g_key_file_set_integer_list(msat->cfgdata, MOD_CFG_MULTIPLE_SAT_SECTION,
                                     MOD_CFG_MULTIPLE_SAT_SELECT, satlist,
-                                    NUMBER_OF_SATS);
+                                    msat->dyn_num_sat);
 
         g_array_free(msat->selected, TRUE);
         g_array_free(msat->panels, TRUE);

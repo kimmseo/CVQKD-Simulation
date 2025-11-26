@@ -18,7 +18,7 @@ extern "C" {
 #endif
 /* *INDENT-ON* */
 
-#define NUMBER_OF_SATS 10
+//#define NUMBER_OF_SATS 10
 #define SATS_PER_ROW 2
 
 

@@ -1711,7 +1711,7 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
         }
         else if (IS_GTK_MULTIPLE_SAT(child))
         {
-            for (guint i = 0; i < NUMBER_OF_SATS; i++)
+            for (guint i = 0; i < GTK_MULTIPLE_SAT(child)->dyn_num_sat; i++)
             {
                 //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint, i = %d", __FILE__, __LINE__, i);
                 gtk_multiple_sat_select_sat(child, catnum, i);
