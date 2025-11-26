@@ -739,8 +739,8 @@ static void update_child(GtkWidget * child, gdouble tstamp)
 
     else if (IS_GTK_MULTIPLE_SAT(child))
     {
-        GTK_MULTIPLE_SAT(child)->tstamp = tstamp;
-        for (guint i = 0; i < NUMBER_OF_SATS; i++)
+        GTK_MULTIPLE_SAT(child)->tstamp = tstamp; 
+        for (guint i = 0; i < GTK_MULTIPLE_SAT(child)->dyn_num_sat; i++)
         {
             // TODO: Make a function here that checks that the current sat is not null
             // Might need API with child widget to get sat at index i

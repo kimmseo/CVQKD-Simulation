@@ -120,6 +120,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
 
         g_array_free(msat->selected, TRUE);
         g_array_free(msat->panels, TRUE);
+        g_array_free(msat->labels, TRUE);
 
         msat->dyn_num_sat = NULL;
     }
@@ -160,19 +161,8 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
     sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
     //gdouble     dist;   // Distance to nsat
     gboolean    los_vis;   // Is LOS clear from sat to nsat
-    gdouble     up_skr, down_skr, inter_sat_skr;
-
-    // sanity checks
-    if (msat->labels[index][i] == NULL)
-    {
-        /*
-        sat_log_log(SAT_LOG_LEVEL_ERROR,
-                    _("%s:%d: Can not update invisible field (I:%d F:%d)"),
-                    __FILE__, __LINE__, i, msat->flags);
-        */
-        //return;
-    }
-
+    gdouble     up_skr, down_skr, inter_sat_skr; 
+        
     // Get selected satellite
 
     //sat = SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
@@ -451,7 +441,12 @@ static void update_field(GtkMultipleSat * msat, guint i, guint index)
 
     if (buff != NULL)
     {
-        gtk_label_set_text(GTK_LABEL(msat->labels[index][i]), buff);
+
+        GtkWidget *labelIJ = g_array_index(msat->labels, GtkWidget *, 
+                                (index * MULTIPLE_SAT_FIELD_NUMBER) + i);
+ 
+        //gtk_label_set_text(GTK_LABEL(msat->labels[index][i]), buff);
+        gtk_label_set_text(GTK_LABEL(labelIJ), buff);
         /*
         sat_log_log(SAT_LOG_LEVEL_DEBUG,
                     ("%s: current buff is %s, writing to %d case, first sat"),
@@ -1033,6 +1028,8 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
 
     multiple_sat->panels = g_array_sized_new(FALSE, TRUE, sizeof(SatPanel *), multiple_sat->dyn_num_sat);
+    multiple_sat->labels = g_array_sized_new(FALSE, TRUE, sizeof(GtkWidget *), 
+                            multiple_sat->dyn_num_sat * MULTIPLE_SAT_FIELD_NUMBER);
 
     for (i = 0; i < multiple_sat->dyn_num_sat; i++)
     {
@@ -1044,19 +1041,13 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
         // index is the index of the satellite in sats
 
         //multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
-
-        //Array of SatPanel pointers. We get the pointer to the element in the array, then derefrence it to 
-        //assign the new satpanel pointer value to it.
-        SatPanel **satPanelI  = &g_array_index(multiple_sat->panels, SatPanel *, i);
-        *satPanelI = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
-
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+        SatPanel *tmpSatPanel = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
+        g_array_append_val(multiple_sat->panels, tmpSatPanel);
 
         for (guint j = 0; j < MULTIPLE_SAT_FIELD_NUMBER; j++)
         { 
             //multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
-            SatPanel *satPanel = g_array_index(multiple_sat->panels, SatPanel *, i);
-            multiple_sat->labels[i][j] = satPanel->labels[j];
+            g_array_append_val(multiple_sat->labels, tmpSatPanel->labels[j]);
         }
         // Some debugging stuff
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: current iteration - %d", __FILE__, __LINE__, i);
@@ -1073,11 +1064,11 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);   // Header box
-        gtk_box_pack_start(GTK_BOX(hbox), ((SatPanel *)*satPanelI)->popup_button, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), ((SatPanel*)*satPanelI)->header, TRUE, TRUE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), tmpSatPanel->popup_button, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(hbox), tmpSatPanel->header, TRUE, TRUE, 0);
 
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), ((SatPanel *)*satPanelI)->table, FALSE, FALSE, 0);
+        gtk_box_pack_start(GTK_BOX(vbox), tmpSatPanel->table, FALSE, FALSE, 0);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
@@ -1098,7 +1089,6 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
         */
     }
     
-    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     gtk_container_add(GTK_CONTAINER(multiple_sat->swin), grid);
     gtk_box_pack_end(GTK_BOX(widget), multiple_sat->swin, TRUE, TRUE, 0);
     gtk_widget_show_all(widget);
