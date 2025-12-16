@@ -94,11 +94,10 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
     GtkMultipleSat      *msat = GTK_MULTIPLE_SAT(widget);
     guint i;
     gint satlist[msat->dyn_num_sat];
-    gboolean check = FALSE;
     
     //Free memory (gpredict call this function twice for some reason
     // so we use sanity check before free)
-    if (msat->dyn_num_sat != NULL) { 
+    if (msat->dyn_num_sat != 0) { 
 
         for (i = 0; i < msat->dyn_num_sat; i++)
         {
@@ -106,7 +105,6 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
             if (sat != NULL)
             {
                 satlist[i] = sat->tle.catnr;
-                check = TRUE;
             }
             else
             {
@@ -122,7 +120,7 @@ static void gtk_multiple_sat_destroy(GtkWidget * widget)
         g_array_free(msat->panels, TRUE);
         g_array_free(msat->labels, TRUE);
 
-        msat->dyn_num_sat = NULL;
+        msat->dyn_num_sat = 0;
     }
 
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
@@ -580,7 +578,7 @@ static void gtk_multiple_sat_popup_cb(GtkWidget * button, PopupCallbackData *cb_
     gchar               *buff;
     sat_t               *sat = NULL;
     sat_t               *sati;
-    gint                i, n;
+    guint                i, n;
 
     // Index here refers to position of the SatPanel in Multiple Sat View
     guint index = cb_data->index;
