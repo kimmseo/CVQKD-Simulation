@@ -6,8 +6,6 @@
 */
 
 
-// have not been included in makefile, include when ready
-
 #ifdef HAVE_CONFIG_H
 #include <build-config.h>
 #endif

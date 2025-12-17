@@ -1,6 +1,8 @@
 #include <glib/gi18n.h>
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
+#include "calc-dist-two-sat.h"
+#include "skr-utils.h"
 #include "link-capacity-path.h"
 
 gpointer copy_glist_element(gconstpointer src, gpointer user_data) {
@@ -19,6 +21,36 @@ void print_readable_time(gdouble time) {
     printf("%s", msg);
 }
 
+void sat_close_approach(GList *sats, gdouble limit) {
+    GList *current = sats;
+
+    gboolean has = FALSE;
+
+    while (current != NULL) {
+        GList *check = current->next;
+
+        while (check != NULL) {
+            // ideally get distance first and only calc skr if close enough
+            // but calc for what distance skr > 0 is troublesome
+            // potential performance improvement maybe
+            gdouble skr = inter_sat_link(current->data, check->data);
+            if (skr >= limit) {
+                print_readable_time(((sat_t *)current->data)->jul_utc);
+                printf(" %s and %s skr in bits/second: %f\n", ((sat_t *)current->data)->nickname, 
+                                                        ((sat_t *)check->data)->nickname, 
+                                                        skr); 
+
+                has = TRUE;
+            }
+
+            check = check->next;
+        }
+
+        current = current->next; 
+    }
+    if (has) printf("\n\n");
+}
+
 void link_capacity_path(GHashTable *sats, double t_start, double t_end, double time_step) {
     GList *const_sats = g_hash_table_get_values(sats);
 
@@ -28,7 +60,7 @@ void link_capacity_path(GHashTable *sats, double t_start, double t_end, double t
     for (double time = t_start; time < t_end; time += time_step) {
         
         sat_at_time(mut_sats, time);
-        
+        sat_close_approach(mut_sats, 1000);
     } 
  
 }
