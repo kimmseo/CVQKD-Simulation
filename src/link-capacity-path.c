@@ -29,10 +29,6 @@ void link_capacity_path(GHashTable *sats, double t_start, double t_end, double t
         
         sat_at_time(mut_sats, time);
         
-        sat_t *aSat = mut_sats->data;
-        printf("%s pos: %f / %f / %f at time ", aSat->name, aSat->pos.x, aSat->pos.y, aSat->pos.z);
-        print_readable_time(time);
-        printf("\n");
     } 
  
 }
@@ -40,7 +36,7 @@ void link_capacity_path(GHashTable *sats, double t_start, double t_end, double t
 void sat_at_time(GList *sats, gdouble time) {
     GList *current = sats;
 
-    while (current->next != NULL) {
+    while (current != NULL) {
         sat_t *sat = current->data; 
 
         sat->jul_utc = time;
