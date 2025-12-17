@@ -648,8 +648,15 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
                                                "line-width", 2.0,
                                                "visibility", GOO_CANVAS_ITEM_HIDDEN,
                                                NULL);
-
-    link_capacity_path(satmap->sats);
+    
+    //for consistency in testing use satmap->tstamp because it doesnt change
+    //to get actual current time use time-tools.c/get_current_daynum();
+    
+    //gdouble is in days, multiply with xmnpda to convert minutes to days
+    gdouble t_start = satmap->tstamp;
+    gdouble t_end = satmap->tstamp + 1; //1 day
+    gdouble time_step = 1 / xmnpda;    //1 minute time steps
+    link_capacity_path(satmap->sats, t_start, t_end, time_step);
 
     return root;
 }

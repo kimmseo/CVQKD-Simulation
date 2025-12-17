@@ -1,5 +1,7 @@
 #include <glib/gi18n.h>
 #include "sgpsdp/sgp4sdp4.h"
+#include "time-tools.h"
+#include "link-capacity-path.h"
 
 gpointer copy_glist_element(gconstpointer src, gpointer user_data) {
     sat_t *source = (sat_t *)src;
@@ -9,18 +11,50 @@ gpointer copy_glist_element(gconstpointer src, gpointer user_data) {
     return destin;
 }
 
-void link_capacity_path(GHashTable *sats) {
+void print_readable_time(gdouble time) {
+    char msg[50];
+    char fmt[] = "%x - %I:%M%p";
+    daynum_to_str(msg, 50, fmt, time);
+
+    printf("%s", msg);
+}
+
+void link_capacity_path(GHashTable *sats, double t_start, double t_end, double time_step) {
     GList *const_sats = g_hash_table_get_values(sats);
+
+    //copy satellite values
     GList *mut_sats = g_list_copy_deep(const_sats, copy_glist_element, NULL);
 
-    sat_t *firstSat = (sat_t *)g_list_first(const_sats)->data;
-    printf("const sat orgininal alt: %f\n", firstSat->alt);
-    printf("mod sat original alt: %f\n", firstSat->alt);
+    for (double time = t_start; time < t_end; time += time_step) {
+        
+        sat_at_time(mut_sats, time);
+        
+        sat_t *aSat = mut_sats->data;
+        printf("%s pos: %f / %f / %f at time ", aSat->name, aSat->pos.x, aSat->pos.y, aSat->pos.z);
+        print_readable_time(time);
+        printf("\n");
+    } 
+ 
+}
 
-    sat_t *mod_sat = g_list_first(mut_sats)->data;
-    mod_sat->alt = 404;
+void sat_at_time(GList *sats, gdouble time) {
+    GList *current = sats;
 
-    printf("const sat alt after change: %f\n", firstSat->alt);
-    printf("mod sat alt after change: %f\n", mod_sat->alt);
+    while (current->next != NULL) {
+        sat_t *sat = current->data; 
 
+        sat->jul_utc = time;
+        sat->tsince = (sat->jul_utc - sat->jul_epoch) * xmnpda;
+
+        /* call the norad routines according to the deep-space flag */
+        if (sat->flags & DEEP_SPACE_EPHEM_FLAG)
+            SDP4(sat, sat->tsince);
+        else
+            SGP4(sat, sat->tsince);
+
+        Convert_Sat_State(&sat->pos, &sat->vel);
+
+        current = current->next;
+    }
+    
 }
