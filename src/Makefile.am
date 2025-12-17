@@ -128,7 +128,8 @@ gpredict_SOURCES = \
     tle-tools.c tle-tools.h \
     tle-update.c tle-update.h \
     strnatcmp.c strnatcmp.h \
-    calc-dist-two-sat.c calc-dist-two-sat.h
+    calc-dist-two-sat.c calc-dist-two-sat.h \
+    link-capacity-path.c link-capacity-path.h
 
 ##gpredict_LDADD = ./sgpsdp/libsgp4sdp4.a @PACKAGE_LIBS@
 gpredict_LDADD = @PACKAGE_LIBS@

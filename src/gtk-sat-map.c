@@ -49,6 +49,7 @@
 #include "calc-dist-two-sat.h"
 #include "sat-graph.h"
 #include "qth-data.h"
+#include "link-capacity-path.h"
 
 #define MARKER_SIZE_HALF    1
 
@@ -647,6 +648,8 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
                                                "line-width", 2.0,
                                                "visibility", GOO_CANVAS_ITEM_HIDDEN,
                                                NULL);
+
+    link_capacity_path(satmap->sats);
 
     return root;
 }

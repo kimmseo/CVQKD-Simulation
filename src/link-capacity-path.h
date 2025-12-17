@@ -1,0 +1,1 @@
+void link_capacity_path(GHashTable *sats);
