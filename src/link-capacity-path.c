@@ -38,17 +38,16 @@ char* save_transfer_info(gpointer satA_ptr, gpointer satB_ptr, gdouble skr) {
 }
 
 void save_sat_close_approach(GList *sats, gdouble limit, GHashTable *history) {
-    GList *current = sats;
+    GList *current, *check;
 
     //doesnt work when i = 0 and j=1. result gkey = 1
     //fix: just start at 1 instead.
     gint i = 1;
-
-    while (current != NULL) {
-        GList *check = current->next;
+    
+    for (current = sats; current != NULL; current = current->next) {        
         gint j = i+1;
 
-        while (check != NULL) {
+        for (check = current->next; check != NULL; check = check->next) {
             // ideally get distance first and only calc skr if close enough
             // but calc for what distance skr > 0 is troublesome
             // performance improvement maybe
@@ -100,12 +99,9 @@ void save_sat_close_approach(GList *sats, gdouble limit, GHashTable *history) {
             //else skr_history has no past and this step has no transfer
             //--> do nothing
 
-
-            check = check->next;
             j++;
         }
 
-        current = current->next;
         i++; 
     }
 }
