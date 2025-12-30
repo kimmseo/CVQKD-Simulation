@@ -49,6 +49,7 @@
 #include "calc-dist-two-sat.h"
 #include "sat-graph.h"
 #include "qth-data.h"
+#include "print-link-capacity-path.h"
 #include "link-capacity-path.h"
 
 #define MARKER_SIZE_HALF    1
@@ -655,9 +656,11 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
     //gdouble is in days, multiply with xmnpda to convert minutes to days
     gdouble t_start = satmap->tstamp;
     gdouble t_end = satmap->tstamp + 1; //1 day
-    gdouble time_step = 1 / xmnpda;    //1 minute time steps
-    print_transfer_connections(satmap->sats, t_start, t_end, time_step);
-
+    gdouble time_step = 60;    //1 hour time steps
+    
+    //print_transfer_connections(satmap->sats, t_start, t_end, time_step);
+    generate_link_capacities(satmap->sats, 100, t_start, t_end, time_step);
+    
     return root;
 }
 

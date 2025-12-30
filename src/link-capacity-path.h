@@ -1,5 +1,9 @@
 #include <glib/gi18n.h>
 
-void print_transfer_connections(GHashTable *sats, gdouble t_start, gdouble t_end, gdouble time_step);
+typedef struct {
+    gdouble cumulative;
+    gdouble last;
+    gboolean last_even;
+} simpson_intg;
 
-void sat_at_time(GList *sats, gdouble time_step);
+void generate_link_capacities(GHashTable *sats, gdouble link_cap_limit, double t_start, double t_end, double time_step);
