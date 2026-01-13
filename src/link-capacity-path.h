@@ -12,4 +12,9 @@ typedef struct {
     gboolean last_even;
 } simpson_intg;
 
-void generate_link_capacities(GHashTable *sats, gdouble link_cap_limit, double t_start, double t_end, double time_step);
+typedef struct {
+    gdouble time;       //earliest arrival so far
+    gint prev;          //cat number of previous node
+} tdsp_node;
+
+void get_max_link_path(GHashTable *sats, gdouble link_cap_limit, double t_start, double t_end, double time_step);

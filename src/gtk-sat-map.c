@@ -656,11 +656,11 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
     //gdouble is in days, multiply with xmnpda to convert minutes to days
     gdouble t_start = satmap->tstamp;
     gdouble t_end = satmap->tstamp + 1; //1 day
-    gdouble time_step = 60;    //1 hour time steps
-    gdouble limit = 1000;      //1OOO KB
+    gdouble time_step = 0.001;    //1 hour time steps
+    gdouble limit = 1;      //1OOO KB
     
     //print_transfer_connections(satmap->sats, t_start, t_end, time_step);
-    generate_link_capacities(satmap->sats, limit, t_start, t_end, time_step);
+    get_max_link_path(satmap->sats, limit, t_start, t_end, time_step);
     
     return root;
 }

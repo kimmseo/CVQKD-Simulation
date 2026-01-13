@@ -2,8 +2,11 @@
 #include <glib/gi18n.h>
 #include "sgpsdp/sgp4sdp4.h"
 #include "skr-utils.h"
+#include <transfer-heap.h>
 
 gpointer copy_glist_element(gconstpointer src, gpointer user_data);
+gint time_compare(gconstpointer a, gconstpointer b);
+void TDSP_fixed_size(GHashTable *sats, gdouble data_size, gint start_node, gint end_node, double t_start, double t_end, double time_step);
 void sats_at_time(GList *sats, gdouble time);
 void update_link_cap(GList *sats, GHashTable *history, gdouble limit, gdouble time_step);
 void new_simpson_entry(GHashTable *history, char *tfr_key, gdouble tfr_value);
@@ -11,8 +14,179 @@ void update_simpson_entry(simpson_intg *tfr_val, gdouble cur_val, gdouble time_s
 void last_simpson_entry(GHashTable *history, char *key, simpson_intg *val, gdouble cur_val, gdouble time_step);
 char *find_key(sat_t *satA, sat_t *satB);
 
-//make output an array of transfer struct of link capacities organized by start time
-/** Increments all satellites by time_step from t_start to t_end and calculates
+/**
+ * Prints path of satellite transfers that can carry maximum amount of data from
+ * first to last savoid.
+ * 
+ * Runs binary search on size of data it transfers to find max limit for which 
+ * a path exists in the time window given.Find a path for a given fixed size by
+ * running modified time-dependent Dijkstra.
+ * 
+ * ToDo:
+ *  - Implement modified Dijkstra
+ *      -returns value of shortest path
+ *      -returns shortest path
+ *  - Implement Simpson integration for time need to transfer data
+ *  - Implement the Binary Search
+ *  - Write about modified algorithm in code comments. Mention paper and DOI
+ *  - Clean up code, keep same style as rest of project
+ */
+void get_max_link_path(
+    GHashTable *sats, 
+    gdouble link_cap_limit, 
+    double t_start, 
+    double t_end, 
+    double time_step) {
+
+    //GHashtable sats has {key:value} = {gint Catnr : sat_t *satellite}
+
+    gdouble data_size = 1000;
+    TDSP_fixed_size(sats, data_size, 42775, 43600, 0, t_end, time_step);
+}
+
+gboolean catnr_equal(gconstpointer a, gconstpointer b) {
+    return *(gint *)a == *(gint *)b;
+}
+
+//amount of time it takes to transmit data from source -> i ++ i to j at time j->time
+gdouble test_adj_list(gdouble start_time, gint *src, gint *dst, gdouble data_size){
+   /*
+    catnr: 42775
+    catnr: 41460
+    catnr: 46395
+    catnr: 43600
+   */ 
+    
+    gdouble thing = start_time;
+    thing = data_size;
+
+    GHashTable *look = g_hash_table_new(g_int_hash, g_int_equal);
+    int zero_k = 42775;
+    int one_k = 41460;
+    int two_k = 46395;
+    int three_k = 43600;
+
+    int zero = 0;
+    int one = 1;
+    int two = 2;
+    int three = 3;
+    
+    g_hash_table_insert(look, &zero_k, &zero);
+    g_hash_table_insert(look, &one_k, &one);
+    g_hash_table_insert(look, &two_k, &two);
+    g_hash_table_insert(look, &three_k, &three);
+    
+    gdouble adjList[4][4] = {
+        {G_MAXDOUBLE,           1,           3, G_MAXDOUBLE},
+        {G_MAXDOUBLE, G_MAXDOUBLE, G_MAXDOUBLE,           6},
+        {G_MAXDOUBLE, G_MAXDOUBLE, G_MAXDOUBLE,           5},
+        {G_MAXDOUBLE, G_MAXDOUBLE, G_MAXDOUBLE, G_MAXDOUBLE}
+    };
+
+    return start_time + adjList[*(int *)g_hash_table_lookup(look, src)][*(int *)g_hash_table_lookup(look, dst)];
+}
+
+
+// Time-dependent shortest path for a data amount of fixed size. Modified Dijkstra
+void TDSP_fixed_size(
+    GHashTable *sats, 
+    gdouble data_size,
+    gint start_node,
+    gint end_node,
+    double t_start,
+    double t_end,
+    double time_step) {
+
+    //best arrival times so far
+    //{key : value} = {gint catnr : tdsp_node i}
+    GHashTable *best = g_hash_table_new_full(g_int_hash, catnr_equal, NULL, free);        
+
+    //priority queue implemented with binary heap
+    heap_tfr *S = (heap_tfr *)calloc(1, sizeof(heap_tfr));
+
+    //initialize distance to all satellites to infinity, except for start node
+    GList *cats_list = g_hash_table_get_keys(sats); 
+    for (GList *sat_cat = cats_list; sat_cat != NULL; sat_cat = sat_cat->next) {
+
+        gint *catnr = (gint *)sat_cat->data;
+
+        tdsp_node *i = malloc(sizeof(tdsp_node));
+        i->prev = -1;
+        i->time = G_MAXDOUBLE;
+
+        //time at start node = start time, all other nodes = infinity
+        if (*catnr == start_node) {
+            i->time = t_start;
+        }
+
+        g_hash_table_insert(best, catnr, i);        
+        push_tfr(S, i->time, catnr);
+    } 
+    
+    node_tfr *min = malloc(sizeof(node_tfr));
+    //main dijkstra loop
+    while (S->len != 0) {
+        pop_tfr(S, min);
+
+        if (min == NULL) {
+            return;
+        }
+
+        //found shortest path to result
+        if (*min->cat_nr == end_node) break;
+
+        for (GList *check = cats_list; check != NULL; check = check->next) {
+            gint *i_catnr = (gint *)check->data;
+            tdsp_node *i = (tdsp_node *)g_hash_table_lookup(best, i_catnr); 
+
+            if (*i_catnr == *min->cat_nr) continue;
+
+            if (*i_catnr == start_node) continue;
+            
+            gdouble a_ij = test_adj_list(min->time, min->cat_nr, i_catnr, data_size);
+            
+            if (a_ij < i->time) {
+                i->time = a_ij;
+                i->prev = *min->cat_nr;
+                push_tfr(S, i->time, i_catnr);
+            }
+        }
+    }
+
+    tdsp_node *answer = (tdsp_node *)g_hash_table_lookup(best, &end_node);
+
+    if (answer == NULL) return;
+
+    //print previous list
+    if (answer->time != G_MAXDOUBLE) {
+        printf("found path: \n  prev catnr: %i at time %f\n", end_node, answer->time);
+
+        while (answer->prev != -1) {
+            tdsp_node *next = (tdsp_node *)g_hash_table_lookup(best, &answer->prev);
+            printf("    prev catnr: %i at time %f\n", answer->prev, next->time);
+
+            answer = (tdsp_node *)g_hash_table_lookup(best, &answer->prev);
+        }
+    }
+
+    //clean up memory 
+    free(S);
+    free(min);
+    g_hash_table_destroy(best);
+}
+
+//Helper function for sorting earliest arrival time binary tree
+gint time_compare(gconstpointer a, gconstpointer b) {
+    gdouble timeA = *(gdouble *)a;
+    gdouble timeB = *(gdouble *)b;
+    if (timeA < timeB) return -1;
+    if (timeA > timeB) return 1; 
+
+    return 0;
+}
+
+/** 
+ * Increments all satellites by time_step from t_start to t_end and calculates
  * link capacities between them. The ones above link_cap_limit are printed.
  * 
  * Astronomical Julian Date. Number of days since 12:00 January 1, 4713 BCE.
@@ -25,7 +199,7 @@ char *find_key(sat_t *satA, sat_t *satB);
  * \param t_end time when calculations stop, in Julian date format
  * \param time_step increment to consider when moving satellites, in minutes  
  */
-void generate_link_capacities(
+void get_all_link_capacities(
     GHashTable *sats, 
     gdouble link_cap_limit, 
     gdouble t_start, 
@@ -59,6 +233,10 @@ void generate_link_capacities(
 
     free(keys);
     free(rem_len);
+
+    //free the copy of the satellites
+    g_list_free_full(mut_sats, free);
+
     g_hash_table_destroy(linkCapBuild);
 }
 
