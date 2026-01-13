@@ -24,8 +24,8 @@ char *find_key(sat_t *satA, sat_t *satB);
  * 
  * ToDo:
  *  - Implement modified Dijkstra
- *      -returns value of shortest path
- *      -returns shortest path
+ *      -returns value of shortest path @done
+ *      -returns shortest path          @done
  *  - Implement Simpson integration for time need to transfer data
  *  - Implement the Binary Search
  *  - Write about modified algorithm in code comments. Mention paper and DOI
