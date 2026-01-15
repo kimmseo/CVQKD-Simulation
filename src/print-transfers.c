@@ -77,8 +77,8 @@ void update_link_cap(GList *sats, GHashTable *history, gdouble limit, gdouble ti
             char *tfr_key = find_key(current->data, check->data);
             simpson_intg *tfr_value = g_hash_table_lookup(history, tfr_key);
             
-            //value is in bits/second so convert to bytes/minute
-            gdouble cur_value = inter_sat_link(current->data, check->data) * (60.0/1000000.0);
+            //value is in bits/second so convert to kilobytes/minute
+            gdouble cur_value = inter_sat_link(current->data, check->data) * (60.0/8000000.0);
 
             if (tfr_value  == NULL && cur_value > limit) {
                 new_simpson_entry(history, tfr_key, cur_value, time);

@@ -6,7 +6,7 @@
 #include <math.h>
 
 gint time_compare(gconstpointer a, gconstpointer b);
-void TDSP_fixed_size(
+gboolean TDSP_fixed_size(
     GHashTable *sats, 
     gdouble data_size, 
     gint start_node, 
@@ -37,8 +37,8 @@ gboolean catnr_equal(gconstpointer a, gconstpointer b);
  *  - Implement modified Dijkstra
  *      -returns value of shortest path @done
  *      -returns shortest path          @done
- *  - Implement Simpson integration for time need to transfer data
- *  - Implement the Binary Search
+ *  - Implement Simpson integration for time need to transfer data @done
+ *  - Implement the Binary Search   @done
  *  - Write about modified algorithm in code comments. Mention paper and DOI
  *  - Clean up code, keep same style as rest of project
  */
@@ -50,15 +50,38 @@ void get_max_link_path(
 
     //GHashtable sats has {key:value} = {gint Catnr : sat_t *satellite}
 
-    gdouble data_size = 1000;
-
     printf("start time %f\n", t_start);
-    TDSP_fixed_size(sats, data_size, 39466, 27607, t_start, t_end, time_step);
+
+    gdouble low = 0;
+    gdouble high = 80000;   //80000 bits = 10 kilobytes
+    gdouble mid = -1;
+
+    //within 0.1 kb of right answer. 
+    while (low <= high) {
+        mid = (low + high) / 2.0;
+
+        printf("trying for data size %f bits\n", mid);
+        gboolean attempt = TDSP_fixed_size(sats, mid, 39466, 27607, t_start, t_end, time_step);
+        
+        if (!attempt) {
+            high = mid - 1;
+        } else if (attempt) {
+            low = mid + 1;
+        }
+    } 
+   
+    if (mid != -1) {
+        printf("FOUND MAX CAPACITY TRANSFER: %f\n", mid);
+    }
+    
+    //gdouble data_size = 8000;   // 8000 bits = 1 kilobyte
+
+    //TDSP_fixed_size(sats, data_size, 39466, 27607, t_start, t_end, time_step);
 }
 
 
 // Time-dependent shortest path for a data amount of fixed size. Modified Dijkstra
-void TDSP_fixed_size(
+gboolean TDSP_fixed_size(
     GHashTable *sats, 
     gdouble data_size,
     gint start_node,
@@ -67,6 +90,7 @@ void TDSP_fixed_size(
     double t_end,
     double time_step) {
     
+    gboolean final_answer = FALSE;
 
     //best arrival times so far
     //{key : value} = {gint catnr : tdsp_node i}
@@ -100,7 +124,7 @@ void TDSP_fixed_size(
         pop_tfr(S, min);
 
         if (min == NULL) {
-            return;
+            return final_answer;
         }
 
         //found shortest path to result
@@ -120,14 +144,11 @@ void TDSP_fixed_size(
             
             gdouble a_ij = get_transfer_time(min->cat_nr, i_catnr, data_size, sats, min->time, t_end, time_step);
 
-            printf("tried connection: %i -> %i\n", *min->cat_nr, *i_catnr);
             
             if (a_ij < i->time) {
                 i->time = a_ij;
                 i->prev = *min->cat_nr;
                 push_tfr(S, i->time, i_catnr);
-
-                printf("        new best time found for %i, (%i -> %i) EA: %f\n", *min->cat_nr, *min->cat_nr, *i_catnr, i->time);
             }
 
         }
@@ -135,7 +156,7 @@ void TDSP_fixed_size(
 
     tdsp_node *answer = (tdsp_node *)g_hash_table_lookup(best, &end_node);
 
-    if (answer == NULL) return;
+    if (answer == NULL) return final_answer;
 
     //print previous list
     if (answer->time != G_MAXDOUBLE) {
@@ -147,12 +168,16 @@ void TDSP_fixed_size(
 
             answer = (tdsp_node *)g_hash_table_lookup(best, &answer->prev);
         }
+
+        final_answer = TRUE;
     }
 
     //clean up memory 
     free(S);
     free(min);
     g_hash_table_destroy(best);
+
+    return final_answer;
 }
 
 //amount of time it takes to transmit data from source -> i ++ i to j at time j->time
