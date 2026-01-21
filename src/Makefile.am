@@ -131,7 +131,8 @@ gpredict_SOURCES = \
     calc-dist-two-sat.c calc-dist-two-sat.h \
     link-capacity-path.c link-capacity-path.h \
     transfer-heap.c transfer-heap.h\
-    print-transfers.c print-transfers.h
+    print-transfers.c print-transfers.h\
+    transfer-table.c transfer-table.h
 
 ##gpredict_LDADD = ./sgpsdp/libsgp4sdp4.a @PACKAGE_LIBS@
 gpredict_LDADD = @PACKAGE_LIBS@

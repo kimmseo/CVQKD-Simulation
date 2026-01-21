@@ -659,10 +659,18 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
     //gdouble t_end = satmap->tstamp + 1; //1 hour
     gdouble t_start = 2458849.5;
     gdouble t_end = t_start + 1;
-    gdouble time_step = 0.0007;    //1 minute time steps
+    gdouble time_step = 0.0007;    //1 minute time step
     
+    clock_t timer_start, timer_end;
+    double cpu_time_used;
+    timer_start = clock();
+ 
     //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
     get_max_link_path(satmap->sats, t_start, t_end, time_step);
+
+    timer_end = clock();
+    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
+    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
     
     return root;
 }

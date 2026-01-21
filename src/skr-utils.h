@@ -50,6 +50,17 @@ gdouble sat_to_ground_downlink(sat_t *sat, qth_t *ground);
  */
 gdouble inter_sat_link(sat_t *sat1, sat_t *sat2);
 
+/*
+ * inter_sat_pos_link() - Calculates the SKR for an inter-satellite link but 
+ * only takes in the satellites position as input. Behaves exactly the same as
+ * inter_sat_link().
+ * @pos1: Pointer to vector_t of first satellite.
+ * @pos2: Pointer to vector_t of second satellite.
+ *
+ * Return: The calculated SKR in bits per second.
+ */
+gdouble inter_sat_pos_link(vector_t *pos1, vector_t *pos2);
+
 //gdouble underwater_link(qth_t *station1, qth_t *station2);
 
 #endif /* __SKR_UTILS_H__ */

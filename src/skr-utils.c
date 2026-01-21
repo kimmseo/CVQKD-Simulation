@@ -426,3 +426,26 @@ gdouble inter_sat_link(sat_t *sat1, sat_t *sat2)
 
     return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
 }
+
+/*
+ * inter_sat_pos_link() - Calculates the SKR for an inter-satellite link but 
+ * only takes in the satellites position as input. Behaves exactly the same as
+ * inter_sat_link().
+ * @pos1: Pointer to vector_t of first satellite.
+ * @pos2: Pointer to vector_t of second satellite.
+ *
+ * Return: The calculated SKR in bits per second.
+ */
+gdouble inter_sat_pos_link(vector_t *pos1, vector_t *pos2)
+{
+    if (!pos1 || !pos2) {
+        return 0.0;
+    }
+
+    gdouble distance = dist_calc_driver(
+            pos1->x, pos1->y, pos1->z,
+            pos2->x, pos2->y, pos2->z);
+    gdouble T = transmittance_inter_satellite(distance);
+
+    return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
+}
