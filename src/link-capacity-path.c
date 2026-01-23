@@ -10,7 +10,8 @@
 gint time_compare(gconstpointer a, gconstpointer b);
 gboolean TDSP_fixed_size(GHashTable *sats, GHashTable *sat_history, gint hist_len, gdouble data_size, gint start_node, gint end_node, double t_start, double t_end, double time_step);
 gdouble get_transfer_time(gint *src, gint *dst, gdouble data_size, GHashTable *sat_history, gint history_len, gdouble time, gdouble t_start, gdouble t_end, gdouble time_step); 
-void sat_at_time(sat_t *sat, gdouble time);
+gdouble accum_pre_start(gdouble x_i_mid, gint start_i, gdouble t_start, gdouble time_step, vector_t *src_hist, vector_t *dst_hist);
+gdouble accum_post_end(gdouble data_size, gint start_i, gdouble t_start, gdouble t_end, gdouble time_step, vector_t *src_hist, vector_t *dst_hist);
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
 void print_GHashTable_key_value(GHashTable *data, gdouble t_start, gdouble t_end, gdouble time_step);
 
@@ -23,12 +24,17 @@ void print_GHashTable_key_value(GHashTable *data, gdouble t_start, gdouble t_end
  * running modified time-dependent Dijkstra.
  * 
  * ToDo:
- *  - Time-Space Optimization 
+ *  - Time-Space Optimization
  *  - Testing with data
  *  - Implement ground stations
- *  - Create user UI for interacting with code
- *  - Write about modified algorithm in code comments. Mention paper and DOI
+ *  - Create user UI for interacting with code 
  *  - Clean up code, keep same style as rest of project.
+ *      - clean up names (keep it consistent)
+ *      - group things together, reduce clutter in parameters 
+ *          -t_start, t_end, time_step into time_window struct
+ *          -hist_len and sat_history object? 
+ *          -combine pre lerp code with its wrapper?
+ *      - Write about modified algorithm in code comments. Mention paper and DOI
  *      - add input checking and error handling
  */
 void get_max_link_path(
@@ -123,6 +129,9 @@ gboolean TDSP_fixed_size(
         //found shortest path to result
         if (*min->cat_nr == end_node) break;
 
+        //ToDo: double check this with unit testing
+        if (min->time == G_MAXDOUBLE) break;
+
         for (GList *check = cats_list; check != NULL; check = check->next) {
             gint *i_catnr = (gint *)check->data;
             tdsp_node *i = (tdsp_node *)g_hash_table_lookup(best, i_catnr); 
@@ -133,10 +142,9 @@ gboolean TDSP_fixed_size(
 
             if (*i_catnr == start_node) {
                 continue;
-            }
+            } 
             
             gdouble a_ij = get_transfer_time(min->cat_nr, i_catnr, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
-
             
             if (a_ij < i->time) {
                 i->time = a_ij;
@@ -182,22 +190,26 @@ gdouble get_transfer_time(
         gint history_len,
         gdouble time,
         gdouble t_start, 
-        gdouble t_end, 
+        gdouble t_end,
         gdouble time_step) {
             
-    vector_t *src_sat_history = g_hash_table_lookup(sat_history, src);
+    vector_t *src_sat_history = g_hash_table_lookup(sat_history, src); 
     if (src_sat_history == NULL) return G_MAXDOUBLE;
+    
 
-    vector_t *dst_sat_history = g_hash_table_lookup(sat_history, dst);
+    vector_t *dst_sat_history = g_hash_table_lookup(sat_history, dst); 
     if (dst_sat_history == NULL) return G_MAXDOUBLE;
 
-    gint start_i = ceil((time - t_start) / time_step);   
+    gint start_i = (gint) ceil((time - t_start) / time_step); 
+    if (start_i < 0 || start_i >= history_len - 1) return G_MAXDOUBLE;
+    // ================ pre_x_0 --> x_0 ========================================================
+    gdouble accum = accum_pre_start(time, start_i, t_start, time_step, src_sat_history, dst_sat_history);
+   
+    //within a timestep its already more than enough to transmit all data
+    //limit to how accurate we can be, so just return smallest time we know is enough
+    if (accum >= data_size) return t_start + (start_i * time_step);
 
-    //ToDo: replace with interp start between (start - 1, start)
-    //ToDo: also check if accum by itself already bigger than data
-    // pre_x_0 -> x_0
-    gdouble accum = 0;
-
+    // ================ x_0 --> x_n =============================================================
     gdouble prev_skr = 0;
 
     //i = 0
@@ -249,51 +261,101 @@ gdouble get_transfer_time(
         check_term = accum + ((time_step * prev_odd_even_term / 3.0) * prev_skr) 
                             + ((time_step * odd_even_term / 3.0) * skr) 
                             + ((time_step / 3.0) * next_skr);
-
     }
+
+    // ================ x_n --> post_x_n ========================================================
 
     // last step
         //case: pre_x_i --> x_0 --> x_1 > data size
     if (i == start_i) {
-        return time + 2.0 * data_size / skr;
+        gdouble data_left = data_size - accum;
+
+        gdouble final_result = accum_post_end(data_left, i, t_start, t_end, time_step, src_sat_history, dst_sat_history);
+
+        return final_result;
 
         //case: x_i is even. Finish simpson with x_i
-    } else if ((i - start_i) % 2 == 0) {    
+    } else if ((i - start_i) % 2 == 0) {
         accum += (time_step * 4.0 / 3.0) * prev_skr; 
-        accum += (time_step / 3.0) * skr; 
+        accum += (time_step / 3.0) * skr;
 
         //case: x_i is odd, Finish simpson with x_i-1
-    } else { //(i % 2 == 1)      
+    } else {
         accum += (time_step / 3.0) * prev_skr;
 
         //trapezoid rule to deal with interval prev_skr to skr
-        accum += 0.5 * time_step * fabs(skr - prev_skr);
+        accum += 0.5 * time_step * (skr + prev_skr);
     }
 
-    gdouble simpson_bit = (i * time_step) + t_start;
-    gdouble last_bit = 2 * (data_size - accum) / skr;
-    return simpson_bit + last_bit;
+    gdouble data_left = data_size - accum;
+    gdouble total = accum_post_end(data_left, i, t_start, t_end, time_step, src_sat_history, dst_sat_history);
+
+    return total; 
 }
 
 /**
- * Calculate and set position of satellites to given time.
- * Copies move calc from predict-tools.c without Qth calc
+ * Performs estimation of amount data transferred during actual transfer start
+ * time to the next closest index (recorded positions).
+ * @param x_i_mid   actual start time
+ * @param start_i   next closest index to actual start time
+ * @param t_start   start of time window we are searching for optimal path
+ * @param time_step time increment between successive index in history
+ * @param src_hist  array of source satellite positions
+ * @param dst_hist  array of destination satellite positions
+ * @return amount of data transmitted during window actual_start_time to next closest index
  */
-/*
-void sat_at_time(sat_t *sat, gdouble time) {
+gdouble accum_pre_start(gdouble x_i_mid, gint start_i, gdouble t_start, gdouble time_step, vector_t *src_hist, vector_t *dst_hist) {
+    if (start_i <= 0) return 0;
 
-    sat->jul_utc = time;
-    sat->tsince = (sat->jul_utc - sat->jul_epoch) * xmnpda;
+    gdouble x_i = t_start + (start_i * time_step);
+    gdouble y_i = inter_sat_pos_link(&src_hist[start_i], &dst_hist[start_i]);
+    gdouble x_i_prev = x_i - time_step;
+    gdouble y_i_prev = inter_sat_pos_link(&src_hist[start_i - 1], &dst_hist[start_i - 1]);
 
-    //call the norad routines according to the deep-space flag 
-    if (sat->flags & DEEP_SPACE_EPHEM_FLAG)
-        SDP4(sat, sat->tsince);
-    else
-        SGP4(sat, sat->tsince);
+    //lerp to get rate transfer at start_time
+    gdouble y_start = y_i_prev + (x_i_mid - x_i_prev) * ((y_i_prev - y_i) / (x_i_prev - x_i));
 
-    Convert_Sat_State(&sat->pos, &sat->vel);
+    //apply trapezoid rule to get area (data amount)
+    gdouble data = 0.5 * (x_i - x_i_mid) * (y_start + y_i);
+
+    return data;
 }
-*/
+
+/**
+ * Estimate how much time it would take to transmit last bit of data, 
+ * returns time at which it would stop.
+ * @param data_size     the data left to be transmitted (bits)
+ * @param start_i       last index we did simpson integration for
+ * @param t_start       start of time window for position measurments
+ * @param t_end         end of time window for position measurments (inclusive)
+ * @param time_step     amount of time between i and i+1
+ * @param src_hist      position history of source satellite
+ * @param dst_hist      position history of destination satellite
+ * @return time as which it would stop after transmitting data
+ */
+gdouble accum_post_end(gdouble data_size, gint start_i, gdouble t_start, gdouble t_end, gdouble time_step, vector_t *src_hist, vector_t *dst_hist) {
+    
+    //start_i has checks. Always < history_len - 1. 
+    //So theres always a start_i and start_i + 1
+    gdouble x_i = t_start  + (start_i * time_step);
+    gdouble y_i = inter_sat_pos_link(&src_hist[start_i], &dst_hist[start_i]);
+    gdouble y_i_nxt = inter_sat_pos_link(&src_hist[start_i+1], &dst_hist[start_i+1]);
+
+    //Simplify calculation: set x_i = 0, x_i_nxt = time_step
+    //Trapezoid rule:   Area = 0.5 * (X_i_mid - 0) * (y_i + y_i_mid)
+    //Lerp:     y_i_mid = y_i + (X_i_mid - 0) * ((y_i_nxt - y_i) / (time_step - 0))
+
+    //combine and solve for x_i_mid, get quadratic, solve for quadratic
+    gdouble a = 0.5 * ((y_i_nxt + y_i) / time_step);
+    gdouble b = y_i;
+    gdouble c = -1 * data_size;
+
+    gdouble answer = x_i + ( (-1 * b) + sqrt(pow(b, 2.0) - (4 * a * c)) ) / (2 * a);
+
+    if (answer > t_end) return G_MAXDOUBLE;
+    
+    return answer;
+}
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b) {
     return *(gint *)a == *(gint *)b;
