@@ -1,15 +1,21 @@
 #include <glib/gi18n.h>
-#include "sgpsdp/sgp4sdp4.h"
+#include "../sgpsdp/sgp4sdp4.h"
 
 void sat_at_time(sat_t *sat, gdouble time);
 
-GHashTable *generate_transfer_data(GList *sats_list, gint *hist_length, gdouble start_time, gdouble end_time, gdouble time_step) {
+/**
+ * Generates the GHashtable {sat catnr : vector_t array history} where the history
+ * array holds the satellites positions through time. index i of array is
+ * start_time + (i * time_step). We generate data for time steps until is passes 
+ * end_time. 
+ * 
+ * Also sets sat_hist_len variable through pointer for use in other functions
+ */
+GHashTable *generate_sat_pos_data(GList *sats_list, guint *sat_hist_len, gdouble start_time, gdouble end_time, gdouble time_step) {
     
-    gpointer data_fields = g_hash_table_new_full(g_int_hash, g_int_equal, free, free);
+    GHashTable *data_fields = g_hash_table_new_full(g_int_hash, g_int_equal, free, free);
 
-    gdouble num_entries = ceil((end_time - start_time) / time_step);
-    *hist_length = num_entries;
-    printf("num entries %f\n", num_entries);
+    *sat_hist_len = (guint)ceil((end_time - start_time) / time_step);
 
     for (GList *current = sats_list; current != NULL; current = current->next) {
         sat_t *sat = malloc(sizeof(sat_t));
@@ -18,9 +24,9 @@ GHashTable *generate_transfer_data(GList *sats_list, gint *hist_length, gdouble 
         gint *cat_nr = malloc(sizeof(gint));
         *cat_nr = sat->tle.catnr;
 
-        vector_t *entries = malloc(num_entries * sizeof(vector_t));
+        vector_t *entries = malloc(*sat_hist_len * sizeof(vector_t));
         
-        for (gint i = 0; i < num_entries; i++) {
+        for (guint i = 0; i < *sat_hist_len; i++) {
             sat_at_time(sat, start_time + (i * time_step));
             entries[i] = sat->pos;
         }

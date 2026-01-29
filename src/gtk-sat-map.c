@@ -50,8 +50,8 @@
 #include "sat-graph.h"
 #include "qth-data.h"
 
-#include "print-transfers.h"
-#include "link-capacity-path.h"
+#include "max-capacity-path/link-capacity-path.h"
+#include "max-capacity-path/satellite-history.h"
 
 #define MARKER_SIZE_HALF    1
 
@@ -664,9 +664,15 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
     clock_t timer_start, timer_end;
     double cpu_time_used;
     timer_start = clock();
+
+    GList *sat_list = g_hash_table_get_values(satmap->sats);
+    guint sat_hist_len = 0;
+    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step); 
  
     //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
-    get_max_link_path(satmap->sats, t_start, t_end, time_step);
+    get_max_link_path(satmap->sats, sat_history, sat_hist_len, t_start, t_end, time_step);
+
+    g_hash_table_destroy(sat_history);
 
     timer_end = clock();
     cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;

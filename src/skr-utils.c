@@ -428,24 +428,26 @@ gdouble inter_sat_link(sat_t *sat1, sat_t *sat2)
 }
 
 /*
- * inter_sat_pos_link() - Calculates the SKR for an inter-satellite link but 
- * only takes in the satellites position as input. Behaves exactly the same as
- * inter_sat_link().
+ * scaled_inter_sat_link() - Takes satellite positions and time step as input, 
+ * then returns SKR rate scaled in kilobytes per time step.
  * @pos1: Pointer to vector_t of first satellite.
  * @pos2: Pointer to vector_t of second satellite.
+ * @time_step: Gdouble of time step duration in Astronomer's Julian Date format
  *
- * Return: The calculated SKR in bits per second.
+ * Return: The calculated SKR in kilobytes per time step.
  */
-gdouble inter_sat_pos_link(vector_t *pos1, vector_t *pos2)
+gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2, gdouble time_step)
 {
     if (!pos1 || !pos2) {
         return 0.0;
     }
+
+    gdouble scale = (time_step * xmnpda * 60) / 8000;
 
     gdouble distance = dist_calc_driver(
             pos1->x, pos1->y, pos1->z,
             pos2->x, pos2->y, pos2->z);
     gdouble T = transmittance_inter_satellite(distance);
 
-    return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
+    return scale * key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
 }

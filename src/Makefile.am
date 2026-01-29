@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = sgpsdp
+SUBDIRS = sgpsdp max-capacity-path
 
 AM_CPPFLAGS = \
 	@PACKAGE_CFLAGS@ -I.. \
@@ -32,6 +32,14 @@ gpredict_SOURCES = \
     sgpsdp/sgp_obs.c \
     sgpsdp/sgp_time.c \
     sgpsdp/solar.c \
+    max-capacity-path/link-capacity-path.c \
+    max-capacity-path/link-capacity-path.h \
+    max-capacity-path/transfer-heap.c  \
+    max-capacity-path/transfer-heap.h \ 
+    max-capacity-path/satellite-history.c \
+    max-capacity-path/satellite-history.h \
+    max-capacity-path/transfer-time.c \ 
+    max-capacity-path/transfer-time.h \ 
     about.c about.h \
     compat.c compat.h config-keys.h \
     first-time.c first-time.h \
@@ -128,11 +136,7 @@ gpredict_SOURCES = \
     tle-tools.c tle-tools.h \
     tle-update.c tle-update.h \
     strnatcmp.c strnatcmp.h \
-    calc-dist-two-sat.c calc-dist-two-sat.h \
-    link-capacity-path.c link-capacity-path.h \
-    transfer-heap.c transfer-heap.h\
-    print-transfers.c print-transfers.h\
-    transfer-table.c transfer-table.h
+    calc-dist-two-sat.c calc-dist-two-sat.h 
 
 ##gpredict_LDADD = ./sgpsdp/libsgp4sdp4.a @PACKAGE_LIBS@
 gpredict_LDADD = @PACKAGE_LIBS@

@@ -126,6 +126,8 @@ doc/man/Makefile
 src/Makefile
 src/sgpsdp/Makefile
 src/sgpsdp/TR/Makefile
+src/max-capacity-path/Makefile
+src/max-capacity-path/tests/Makefile
 icons/Makefile
 pixmaps/Makefile
 pixmaps/maps/Makefile
