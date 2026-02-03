@@ -29,10 +29,10 @@ void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr) {
     h->len++;
 }
 
-void pop_tfr (heap_tfr *h, node_tfr *min) {
+void pop_tfr(heap_tfr *h, node_tfr *min) {
     int i, j, k;
     if (!h->len) {
-        min = NULL;
+        *min->cat_nr = -1;
     }
 
     memcpy(min, &h->nodes[1], sizeof(node_tfr));

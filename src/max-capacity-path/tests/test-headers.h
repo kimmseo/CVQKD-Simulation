@@ -28,5 +28,7 @@ void t_time_pre_start_sloped(sat_hist *S, gconstpointer user_data);
 
 void t_time_complicated_sine(sat_hist *S, gconstpointer user_data);
 
+void tdsp_simple_test();
+
 
 
