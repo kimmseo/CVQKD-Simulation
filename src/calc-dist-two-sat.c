@@ -168,6 +168,48 @@ gboolean is_los_clear(sat_t *sat1, sat_t *sat2)
     }
 }
 
+// same as is_los_clear() but vector_t pointers as input
+gboolean is_pos_los_clear(vector_t *sat1, vector_t *sat2)
+{
+    gdouble a, b, c, discriminant;
+    vector_t A, B, d;
+    
+    A.x = sat1->x;
+    A.y = sat1->y;
+    A.z = sat1->z;
+
+    B.x = sat2->x;
+    B.y = sat2->y;
+    B.z = sat2->z;
+
+    d.x = B.x - A.x;
+    d.y = B.y - A.y;
+    d.z = B.z - A.z;
+
+    a = dot_product(&d, &d);
+    b = 2 * dot_product(&A, &d);
+    c = dot_product(&A, &A) - (EARTH_RADIUS + 20)*(EARTH_RADIUS + 20);
+
+    discriminant = b*b - 4*a*c;
+
+    if (discriminant < 0)
+        return TRUE; // no intersection: LOS is clear
+
+    // intersection points
+    gdouble t1 = (-b - sqrt(discriminant)) / (2*a);
+    gdouble t2 = (-b + sqrt(discriminant)) / (2*a);
+
+    if ((t1 >= 0.0 && t1 <= 1.0) || (t2 >= 0.0 && t2 <= 1.0))
+    {
+        // One of the intersections lies between sat1 and sat2
+        return FALSE; // LOS is blocked
+    }
+    else
+    {
+        return TRUE; // LOS is clear
+    }
+}
+
 gdouble sat_qth_distance(sat_t *sat, qth_t *qth)
 {
     if (!sat || !qth)

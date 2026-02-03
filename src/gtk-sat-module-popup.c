@@ -1177,7 +1177,7 @@ static gchar* format_skr(gdouble skr_bps)
 
 /**
  * @brief Formats a satellite path into a human-readable string.
- * * @param str The GString to append the formatted text to.
+ * @param str The GString to append the formatted text to.
  * @param path A GList of sat_t objects representing the path.
  * @param qth1 The starting ground station.
  * @param qth2 The ending ground station.

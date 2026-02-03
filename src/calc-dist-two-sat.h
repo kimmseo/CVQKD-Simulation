@@ -20,6 +20,7 @@
 gdouble dist_calc (sat_t *sat1, sat_t *sat2);
 gdouble dist_calc_driver (gdouble sat1_posx, gdouble sat1_posy, gdouble sat1_posz, gdouble sat2_posx, gdouble sat2_posy, gdouble sat2_posz);
 gboolean is_los_clear (sat_t *sat1, sat_t *sat2);
+gboolean is_pos_los_clear(vector_t *sat1, vector_t *sat2);
 gdouble sat_qth_distance(sat_t *sat, qth_t *qth);
 
 

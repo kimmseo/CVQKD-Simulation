@@ -52,14 +52,13 @@ gdouble inter_sat_link(sat_t *sat1, sat_t *sat2);
 
 /*
  * scaled_inter_sat_link() - Takes satellite positions and time step as input, 
- * then returns SKR rate scaled in kilobytes per time step.
+ * then returns SKR rate scaled in kilobytes per day. LOS is taken into account.
  * @pos1: Pointer to vector_t of first satellite.
  * @pos2: Pointer to vector_t of second satellite.
- * @time_step: Gdouble of time step duration in Astronomer's Julian Date format
  *
- * Return: The calculated SKR in kilobytes per time step.
+ * Return: The calculated SKR in kilobytes per day.
  */
-gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2, gdouble time_step);
+gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2);
 
 //gdouble underwater_link(qth_t *station1, qth_t *station2);
 
