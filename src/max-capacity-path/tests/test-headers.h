@@ -30,5 +30,9 @@ void t_time_complicated_sine(sat_hist *S, gconstpointer user_data);
 
 void tdsp_simple_test();
 
+void tdsp_multi_paths_1_correct_test();
+
+void tdsp_end_transfers_away_test();
+
 
 

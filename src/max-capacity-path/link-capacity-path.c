@@ -143,7 +143,7 @@ GList *TDSP_fixed_size(
     GList *path = NULL;
     tdsp_node *end_best = g_hash_table_lookup(best, &end_node);
     tdsp_node *copy_node;
-   
+
     //found path
     if (end_best->time != G_MAXDOUBLE) {
         path = calloc(1, sizeof(GList)); 

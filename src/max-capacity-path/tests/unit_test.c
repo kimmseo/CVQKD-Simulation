@@ -29,7 +29,11 @@ int main (int argc, char *argv[]) {
     g_test_add("/t_time_test.c/t_time_complicated_sine", sat_hist, NULL,
         t_time_complicated_setup, t_time_complicated_sine, t_time_teardown);
 
-    g_test_add_func("/tdsp_test.c/tdsp_test", tdsp_simple_test);
+    g_test_add_func("/tdsp_test.c/tdsp_simple_test", tdsp_simple_test);
+
+    g_test_add_func("/tdsp_test.c/tdsp_multi_paths_1_correct_test", tdsp_multi_paths_1_correct_test);
+
+    g_test_add_func("/tdsp_test.c/tdsp_end_transfers_away_test", tdsp_end_transfers_away_test);
 
     return g_test_run();
 }
