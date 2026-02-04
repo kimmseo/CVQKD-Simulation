@@ -5,3 +5,4 @@ gpredict
 sgpsdp/test-001
 sgpsdp/test-002
 .deps
+max-capacity-path/tests/test-result
