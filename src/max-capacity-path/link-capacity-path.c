@@ -6,6 +6,7 @@
 #include "transfer-time.h"
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
+void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, tdsp_type type);
 
 /**
  * Prints path of satellite transfers that can carry maximum amount of data from
@@ -19,6 +20,7 @@ void get_max_link_path(
     GHashTable *sats, 
     GHashTable *sat_history,
     guint sat_hist_len,
+    GHashTable *ground_stations,
     double t_start, 
     double t_end, 
     double time_step) {
@@ -28,6 +30,10 @@ void get_max_link_path(
     //print_GHashTable_key_value(sat_history, t_start, t_end, time_step);
     printf("start time %f\n", t_start);
 
+    GArray *nodes = g_array_new(FALSE, TRUE, sizeof(tdsp_node));
+    tdsp_node_from_table(nodes, sats, tdsp_SATELLITE);
+    tdsp_node_from_table(nodes, ground_stations, tdsp_STATION);
+
     gdouble low = 0;
     gdouble high = 25000000;
     gdouble mid = -1;
@@ -36,17 +42,16 @@ void get_max_link_path(
 
     gdouble end_time = -1;
 
-    //within 0.1 kb of right answer. 
     while (low <= high) {
         mid = (low + high) / 2.0;
 
         printf("trying for data size %f kilobytes\n", mid);
-        attempt = TDSP_fixed_size(sats, sat_history, get_transfer_time, sat_hist_len, mid, 39466, 27607, t_start, t_end, time_step);
+        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, 39466, 27607, t_start, t_end, time_step);
         
         if (attempt != NULL) {
             printf("    found path\n");
             for (GList *S = attempt; S != NULL; S=S->next) {
-                printf("        time: %f, catnr: %i, prev: %i\n", ((tdsp_node *)S->data)->time, ((tdsp_node *)S->data)->current, ((tdsp_node *)S->data)->prev);
+                printf("        time: %f, catnr: %i, prev: %p\n", ((tdsp_node *)S->data)->time, ((tdsp_node *)S->data)->id, (void *)((tdsp_node *)S->data)->prev_node);
                 end_time = ((tdsp_node *)S->data)->time;
             }    
             
@@ -62,52 +67,76 @@ void get_max_link_path(
     if (mid != -1) {
         printf("FOUND MAX CAPACITY TRANSFER (over %f minutes): %f (gigabytes)\n", (end_time - t_start) * 1440, mid / 1000);
     }
+
+    g_array_free(nodes, TRUE);
 }
 
+void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, tdsp_type type) {
+    GList *list = g_hash_table_get_keys(table);
+
+    for (GList *current = list; current != NULL; current = current->next) {
+        tdsp_node node = {
+            .prev_node = NULL,
+            .id = *(gint *)current->data,
+            .time = G_MAXDOUBLE,
+            .type = type
+        };
+
+        g_array_append_val(tdsp_array, node);
+    }
+
+    g_list_free(list);
+}
 
 // Time-dependent shortest path for a data amount of fixed size. Modified Dijkstra
 GList *TDSP_fixed_size(
-    GHashTable *sats,                   //--
+    GArray *const_tdsp_array,
     GHashTable *sat_history,
     gdouble (*time_func)(gint *, gint *, gdouble, GHashTable *, gint, gdouble, gdouble, gdouble, gdouble),
     gint hist_len,
     gdouble data_size,
-    gint start_node,                    //--
-    gint end_node,                      //--
-    gdouble t_start,                    //--
+    gint start_node,
+    gint end_node,
+    gdouble t_start,
     gdouble t_end,
     gdouble time_step) {
     
-    //best arrival times so far
-    //{key : value} = {gint catnr : tdsp_node i}
-    GHashTable *best = g_hash_table_new_full(g_int_hash, catnr_equal, NULL, free);        
-
     //priority queue implemented with binary heap
     heap_tfr *S = (heap_tfr *)calloc(1, sizeof(heap_tfr));
 
+    //best arrival time so far is stored in this copy
+    GArray *tdsp_array = g_array_copy(const_tdsp_array);
+
+    guint *end_node_index = NULL;
+
     //initialize distance to all satellites to infinity, except for start node
-    GList *cats_list = g_hash_table_get_keys(sats); 
-    for (GList *sat_cat = cats_list; sat_cat != NULL; sat_cat = sat_cat->next) {
-
-        gint *catnr = (gint *)sat_cat->data;
-
-        tdsp_node *i = malloc(sizeof(tdsp_node));
-        i->prev = -1;
-        i->current = *catnr;
-        i->time = G_MAXDOUBLE;
+    for (guint i = 0; i < tdsp_array->len; i++) {
+        tdsp_node *n = &g_array_index(tdsp_array, tdsp_node, i);
 
         //time at start node = start time, all other nodes = infinity
-        if (*catnr == start_node) i->time = t_start;
+        if (n->id == start_node) {
+            n->time = t_start;
+        } else if (n->id == end_node) {
+            end_node_index = malloc(sizeof(guint));
+            *end_node_index = i;
+        }
 
-        g_hash_table_insert(best, catnr, i);        
-        push_tfr(S, i->time, catnr);
-    } 
+        push_tfr(S, n->time, &n->id, n);
+    }
+
+    //end node not included in tdsp_array
+    if (end_node_index == NULL) {
+        free(S);
+        g_array_free(tdsp_array, TRUE);
+        return NULL;
+    }
     
     node_tfr *min = malloc(sizeof(node_tfr));
     //main dijkstra loop
     while (S->len != 0) {
         pop_tfr(S, min);
 
+        //ToDo: you cannot set min to NULL, fix it inside pop_tfr as well
         if (min == NULL) {
             return NULL;
         }
@@ -116,32 +145,33 @@ GList *TDSP_fixed_size(
         if (*min->cat_nr == end_node) break;
 
         //ToDo: double check this with unit testing
+        //shortes time == G_MAXDOUBLE means won't find any more valid paths
         if (min->time == G_MAXDOUBLE) break;
 
-        for (GList *check = cats_list; check != NULL; check = check->next) {
-            gint *i_catnr = (gint *)check->data;
-            tdsp_node *i = (tdsp_node *)g_hash_table_lookup(best, i_catnr); 
+        for (guint i = 0; i < tdsp_array->len; i++) {
+            tdsp_node *node = &g_array_index(tdsp_array, tdsp_node, i);
 
-            if (*i_catnr == *min->cat_nr) {
+            if (node->id == *min->cat_nr) {
                 continue;
             }
 
-            if (*i_catnr == start_node) {
+            if (node->id == start_node) {
                 continue;
             } 
+           
+            //get_transfer_time() in file transfer_time.c
+            gdouble transfer_time = (*time_func)(min->cat_nr, &node->id, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
             
-            gdouble a_ij = (*time_func)(min->cat_nr, i_catnr, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
-            
-            if (a_ij < i->time) {
-                i->time = a_ij;
-                i->prev = *min->cat_nr;
-                push_tfr(S, i->time, i_catnr);
+            if (transfer_time < node->time) {
+                node->time = transfer_time;
+                node->prev_node = min->node;
+                push_tfr(S, node->time, &node->id, node);
             }
         }
     }
 
     GList *path = NULL;
-    tdsp_node *end_best = g_hash_table_lookup(best, &end_node);
+    tdsp_node *end_best = &g_array_index(tdsp_array, tdsp_node, *end_node_index);
     tdsp_node *copy_node;
 
     //found path
@@ -153,7 +183,7 @@ GList *TDSP_fixed_size(
         path->data = copy_node;
        
         //if found path, only start node should have -1 along path
-        for (tdsp_node *b=g_hash_table_lookup(best, &end_best->prev); b != NULL; b = g_hash_table_lookup(best, &b->prev)) {
+        for (tdsp_node *b=end_best->prev_node; b != NULL; b = b->prev_node) {
 
             copy_node = malloc(sizeof(tdsp_node));
             memcpy(copy_node, b, sizeof(tdsp_node));
@@ -165,7 +195,8 @@ GList *TDSP_fixed_size(
     
     free(S);
     free(min);
-    g_hash_table_destroy(best);
+    free(end_node_index);
+    g_array_free(tdsp_array, TRUE);
 
     return path;
 }

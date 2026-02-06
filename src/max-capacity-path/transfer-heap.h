@@ -1,8 +1,12 @@
 #include <glib/gi18n.h>
 
+struct tdsp_node;
+typedef struct tdsp_node tdsp_node;
+
 typedef struct {
     gdouble time;
     gint *cat_nr;
+    tdsp_node *node;
 } node_tfr;
 
 typedef struct {
@@ -13,4 +17,4 @@ typedef struct {
 
 void pop_tfr(heap_tfr *h, node_tfr *min);
 
-void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr);
+void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr, tdsp_node *point);

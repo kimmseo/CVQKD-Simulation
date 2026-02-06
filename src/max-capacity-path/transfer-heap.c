@@ -7,7 +7,7 @@
  * heap_tfr *h = (heap_tfr *)calloc(1, sizeof(heap_tfr))
  */
 
-void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr) {
+void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr, tdsp_node *point) {
     
     if (h->len + 1 >= h->size) {
         //if h->size is 0, set it 4. Else double it.
@@ -26,6 +26,7 @@ void push_tfr(heap_tfr *h, gdouble time, gint *cat_nr) {
 
     h->nodes[i].time = time;
     h->nodes[i].cat_nr = cat_nr;
+    h->nodes[i].node = point;
     h->len++;
 }
 

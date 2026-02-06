@@ -55,7 +55,7 @@ void tdsp_simple_test() {
 
     for (int i = 0; i < 4; i++) {
         tdsp_node *check = result->data;
-        g_assert_true(check->prev == solution[i].prev);
+        g_assertrtrue(check->prev_id == solution[i].prev_id);
         g_assert_true(check->current == solution[i].current);
         g_assert_true(check->time == solution[i].time);
 

@@ -667,12 +667,21 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
 
     GList *sat_list = g_hash_table_get_values(satmap->sats);
     guint sat_hist_len = 0;
-    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step); 
+
+    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
+
+    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
+
+    gint key1 = -1;
+    gint key2 = -2;
+    g_hash_table_insert(ground_stations, &key1, satmap->qth);
+    g_hash_table_insert(ground_stations, &key2, satmap->qth2);
  
     //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
-    get_max_link_path(satmap->sats, sat_history, sat_hist_len, t_start, t_end, time_step);
+    get_max_link_path(satmap->sats, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);
 
     g_hash_table_destroy(sat_history);
+    g_hash_table_destroy(ground_stations);
 
     timer_end = clock();
     cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
