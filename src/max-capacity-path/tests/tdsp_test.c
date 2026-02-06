@@ -30,39 +30,44 @@ gdouble straight_path(
 }
 
 void tdsp_simple_test() {
-    GHashTable *sats = g_hash_table_new(g_int_hash, g_int_equal);
-    
-    gint catnrs[4];
-    sat_t val[1] = {0};
+    tdsp_node *data = malloc(4 * sizeof(tdsp_node));
 
-    for (int i = 0; i < 4; i++) {
-        catnrs[i] = i;
-        g_hash_table_insert(sats, &catnrs[i], &val);        
-    }
+    memcpy(data, (tdsp_node[4]){
+        {.node={.id = 0, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 1, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 2, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 3, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+    }, 4 * sizeof(tdsp_node));
+
+    GArray *tdsp_array = g_array_new_take(data, 4, TRUE, sizeof(tdsp_node));
 
     gdouble t_start = 0;
     gint start_catnr = 0;
     gint end_catnr = 3;
 
-    GList *result = TDSP_fixed_size(sats, NULL, straight_path, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
+    GList *result = TDSP_fixed_size(tdsp_array, NULL, straight_path, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
 
-    tdsp_node solution[4] = {
-        {.prev = -1, .current = 0, .time = 0},
-        {.prev = 0,  .current = 1, .time = 1},
-        {.prev = 1,  .current = 2, .time = 2},
-        {.prev = 2,   .current = 3, .time = 3}
+    path_node solution[4] = {
+        {.id = 0, .time = 0, .type = path_SATELLITE},
+        {.id = 1, .time = 1, .type = path_SATELLITE},
+        {.id = 2, .time = 2, .type = path_SATELLITE},
+        {.id = 3, .time = 3, .type = path_SATELLITE}
     };
 
+
     for (int i = 0; i < 4; i++) {
-        tdsp_node *check = result->data;
-        g_assertrtrue(check->prev_id == solution[i].prev_id);
-        g_assert_true(check->current == solution[i].current);
+        path_node *check = result->data;
+
+        g_assert_true(check->id == solution[i].id);
         g_assert_true(check->time == solution[i].time);
+        g_assert_true(check->type == solution[i].type);
 
         result = result->next;
     }
 
     g_assert_true(result == NULL); 
+
+    g_array_free(tdsp_array, TRUE);
 }
 
 gdouble multi_paths_1_correct(
@@ -106,41 +111,46 @@ gdouble multi_paths_1_correct(
 }
 
 void tdsp_multi_paths_1_correct_test() {
-    GHashTable *sats = g_hash_table_new(g_int_hash, g_int_equal);
+    tdsp_node *data = malloc(7 * sizeof(tdsp_node));
+
+    memcpy(data, (tdsp_node[7]){
+        {.node={.id = 0, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 1, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 2, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 3, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 4, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 5, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 6, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL}
+    }, 7 * sizeof(tdsp_node));
+
+    GArray *tdsp_array = g_array_new_take(data, 7, TRUE, sizeof(tdsp_node));
     
-    gint catnrs[7] = {0};
-    sat_t val[1] = {0};
-
-    for (int i = 0; i < 7; i++) {
-        catnrs[i] = i;
-        g_hash_table_insert(sats, &catnrs[i], &val);        
-    }
-
     gdouble t_start = 0;
     gint start_catnr = 0;
     gint end_catnr = 6;
 
-    GList *result = TDSP_fixed_size(sats, NULL, multi_paths_1_correct, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
+    GList *result = TDSP_fixed_size(tdsp_array, NULL, multi_paths_1_correct, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
 
-    tdsp_node solution[6] = {
-        {.prev = -1, .current = 0, .time = 0},
-        {.prev =  0, .current = 1, .time = 1},
-        {.prev =  1, .current = 3, .time = 2},
-        {.prev =  3, .current = 2, .time = 3},
-        {.prev =  2, .current = 5, .time = 5},
-        {.prev =  5, .current = 6, .time = 7}
+    path_node solution[6] = {
+        {.id = 0, .time = 0, .type=path_SATELLITE},
+        {.id = 1, .time = 1, .type=path_SATELLITE},
+        {.id = 3, .time = 2, .type=path_SATELLITE},
+        {.id = 2, .time = 3, .type=path_SATELLITE},
+        {.id = 5, .time = 5, .type=path_SATELLITE},
+        {.id = 6, .time = 7, .type=path_SATELLITE}
     };
 
     for (int i = 0; i < 6; i++) {
-        tdsp_node *check = result->data;
-        g_assert_true(check->prev == solution[i].prev);
-        g_assert_true(check->current == solution[i].current);
+        path_node *check = result->data;
+        g_assert_true(check->id == solution[i].id);
         g_assert_true(check->time == solution[i].time);
+        g_assert_true(check->type == solution[i].type);
 
         result = result->next;
     }
 
     g_assert_true(result == NULL); 
+    g_array_free(tdsp_array, TRUE);
 }
 
 gdouble end_transfers_away(
@@ -181,39 +191,39 @@ gdouble end_transfers_away(
 }
 
 void tdsp_end_transfers_away_test() {
-    GHashTable *sats = g_hash_table_new(g_int_hash, g_int_equal);
-    
-    gint catnrs[4] = {0};
-    sat_t val[1] = {0};
+    tdsp_node *data = malloc(4 * sizeof(tdsp_node));
 
-    for (int i = 0; i < 4; i++) {
-        catnrs[i] = i;
-        g_hash_table_insert(sats, &catnrs[i], &val);        
-    }
+    memcpy(data, (tdsp_node[4]){
+        {.node={.id = 0, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 1, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 2, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL},
+        {.node={.id = 3, .time=G_MAXDOUBLE, .type=path_SATELLITE}, .prev_node=NULL}
+    }, 4 * sizeof(tdsp_node));
+
+    GArray *tdsp_array = g_array_new_take(data, 4, TRUE, sizeof(tdsp_node));
 
     gdouble t_start = 0;
     gint start_catnr = 0;
     gint end_catnr = 3;
 
-    GList *result = TDSP_fixed_size(sats, NULL, end_transfers_away, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
+    GList *result = TDSP_fixed_size(tdsp_array, NULL, end_transfers_away, 0, 0, start_catnr, end_catnr, t_start, 0, 0);
 
-    tdsp_node solution[3] = {
-        {.prev = -1, .current = 0, .time = 0},
-        {.prev =  0, .current = 1, .time = 1},
-        {.prev =  1, .current = 3, .time = 4}
+    path_node solution[3] = {
+        {.id = 0, .time = 0, .type=path_SATELLITE},
+        {.id = 1, .time = 1, .type=path_SATELLITE},
+        {.id = 3, .time = 4, .type=path_SATELLITE}
     };
 
     for (int i = 0; i < 3; i++) {
-        tdsp_node *check = result->data;
-        g_assert_true(check->prev == solution[i].prev);
-        g_assert_true(check->current == solution[i].current);
+        path_node *check = result->data;
+
+        g_assert_true(check->id == solution[i].id);
         g_assert_true(check->time == solution[i].time);
+        g_assert_true(check->type == solution[i].type);
 
         result = result->next;
     }
 
     g_assert_true(result == NULL); 
+    g_array_free(tdsp_array, TRUE);
 }
-
-
-//test holding data is best path

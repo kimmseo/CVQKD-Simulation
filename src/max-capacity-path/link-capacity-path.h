@@ -1,17 +1,22 @@
 #include <glib/gi18n.h>
 
 typedef enum {
-    tdsp_STATION,
-    tdsp_SATELLITE
-} tdsp_type;
+    path_STATION,
+    path_SATELLITE
+} path_type;
 
-typedef struct tdsp_node{
+typedef struct path_node{
     gdouble time;                   //earliest arrival so far
     gint id;                        //for satellites id is catnr, for ground stations, assigned negative number ids
-    struct tdsp_node *prev_node;    //id of previous node
-    tdsp_type type;
-} tdsp_node;
+    path_type type;
+} path_node;
 
+typedef struct tdsp_node {
+    struct tdsp_node *prev_node;
+    path_node node;
+} tdsp_node;              //wrapper type keeps track of node with best path to it
+                    //including prev_node into path_node is troublesome 
+                    //when returning result (GList of copies)
 
 void get_max_link_path(
     GHashTable *sats, 

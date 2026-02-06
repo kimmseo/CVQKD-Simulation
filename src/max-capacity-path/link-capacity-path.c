@@ -6,7 +6,7 @@
 #include "transfer-time.h"
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
-void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, tdsp_type type);
+void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type);
 
 /**
  * Prints path of satellite transfers that can carry maximum amount of data from
@@ -31,8 +31,8 @@ void get_max_link_path(
     printf("start time %f\n", t_start);
 
     GArray *nodes = g_array_new(FALSE, TRUE, sizeof(tdsp_node));
-    tdsp_node_from_table(nodes, sats, tdsp_SATELLITE);
-    tdsp_node_from_table(nodes, ground_stations, tdsp_STATION);
+    tdsp_node_from_table(nodes, sats, path_SATELLITE);
+    tdsp_node_from_table(nodes, ground_stations, path_STATION);
 
     gdouble low = 0;
     gdouble high = 25000000;
@@ -51,8 +51,8 @@ void get_max_link_path(
         if (attempt != NULL) {
             printf("    found path\n");
             for (GList *S = attempt; S != NULL; S=S->next) {
-                printf("        time: %f, catnr: %i, prev: %p\n", ((tdsp_node *)S->data)->time, ((tdsp_node *)S->data)->id, (void *)((tdsp_node *)S->data)->prev_node);
-                end_time = ((tdsp_node *)S->data)->time;
+                printf("        time: %f, catnr: %i, prev: %p\n", ((tdsp_node *)S->data)->node.time, ((tdsp_node *)S->data)->node.id, (void *)((tdsp_node *)S->data)->prev_node);
+                end_time = ((tdsp_node *)S->data)->node.time;
             }    
             
             low = mid + 1;
@@ -71,15 +71,15 @@ void get_max_link_path(
     g_array_free(nodes, TRUE);
 }
 
-void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, tdsp_type type) {
+void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type) {
     GList *list = g_hash_table_get_keys(table);
 
     for (GList *current = list; current != NULL; current = current->next) {
         tdsp_node node = {
             .prev_node = NULL,
-            .id = *(gint *)current->data,
-            .time = G_MAXDOUBLE,
-            .type = type
+            .node.id = *(gint *)current->data,
+            .node.time = G_MAXDOUBLE,
+            .node.type = type
         };
 
         g_array_append_val(tdsp_array, node);
@@ -114,14 +114,14 @@ GList *TDSP_fixed_size(
         tdsp_node *n = &g_array_index(tdsp_array, tdsp_node, i);
 
         //time at start node = start time, all other nodes = infinity
-        if (n->id == start_node) {
-            n->time = t_start;
-        } else if (n->id == end_node) {
+        if (n->node.id == start_node) {
+            n->node.time = t_start;
+        } else if (n->node.id == end_node) {
             end_node_index = malloc(sizeof(guint));
             *end_node_index = i;
         }
 
-        push_tfr(S, n->time, &n->id, n);
+        push_tfr(S, n->node.time, &n->node.id, n);
     }
 
     //end node not included in tdsp_array
@@ -149,44 +149,45 @@ GList *TDSP_fixed_size(
         if (min->time == G_MAXDOUBLE) break;
 
         for (guint i = 0; i < tdsp_array->len; i++) {
-            tdsp_node *node = &g_array_index(tdsp_array, tdsp_node, i);
+            tdsp_node *other_node = &g_array_index(tdsp_array, tdsp_node, i);
 
-            if (node->id == *min->cat_nr) {
+            if (other_node->node.id == *min->cat_nr) {
                 continue;
             }
 
-            if (node->id == start_node) {
+            if (other_node->node.id == start_node) {
                 continue;
             } 
            
             //get_transfer_time() in file transfer_time.c
-            gdouble transfer_time = (*time_func)(min->cat_nr, &node->id, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
+            gdouble transfer_time = (*time_func)(min->cat_nr, &other_node->node.id, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
             
-            if (transfer_time < node->time) {
-                node->time = transfer_time;
-                node->prev_node = min->node;
-                push_tfr(S, node->time, &node->id, node);
+            if (transfer_time < other_node->node.time) {
+                other_node->node.time = transfer_time;
+                other_node->prev_node = min->node;
+                push_tfr(S, other_node->node.time, &other_node->node.id, other_node);
             }
         }
     }
 
     GList *path = NULL;
     tdsp_node *end_best = &g_array_index(tdsp_array, tdsp_node, *end_node_index);
-    tdsp_node *copy_node;
+    path_node *copy_node;
 
     //found path
-    if (end_best->time != G_MAXDOUBLE) {
+    if (end_best->node.time != G_MAXDOUBLE) {
         path = calloc(1, sizeof(GList)); 
 
-        copy_node = malloc(sizeof(tdsp_node));
-        memcpy(copy_node, end_best, sizeof(tdsp_node));
+        copy_node = malloc(sizeof(path_node));
+        memcpy(copy_node, &end_best->node, sizeof(path_node));
         path->data = copy_node;
+
        
-        //if found path, only start node should have -1 along path
         for (tdsp_node *b=end_best->prev_node; b != NULL; b = b->prev_node) {
 
             copy_node = malloc(sizeof(tdsp_node));
-            memcpy(copy_node, b, sizeof(tdsp_node));
+            memcpy(copy_node, &b->node, sizeof(path_node));
+
             path = g_list_append(path, copy_node);
         }
 
