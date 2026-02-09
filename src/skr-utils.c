@@ -38,7 +38,7 @@
 #define P_TH 1e-6                  // Outage time fraction for scintillation
 #define INTER_SAT_APT_RADIUS 0.2   // Inter-satellite aperture radius (ra) in meters
 #define INTER_SAT_BEAM_WAIST 0.2   // Inter-satellite beam waist (w0) in meters
-#define SKR_SCALE (xmnpda * 60) / 8000 /* Units of skr from (bits / second).
+#define SKR_SCALE ((xmnpda * 60.0) / 8000.0) /* Units of skr from (bits / second).
                                     currently set to (kilobytes / minute) */
 
 

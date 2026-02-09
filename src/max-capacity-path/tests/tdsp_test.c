@@ -3,8 +3,8 @@
 #include <stdio.h>
 
 gdouble straight_path(
-        gint *src, 
-        gint *dst, 
+        tdsp_node *src, 
+        tdsp_node *dst, 
         gdouble data_size, 
         GHashTable *sat_history,
         gint history_len,
@@ -20,11 +20,11 @@ gdouble straight_path(
     UNUSED(t_end);
     UNUSED(time_step);
     
-    if (*src == 0 && *dst == 1) return time + 1;
+    if (src->node.id == 0 && dst->node.id == 1) return time + 1;
 
-    else if (*src == 1 && *dst == 2) return time + 1;
+    else if (src->node.id == 1 && dst->node.id == 2) return time + 1;
 
-    else if (*src == 2 && *dst == 3) return time + 1;
+    else if (src->node.id == 2 && dst->node.id == 3) return time + 1;
 
     return G_MAXDOUBLE;
 }
@@ -71,8 +71,8 @@ void tdsp_simple_test() {
 }
 
 gdouble multi_paths_1_correct(
-        gint *src, 
-        gint *dst, 
+        tdsp_node *src, 
+        tdsp_node *dst, 
         gdouble data_size, 
         GHashTable *sat_history,
         gint history_len,
@@ -88,24 +88,24 @@ gdouble multi_paths_1_correct(
     UNUSED(t_end);
     UNUSED(time_step);
     
-    if (time <= 0 && *src == 0 && *dst == 1) return 1;
-    else if (time <= 0 && *src == 0 && *dst == 4) return 2;
+    if (time <= 0 && src->node.id == 0 && dst->node.id == 1) return 1;
+    else if (time <= 0 && src->node.id == 0 && dst->node.id == 4) return 2;
 
-    else if (time <= 1 && *src == 1 && *dst == 3) return 2;
+    else if (time <= 1 && src->node.id == 1 && dst->node.id == 3) return 2;
 
-    else if (time <= 2 && *src == 1 && *dst == 3) return 3;
-    else if (time <= 2 && *src == 3 && *dst == 2) return 3;
-    else if (time <= 2 && *src == 4 && *dst == 3) return 3;
+    else if (time <= 2 && src->node.id == 1 && dst->node.id == 3) return 3;
+    else if (time <= 2 && src->node.id == 3 && dst->node.id == 2) return 3;
+    else if (time <= 2 && src->node.id == 4 && dst->node.id == 3) return 3;
 
-    else if (time <= 3 && *src == 1 && *dst == 2) return 4;
-    else if (time <= 3 && *src == 1 && *dst == 3) return 4;
-    else if (time <= 3 && *src == 2 && *dst == 5) return 5;
-    else if (time <= 3 && *src == 3 && *dst == 1) return 4;
-    else if (time <= 3 && *src == 3 && *dst == 4) return 4;
+    else if (time <= 3 && src->node.id == 1 && dst->node.id == 2) return 4;
+    else if (time <= 3 && src->node.id == 1 && dst->node.id == 3) return 4;
+    else if (time <= 3 && src->node.id == 2 && dst->node.id == 5) return 5;
+    else if (time <= 3 && src->node.id == 3 && dst->node.id == 1) return 4;
+    else if (time <= 3 && src->node.id == 3 && dst->node.id == 4) return 4;
 
-    else if (time <= 5 && *src == 3 && *dst == 5) return 6;
-    else if (time <= 5 && *src == 4 && *dst == 5) return 6;
-    else if (time <= 5 && *src == 5 && *dst == 6) return 7;
+    else if (time <= 5 && src->node.id == 3 && dst->node.id == 5) return 6;
+    else if (time <= 5 && src->node.id == 4 && dst->node.id == 5) return 6;
+    else if (time <= 5 && src->node.id == 5 && dst->node.id == 6) return 7;
 
     return G_MAXDOUBLE;
 }
@@ -154,8 +154,8 @@ void tdsp_multi_paths_1_correct_test() {
 }
 
 gdouble end_transfers_away(
-        gint *src, 
-        gint *dst, 
+        tdsp_node *src, 
+        tdsp_node *dst, 
         gdouble data_size, 
         GHashTable *sat_history,
         gint history_len,
@@ -171,21 +171,21 @@ gdouble end_transfers_away(
     UNUSED(t_end);
     UNUSED(time_step);
     
-    if (time <= 0 && *src == 0 && *dst == 1) return 1;
-    else if (time <= 0 && *src == 0 && *dst == 2) return 1;
+    if (time <= 0 && src->node.id == 0 && dst->node.id == 1) return 1;
+    else if (time <= 0 && src->node.id == 0 && dst->node.id == 2) return 1;
 
-    else if (time <= 2 && *src == 1 && *dst == 2) return 3;
+    else if (time <= 2 && src->node.id == 1 && dst->node.id == 2) return 3;
 
-    else if (time <= 3 && *src == 1 && *dst == 3) return 4;
+    else if (time <= 3 && src->node.id == 1 && dst->node.id == 3) return 4;
 
-    else if (time <= 4 && *src == 4 && *dst == 1) return 5;
-    else if (time <= 4 && *src == 4 && *dst == 2) return 5;
+    else if (time <= 4 && src->node.id == 4 && dst->node.id == 1) return 5;
+    else if (time <= 4 && src->node.id == 4 && dst->node.id == 2) return 5;
 
-    else if (time <= 5 && *src == 1 && *dst == 2) return 6;
-    else if (time <= 5 && *src == 2 && *dst == 1) return 6;
+    else if (time <= 5 && src->node.id == 1 && dst->node.id == 2) return 6;
+    else if (time <= 5 && src->node.id == 2 && dst->node.id == 1) return 6;
 
-    else if (time <= 6 && *src == 1 && *dst == 3) return 7;
-    else if (time <= 6 && *src == 2 && *dst == 3) return 7;
+    else if (time <= 6 && src->node.id == 1 && dst->node.id == 3) return 7;
+    else if (time <= 6 && src->node.id == 2 && dst->node.id == 3) return 7;
 
     return G_MAXDOUBLE;
 }

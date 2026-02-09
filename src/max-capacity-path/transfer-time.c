@@ -102,7 +102,6 @@ gdouble get_transfer_time(
                                + ((time_step / 3.0) * skr)
                                + 0.5 * time_step * (skr + next_skr);
         }
-
     }
     // ================ x_n --> post_x_n ========================================================
 

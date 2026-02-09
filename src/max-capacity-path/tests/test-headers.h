@@ -1,15 +1,18 @@
 #include "../../sgpsdp/sgp4sdp4.h"
+#include "../path-util.h"
 
 #define UNUSED(x) (void)(x)
 
 typedef struct {
     GHashTable *sat_hist;
     gint catnrs[2];
-    vector_t *values[2];
+    lw_sat_t *values[2];
     gint hist_len;
     gdouble w_start;            //time window start time
     gdouble w_end;
     gdouble w_step;
+    tdsp_node src;
+    tdsp_node dst;
 } sat_hist;
 
 void t_time_simple_setup(sat_hist *S, gconstpointer user_data);
