@@ -40,6 +40,7 @@ gpredict_SOURCES = \
     max-capacity-path/satellite-history.h \
     max-capacity-path/transfer-time.c \ 
     max-capacity-path/transfer-time.h \ 
+    max-capacity-path/path-util.h \ 
     about.c about.h \
     compat.c compat.h config-keys.h \
     first-time.c first-time.h \

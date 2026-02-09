@@ -13,6 +13,7 @@
 #include "sgpsdp/sgp4sdp4.h"
 #include "gtk-sat-data.h"
 #include "qth-data.h"
+#include "max-capacity-path/link-capacity-path.h"
 
 /*
  * fibre_link() - Calculates the SKR for a fiber link between two ground stations.
@@ -50,16 +51,16 @@ gdouble sat_to_ground_downlink(sat_t *sat, qth_t *ground);
  */
 gdouble inter_sat_link(sat_t *sat1, sat_t *sat2);
 
-/*
- * scaled_inter_sat_link() - Takes satellite positions and time step as input, 
- * then returns SKR rate scaled in kilobytes per day. LOS is taken into account.
- * @pos1: Pointer to vector_t of first satellite.
- * @pos2: Pointer to vector_t of second satellite.
- *
- * Return: The calculated SKR in kilobytes per day.
- */
-gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2);
-
 //gdouble underwater_link(qth_t *station1, qth_t *station2);
+
+/**
+ * get_inter_node_skr() - Returns skr between tdsp nodes at that point in time.
+ * @src: source tdsp node.
+ * @dst: destination tdsp node.
+ * @src_hist: satellite history array, if source is a satellite.
+ * @dst_hist: satellite history array, if destination is a satellite.
+ * @i: index of hist to access right post.
+ */
+gdouble get_inter_node_skr(tdsp_node *src, tdsp_node *dst, lw_sat_t *src_hist, lw_sat_t *dst_hist, guint i);
 
 #endif /* __SKR_UTILS_H__ */

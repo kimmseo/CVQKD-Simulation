@@ -668,10 +668,11 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
     GList *sat_list = g_hash_table_get_values(satmap->sats);
     guint sat_hist_len = 0;
 
+    //GHashtable {gint catnr : lw_sat_t[] history}
     GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
 
+    //GHashtable {gint assigned_id : qth_t station}
     GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
-
     gint key1 = -1;
     gint key2 = -2;
     g_hash_table_insert(ground_stations, &key1, satmap->qth);

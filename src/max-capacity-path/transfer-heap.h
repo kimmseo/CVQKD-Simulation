@@ -1,7 +1,5 @@
 #include <glib/gi18n.h>
-
-struct tdsp_node;
-typedef struct tdsp_node tdsp_node;
+#include "path-util.h"
 
 typedef struct {
     gdouble time;

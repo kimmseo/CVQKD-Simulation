@@ -1,12 +1,22 @@
 #include <glib/gi18n.h>
 #include <stdio.h>
-#include "link-capacity-path.h"
-#include "satellite-history.h"
+#include "path-util.h"
 #include "transfer-heap.h"
 #include "transfer-time.h"
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
 void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type);
+GList *TDSP_fixed_size(
+    GArray *const_tdsp_array,
+    GHashTable *sat_history,
+    gdouble (*time_func)(tdsp_node *, tdsp_node *, gdouble, GHashTable *, gint, gdouble, gdouble, gdouble, gdouble),
+    gint hist_len,
+    gdouble data_size,
+    gint start_node,
+    gint end_node,
+    gdouble t_start,
+    gdouble t_end,
+    gdouble time_step);
 
 /**
  * Prints path of satellite transfers that can carry maximum amount of data from
@@ -51,8 +61,8 @@ void get_max_link_path(
         if (attempt != NULL) {
             printf("    found path\n");
             for (GList *S = attempt; S != NULL; S=S->next) {
-                printf("        time: %f, catnr: %i, prev: %p\n", ((tdsp_node *)S->data)->node.time, ((tdsp_node *)S->data)->node.id, (void *)((tdsp_node *)S->data)->prev_node);
-                end_time = ((tdsp_node *)S->data)->node.time;
+                printf("        time: %f, catnr: %i\n", ((path_node *)S->data)->time, ((path_node *)S->data)->id);
+                end_time = ((path_node *)S->data)->time;
             }    
             
             low = mid + 1;
@@ -79,7 +89,8 @@ void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type)
             .prev_node = NULL,
             .node.id = *(gint *)current->data,
             .node.time = G_MAXDOUBLE,
-            .node.type = type
+            .node.type = type,
+            .node.obj = g_hash_table_lookup(table, (gint *)current->data)
         };
 
         g_array_append_val(tdsp_array, node);
@@ -92,7 +103,7 @@ void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type)
 GList *TDSP_fixed_size(
     GArray *const_tdsp_array,
     GHashTable *sat_history,
-    gdouble (*time_func)(gint *, gint *, gdouble, GHashTable *, gint, gdouble, gdouble, gdouble, gdouble),
+    gdouble (*time_func)(tdsp_node *, tdsp_node *, gdouble, GHashTable *, gint, gdouble, gdouble, gdouble, gdouble),
     gint hist_len,
     gdouble data_size,
     gint start_node,
@@ -137,6 +148,7 @@ GList *TDSP_fixed_size(
         pop_tfr(S, min);
 
         //ToDo: you cannot set min to NULL, fix it inside pop_tfr as well
+        //need a proper way of signalling heap is empty
         if (min == NULL) {
             return NULL;
         }
@@ -144,8 +156,7 @@ GList *TDSP_fixed_size(
         //found shortest path to result
         if (*min->cat_nr == end_node) break;
 
-        //ToDo: double check this with unit testing
-        //shortes time == G_MAXDOUBLE means won't find any more valid paths
+        //shortest time == G_MAXDOUBLE means won't find any more valid paths
         if (min->time == G_MAXDOUBLE) break;
 
         for (guint i = 0; i < tdsp_array->len; i++) {
@@ -160,7 +171,7 @@ GList *TDSP_fixed_size(
             } 
            
             //get_transfer_time() in file transfer_time.c
-            gdouble transfer_time = (*time_func)(min->cat_nr, &other_node->node.id, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
+            gdouble transfer_time = (*time_func)(min->node, other_node, data_size, sat_history, hist_len, min->time, t_start, t_end, time_step);
             
             if (transfer_time < other_node->node.time) {
                 other_node->node.time = transfer_time;

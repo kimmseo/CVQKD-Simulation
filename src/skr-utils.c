@@ -19,6 +19,7 @@
 
 #include "skr-utils.h"
 #include "calc-dist-two-sat.h"
+#include "max-capacity-path/path-util.h"
 
 /* Constant parameters for SKR calculation based on the provided Python scripts and paper */
 #define ALPHA_MOD_AMP 2.236       // sqrt(5) -> Corresponds to VA = 5 SNU
@@ -37,6 +38,8 @@
 #define P_TH 1e-6                  // Outage time fraction for scintillation
 #define INTER_SAT_APT_RADIUS 0.2   // Inter-satellite aperture radius (ra) in meters
 #define INTER_SAT_BEAM_WAIST 0.2   // Inter-satellite beam waist (w0) in meters
+#define SKR_SCALE (xmnpda * 60) / 8000 /* Units of skr from (bits / second).
+                                    currently set to (kilobytes / minute) */
 
 
 /* --- Helper Function Prototypes --- */
@@ -386,6 +389,20 @@ gdouble ground_to_sat_uplink(qth_t *ground, sat_t *sat)
     return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
 }
 
+//light weight version
+gdouble lw_ground_to_sat_uplink(qth_t *ground, gdouble elevation, gdouble range)
+{
+    if (!ground || elevation < 0) {
+        return 0.0;
+    }
+    
+    gdouble qth_altitude = ground->alt / 1000.0;
+
+    gdouble T = transmittance_uplink(range, elevation, qth_altitude);
+
+    return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE) * SKR_SCALE;
+}
+
 /*
  * sat_to_ground_downlink() - Calculates SKR for a satellite-to-ground downlink.
  * @sat: Pointer to the satellite data structure.
@@ -408,6 +425,20 @@ gdouble sat_to_ground_downlink(sat_t *sat, qth_t *ground)
     return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
 }
 
+//light weight version
+gdouble lw_sat_to_ground_downlink(qth_t *ground, gdouble elevation, gdouble range)
+{
+    if (!ground || elevation < 0) {
+        return 0.0;
+    }
+
+    gdouble qth_altitude = ground->alt / 1000.0;
+
+    gdouble T = transmittance_downlink(range, elevation, qth_altitude);
+
+    return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE) * SKR_SCALE;
+}
+
 /*
  * inter_sat_link() - Calculates the SKR for an inter-satellite link.
  * @sat1: Pointer to the first satellite data structure.
@@ -427,24 +458,14 @@ gdouble inter_sat_link(sat_t *sat1, sat_t *sat2)
     return key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE);
 }
 
-/*
- * scaled_inter_sat_link() - Takes satellite positions and time step as input, 
- * then returns SKR rate scaled in kilobytes per day. LOS is taken into account.
- * @pos1: Pointer to vector_t of first satellite.
- * @pos2: Pointer to vector_t of second satellite.
- *
- * Return: The calculated SKR in kilobytes per day.
- */
-gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2)
+// lightweight version
+gdouble lw_inter_sat_link(vector_t *pos1, vector_t *pos2)
 {
     if (!pos1 || !pos2) {
         return 0.0;
     }
 
-    if (!is_pos_los_clear(pos1, pos2)) return 0;
-
-    // (seconds per day) * (bits per kilobyte)
-    gdouble scale = (xmnpda * 60) / 8000;
+    if (!is_pos_los_clear(pos1, pos2)) return 0; 
 
     gdouble distance = dist_calc_driver(
             pos1->x, pos1->y, pos1->z,
@@ -452,5 +473,46 @@ gdouble scaled_inter_sat_link(vector_t *pos1, vector_t *pos2)
     gdouble T = transmittance_inter_satellite(distance);
 
     // (bits per second) * scale = (kilobytes per day)
-    return  key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE) * scale;
+    return  key_rate_finite(T, ALPHA_MOD_AMP, EXCESS_NOISE) * SKR_SCALE;
+}
+
+
+/**
+ * Calc topocentric range and elevation
+ * Copies second half of predict_calc() from predict-tools.c
+ */
+void calc_topocentric_el_range(lw_sat_t *sat, qth_t *qth, gdouble *el, gdouble *range) {
+    obs_set_t       obs_set;
+    geodetic_t      obs_geodetic;
+
+    obs_geodetic.lon = qth->lon * de2ra;
+    obs_geodetic.lat = qth->lat * de2ra;
+    obs_geodetic.alt = qth->alt / 1000.0;
+    obs_geodetic.theta = 0;
+
+    Calculate_Obs(sat->jul_utc, &sat->pos, &sat->vel, &obs_geodetic, &obs_set);
+
+    *el = Degrees(obs_set.el);
+    *range = obs_set.range;
+}
+
+gdouble get_inter_node_skr(tdsp_node *src, tdsp_node *dst, lw_sat_t *src_hist, lw_sat_t *dst_hist, guint i) {
+    gdouble el, range;
+
+    if (src->node.type == path_SATELLITE && dst->node.type == path_SATELLITE) {
+        return lw_inter_sat_link(&src_hist[i].pos, &dst_hist[i].pos);
+    }
+    
+    if (src->node.type == path_STATION && dst->node.type == path_SATELLITE) {
+        calc_topocentric_el_range(&dst_hist[i], src->node.obj, &el, &range);
+        return lw_ground_to_sat_uplink(src->node.obj, el, range);
+    }
+
+    if (src->node.type == path_SATELLITE && dst->node.type == path_STATION) {
+        calc_topocentric_el_range(&src_hist[i], dst->node.obj, &el, &range);
+        return lw_sat_to_ground_downlink(dst->node.obj, el, range);
+    }
+
+    //if both ground stations, fiber optic link 
+    return 0.0;
 }

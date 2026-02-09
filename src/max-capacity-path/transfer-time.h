@@ -1,8 +1,9 @@
 #include <glib/gi18n.h>
+#include "path-util.h"
 
 gdouble get_transfer_time(
-        gint *src, 
-        gint *dst, 
+        tdsp_node *src, 
+        tdsp_node *dst, 
         gdouble data_size, 
         GHashTable *sat_history,
         gint history_len,
