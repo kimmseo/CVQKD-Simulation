@@ -26,7 +26,7 @@ GList *TDSP_fixed_size(
  * a path exists in the time window given.Find a path for a given fixed size by
  * running modified time-dependent Dijkstra.
  */
-void get_max_link_path(
+GList *get_max_link_path(
     GHashTable *sats, 
     GHashTable *sat_history,
     guint sat_hist_len,
@@ -48,7 +48,8 @@ void get_max_link_path(
     gdouble high = 25000000;
     gdouble mid = -1;
 
-    GList *attempt;
+    GList *attempt = NULL;
+    GList *best_so_far = NULL;
 
     gdouble end_time = -1;
 
@@ -56,9 +57,14 @@ void get_max_link_path(
         mid = (low + high) / 2.0;
 
         printf("trying for data size %f kilobytes\n", mid);
-        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, 39466, 27607, t_start, t_end, time_step);
+        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, -2, t_start, t_end, time_step);
         
         if (attempt != NULL) {
+
+            if (best_so_far != NULL) {
+                g_list_free_full(best_so_far, free);
+            }
+
             printf("    found path\n");
             for (GList *S = attempt; S != NULL; S=S->next) {
                 printf("        time: %f, catnr: %i\n", ((path_node *)S->data)->time, ((path_node *)S->data)->id);
@@ -66,7 +72,8 @@ void get_max_link_path(
             }    
             
             low = mid + 1;
-            g_list_free_full(attempt, free);
+            best_so_far = attempt;
+            attempt = NULL;
 
         } else if (attempt == NULL) {
             printf("    didn't find path\n");
@@ -79,6 +86,7 @@ void get_max_link_path(
     }
 
     g_array_free(nodes, TRUE);
+    return best_so_far;
 }
 
 void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type) {

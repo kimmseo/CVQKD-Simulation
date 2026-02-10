@@ -1,7 +1,7 @@
 #include <glib/gi18n.h>
 #include "path-util.h"
 
-void get_max_link_path(
+GList *get_max_link_path(
     GHashTable *sats, 
     GHashTable *sat_history,
     guint sat_hist_len,

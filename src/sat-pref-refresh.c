@@ -36,6 +36,7 @@ static GtkWidget *singlespin;   /* spin button for single-sat view */
 static GtkWidget *secondspin;   /* spin button for second-sat view */
 static GtkWidget *twospin;      /* spin button for two-sat view */
 static GtkWidget *multispin;    /* spin button for multiple-sat view*/
+static GtkWidget *maxpathspin;
 
 static gboolean dirty = FALSE;  /* used to check whether any changes have occurred */
 static gboolean reset = FALSE;
@@ -100,6 +101,11 @@ void sat_pref_refresh_ok(GKeyFile * cfg)
                                    MOD_CFG_MULTIPLE_SAT_REFRESH,
                                    gtk_spin_button_get_value_as_int
                                    (GTK_SPIN_BUTTON(multispin)));
+            g_key_file_set_integer(cfg,
+                                   MOD_CFG_MAX_PATH_VIEW_SECTION,
+                                   MOD_CFG_MAX_PATH_VIEW_REFRESH,
+                                   gtk_spin_button_get_value_as_int
+                                   (GTK_SPIN_BUTTON(maxpathspin)));
         }
         else
         {
@@ -131,7 +137,10 @@ void sat_pref_refresh_ok(GKeyFile * cfg)
                                                              (twospin)));
             sat_cfg_set_int(SAT_CFG_INT_MULTIPLE_SAT_REFRESH,
                             gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON
-                                                             (multispin)));                                                        
+                                                             (multispin)));
+            sat_cfg_set_int(SAT_CFG_INT_MAX_PATH_VIEW_REFRESH,
+                            gtk_spin_button_get_value_as_int(GTK_SPIN_BUTTON
+                                                             (maxpathspin)));
         }
     }
     else if (reset)
@@ -148,6 +157,7 @@ void sat_pref_refresh_ok(GKeyFile * cfg)
             sat_cfg_reset_int(SAT_CFG_INT_SECOND_SAT_REFRESH);
             sat_cfg_reset_int(SAT_CFG_INT_TWO_SAT_REFRESH);
             sat_cfg_reset_int(SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
+            sat_cfg_reset_int(SAT_CFG_INT_MAX_PATH_VIEW_REFRESH);
         }
         else
         {
@@ -177,6 +187,9 @@ void sat_pref_refresh_ok(GKeyFile * cfg)
             g_key_file_remove_key((GKeyFile *) (cfg),
                                   MOD_CFG_MULTIPLE_SAT_SECTION,
                                   MOD_CFG_MULTIPLE_SAT_REFRESH, NULL);
+            g_key_file_remove_key((GKeyFile *) (cfg),
+                                  MOD_CFG_MAX_PATH_VIEW_SECTION,
+                                  MOD_CFG_MAX_PATH_VIEW_REFRESH, NULL);
         }
     }
 
@@ -229,6 +242,8 @@ static void reset_cb(GtkWidget * button, gpointer cfg)
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(twospin), val);
         val = sat_cfg_get_int_def(SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(multispin), val);
+        val = sat_cfg_get_int_def(SAT_CFG_INT_MAX_PATH_VIEW_REFRESH);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(maxpathspin), val);
     }
     else
     {
@@ -249,6 +264,8 @@ static void reset_cb(GtkWidget * button, gpointer cfg)
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(twospin), val);
         val = sat_cfg_get_int(SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
         gtk_spin_button_set_value(GTK_SPIN_BUTTON(multispin), val);
+        val = sat_cfg_get_int(SAT_CFG_INT_MAX_PATH_VIEW_REFRESH);
+        gtk_spin_button_set_value(GTK_SPIN_BUTTON(maxpathspin), val);
     }
 
     /* reset flags */
@@ -534,6 +551,36 @@ GtkWidget      *sat_pref_refresh_create(GKeyFile * cfg)
     g_signal_connect(G_OBJECT(multispin), "value-changed",
                      G_CALLBACK(spin_changed_cb), NULL);
     gtk_grid_attach(GTK_GRID(table), multispin, 1, 8, 1, 1);
+
+    label = gtk_label_new(_("[cycle]"));
+    g_object_set(label, "xalign", 0.0, "yalign", 0.5, NULL);
+    gtk_grid_attach(GTK_GRID(table), label, 2, 8, 1, 1);
+
+    // Max Path View
+    label = gtk_label_new(_("Refresh max-path view every"));
+    g_object_set(label, "xalign", 0.0, "yalign", 0.5, NULL);
+    gtk_grid_attach(GTK_GRID(table), label, 0, 8, 1, 1);
+
+    maxpathspin = gtk_spin_button_new_with_range(1, 50, 1);
+    gtk_spin_button_set_increments(GTK_SPIN_BUTTON(maxpathspin), 1, 5);
+    gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(maxpathspin), TRUE);
+    gtk_spin_button_set_update_policy(GTK_SPIN_BUTTON(maxpathspin),
+                                      GTK_UPDATE_IF_VALID);
+    if (cfg != NULL)
+    {
+        val = mod_cfg_get_int(cfg,
+                              MOD_CFG_MAX_PATH_VIEW_SECTION,
+                              MOD_CFG_MAX_PATH_VIEW_REFRESH,
+                              SAT_CFG_INT_MAX_PATH_VIEW_REFRESH);
+    }
+    else
+    {
+        val = sat_cfg_get_int(SAT_CFG_INT_MAX_PATH_VIEW_REFRESH);
+    }
+    gtk_spin_button_set_value(GTK_SPIN_BUTTON(maxpathspin), val);
+    g_signal_connect(G_OBJECT(maxpathspin), "value-changed",
+                     G_CALLBACK(spin_changed_cb), NULL);
+    gtk_grid_attach(GTK_GRID(table), maxpathspin, 1, 8, 1, 1);
 
     label = gtk_label_new(_("[cycle]"));
     g_object_set(label, "xalign", 0.0, "yalign", 0.5, NULL);

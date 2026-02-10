@@ -35,7 +35,7 @@
 #include "gtk-sat-data.h"
 #include "gtk-sat-map-popup.h"
 #include "gtk-sat-map-ground-track.h"
-#include "gtk-sat-map.h"
+#include "gtk-max-path-map.h"
 #include "locator.h"
 #include "map-tools.h"
 #include "mod-cfg-get-param.h"
@@ -50,25 +50,28 @@
 #include "sat-graph.h"
 #include "qth-data.h"
 
+#include "max-capacity-path/link-capacity-path.h"
+#include "max-capacity-path/satellite-history.h"
+
 #define MARKER_SIZE_HALF    1
 
 /* Update terminator every 30 seconds */
 #define TERMINATOR_UPDATE_INTERVAL (15.0/86400.0)
 
-static void     gtk_sat_map_class_init(GtkSatMapClass * class,
+static void     gtk_max_path_map_class_init(GtkMaxPathMapClass * class,
 				       gpointer class_data);
-static void     gtk_sat_map_init(GtkSatMap * polview,
+static void     gtk_max_path_map_init(GtkMaxPathMap * polview,
 				 gpointer g_class);
-static void     gtk_sat_map_destroy(GtkWidget * widget);
+static void     gtk_max_path_map_destroy(GtkWidget * widget);
 static void     size_allocate_cb(GtkWidget * widget,
                                  GtkAllocation * allocation, gpointer data);
-static void     update_map_size(GtkSatMap * satmap);
+static void     update_map_size(GtkMaxPathMap * satmap);
 static void     update_sat(gpointer key, gpointer value, gpointer data);
 static void     plot_sat(gpointer key, gpointer value, gpointer data);
 static void     free_sat_obj(gpointer key, gpointer value, gpointer data);
-static void     lonlat_to_xy(GtkSatMap * m, gdouble lon, gdouble lat,
+static void     lonlat_to_xy(GtkMaxPathMap * m, gdouble lon, gdouble lat,
                              gfloat * x, gfloat * y);
-static void     xy_to_lonlat(GtkSatMap * m, gfloat x, gfloat y, gfloat * lon,
+static void     xy_to_lonlat(GtkMaxPathMap * m, gfloat x, gfloat y, gfloat * lon,
                              gfloat * lat);
 static gboolean on_motion_notify(GooCanvasItem * item, GooCanvasItem * target,
                                  GdkEventMotion * event, gpointer data);
@@ -82,79 +85,73 @@ static gboolean on_button_release(GooCanvasItem * item,
                                   GooCanvasItem * target,
                                   GdkEventButton * event, gpointer data);
 static void     clear_selection(gpointer key, gpointer val, gpointer data);
-static void     load_map_file(GtkSatMap * satmap, float clon);
-static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap);
+static void     load_map_file(GtkMaxPathMap * satmap, float clon);
+static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap);
 static gdouble  arccos(gdouble, gdouble);
 static gboolean pole_is_covered(sat_t * sat);
 static gboolean north_pole_is_covered(sat_t * sat);
 static gboolean south_pole_is_covered(sat_t * sat);
 static gboolean mirror_lon(sat_t * sat, gdouble rangelon, gdouble * mlon,
                            gdouble mapbreak);
-static guint    calculate_footprint(GtkSatMap * satmap, sat_t * sat);
-static void     split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx);
-static void     sort_points_x(GtkSatMap * satmap, sat_t * sat,
+static guint    calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat);
+static void     split_points(GtkMaxPathMap * satmap, sat_t * sat, gdouble sspx);
+static void     sort_points_x(GtkMaxPathMap * satmap, sat_t * sat,
                               GooCanvasPoints * points, gint num);
-static void     sort_points_y(GtkSatMap * satmap, sat_t * sat,
+static void     sort_points_y(GtkMaxPathMap * satmap, sat_t * sat,
                               GooCanvasPoints * points, gint num);
 static gint     compare_coordinates_x(gconstpointer a, gconstpointer b,
                                       gpointer data);
 static gint     compare_coordinates_y(gconstpointer a, gconstpointer b,
                                       gpointer data);
-static void     update_selected(GtkSatMap * satmap, sat_t * sat);
-static void     draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root);
-static void     redraw_grid_lines(GtkSatMap * satmap);
-static void     draw_terminator(GtkSatMap * satmap, GooCanvasItemModel * root);
-static void     redraw_terminator(GtkSatMap * satmap);
-static gchar   *aoslos_time_to_str(GtkSatMap * satmap, sat_t * sat);
-static void     gtk_sat_map_load_showtracks(GtkSatMap * map);
-static void     gtk_sat_map_store_showtracks(GtkSatMap * satmap);
-static void     gtk_sat_map_load_hide_coverages(GtkSatMap * map);
-static void     gtk_sat_map_store_hidecovs(GtkSatMap * satmap);
+static void     update_selected(GtkMaxPathMap * satmap, sat_t * sat);
+static void     draw_grid_lines(GtkMaxPathMap * satmap, GooCanvasItemModel * root);
+static void     redraw_grid_lines(GtkMaxPathMap * satmap);
+static void     draw_terminator(GtkMaxPathMap * satmap, GooCanvasItemModel * root);
+static void     redraw_terminator(GtkMaxPathMap * satmap);
+static gchar   *aoslos_time_to_str(GtkMaxPathMap * satmap, sat_t * sat);
+static void     gtk_max_path_map_load_showtracks(GtkMaxPathMap * map);
+static void     gtk_max_path_map_store_showtracks(GtkMaxPathMap * satmap);
+static void     gtk_max_path_map_load_hide_coverages(GtkMaxPathMap * map);
+static void     gtk_max_path_map_store_hidecovs(GtkMaxPathMap * satmap);
 static void     reset_ground_track(gpointer key, gpointer value,
                                    gpointer user_data);
-static void     draw_shortest_path_on_map(GtkSatMap *satmap);
 
 static GtkVBoxClass *parent_class = NULL;
 static GooCanvasPoints *points1;
 static GooCanvasPoints *points2;
-/* Items for the realistic path (green) */
-static GooCanvasItemModel *shortest_path_line_qth1_sat = NULL;
-static GooCanvasItemModel *shortest_path_line_sats = NULL;
-static GooCanvasItemModel *shortest_path_line_sat_qth2 = NULL;
-/* Items for the unrealistic path (red) */
-static GooCanvasItemModel *unrealistic_path_line_qth1_sat = NULL;
-static GooCanvasItemModel *unrealistic_path_line_sats = NULL;
-static GooCanvasItemModel *unrealistic_path_line_sat_qth2 = NULL;
+
+static GooCanvasItemModel *capacity_path_line = NULL;
+static GooCanvasPoints *capacity_points = NULL;
 
 
-GType gtk_sat_map_get_type()
+GType gtk_max_path_map_get_type()
 {
-    static GType    gtk_sat_map_type = 0;
+    static GType    gtk_max_path_map_type = 0;
 
-    if (!gtk_sat_map_type)
+    if (!gtk_max_path_map_type)
     {
-        static const GTypeInfo gtk_sat_map_info = {
-            sizeof(GtkSatMapClass),
+        static const GTypeInfo gtk_max_path_map_info = {
+            sizeof(GtkMaxPathMapClass),
             NULL,               /* base init */
             NULL,               /* base finalize */
-            (GClassInitFunc) gtk_sat_map_class_init,
+            (GClassInitFunc) gtk_max_path_map_class_init,
             NULL,               /* class finalize */
             NULL,               /* class data */
-            sizeof(GtkSatMap),
+            sizeof(GtkMaxPathMap),
             5,                  /* n_preallocs */
-            (GInstanceInitFunc) gtk_sat_map_init,
+            (GInstanceInitFunc) gtk_max_path_map_init,
             NULL
         };
 
-        gtk_sat_map_type = g_type_register_static(GTK_TYPE_BOX,
-                                                  "GtkSatMap",
-                                                  &gtk_sat_map_info, 0);
+        gtk_max_path_map_type = g_type_register_static(GTK_TYPE_BOX,
+                                                  "GtkMaxPathMap",
+                                                  &gtk_max_path_map_info, 0);
     }
 
-    return gtk_sat_map_type;
+    return gtk_max_path_map_type;
 }
 
-static void gtk_sat_map_class_init(GtkSatMapClass * class,
+static void gtk_max_path_map_class_init(GtkMaxPathMapClass * class,
 				   gpointer class_data)
 {
     GtkWidgetClass *widget_class;
@@ -162,11 +159,11 @@ static void gtk_sat_map_class_init(GtkSatMapClass * class,
     (void)class_data;
 
     widget_class = (GtkWidgetClass *) class;
-    widget_class->destroy = gtk_sat_map_destroy;
+    widget_class->destroy = gtk_max_path_map_destroy;
     parent_class = g_type_class_peek_parent(class);
 }
 
-static void gtk_sat_map_init(GtkSatMap * satmap,
+static void gtk_max_path_map_init(GtkMaxPathMap * satmap,
 			     gpointer g_class)
 {
     (void)g_class;
@@ -198,9 +195,9 @@ static void gtk_sat_map_init(GtkSatMap * satmap,
     satmap->resize = FALSE;
 }
 
-static void gtk_sat_map_destroy(GtkWidget * widget)
+static void gtk_max_path_map_destroy(GtkWidget * widget)
 {
-    GtkSatMap          *satmap = GTK_SAT_MAP(widget);
+    GtkMaxPathMap          *satmap = GTK_MAX_PATH_MAP(widget);
     GooCanvasItemModel *root;
     gint                idx;
     guint               i;
@@ -208,8 +205,8 @@ static void gtk_sat_map_destroy(GtkWidget * widget)
     /* check widget isn't already destroyed */
     if (satmap->obj) {
         /* save config */
-        gtk_sat_map_store_showtracks(GTK_SAT_MAP(widget));
-        gtk_sat_map_store_hidecovs(GTK_SAT_MAP(widget));
+        gtk_max_path_map_store_showtracks(GTK_MAX_PATH_MAP(widget));
+        gtk_max_path_map_store_hidecovs(GTK_MAX_PATH_MAP(widget));
 
         /* sat objects need a reference to the widget to free all alocations */
         g_hash_table_foreach(satmap->obj, free_sat_obj, satmap);
@@ -307,51 +304,23 @@ static void gtk_sat_map_destroy(GtkWidget * widget)
             goo_canvas_item_model_remove_child(root, idx);
         satmap->map = NULL;
         
-        /* Clean up shortest path lines */
-        if (shortest_path_line_qth1_sat) {
-            idx = goo_canvas_item_model_find_child(root, shortest_path_line_qth1_sat);
+        if (capacity_path_line) {
+            idx = goo_canvas_item_model_find_child(root, capacity_path_line);
             if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            shortest_path_line_qth1_sat = NULL;
-        }
-        if (shortest_path_line_sats) {
-            idx = goo_canvas_item_model_find_child(root, shortest_path_line_sats);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            shortest_path_line_sats = NULL;
-        }
-        if (shortest_path_line_sat_qth2) {
-            idx = goo_canvas_item_model_find_child(root, shortest_path_line_sat_qth2);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            shortest_path_line_sat_qth2 = NULL;
-        }
-        
-        /* Clean up unrealistic shortest path lines */
-        if (unrealistic_path_line_qth1_sat) {
-            idx = goo_canvas_item_model_find_child(root, unrealistic_path_line_qth1_sat);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            unrealistic_path_line_qth1_sat = NULL;
-        }
-        if (unrealistic_path_line_sats) {
-            idx = goo_canvas_item_model_find_child(root, unrealistic_path_line_sats);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            unrealistic_path_line_sats = NULL;
-        }
-        if (unrealistic_path_line_sat_qth2) {
-            idx = goo_canvas_item_model_find_child(root, unrealistic_path_line_sat_qth2);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            unrealistic_path_line_sat_qth2 = NULL;
+            capacity_path_line = NULL;
         }
     }
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
 }
 
-GtkWidget      *gtk_sat_map_new(GKeyFile * cfgdata, GHashTable * sats,
+GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
                                 qth_t * qth, qth_t * qth2)
 {
-    GtkSatMap      *satmap;
+    GtkMaxPathMap      *satmap;
     GooCanvasItemModel *root;
     guint32         col;
 
-    satmap = g_object_new(GTK_TYPE_SAT_MAP, NULL);
+    satmap = g_object_new(GTK_TYPE_MAX_PATH_MAP, NULL);
 
     satmap->cfgdata = cfgdata;
     satmap->sats = sats;
@@ -443,8 +412,8 @@ GtkWidget      *gtk_sat_map_new(GKeyFile * cfgdata, GHashTable * sats,
     goo_canvas_set_root_item_model(GOO_CANVAS(satmap->canvas), root);
     g_object_unref(root);
 
-    gtk_sat_map_load_showtracks(satmap);
-    gtk_sat_map_load_hide_coverages(satmap);
+    gtk_max_path_map_load_showtracks(satmap);
+    gtk_max_path_map_load_hide_coverages(satmap);
     g_hash_table_foreach(satmap->sats, plot_sat, satmap);
 
     gtk_box_pack_start(GTK_BOX(satmap), satmap->canvas, TRUE, TRUE, 0);
@@ -452,7 +421,7 @@ GtkWidget      *gtk_sat_map_new(GKeyFile * cfgdata, GHashTable * sats,
     return GTK_WIDGET(satmap);
 }
 
-static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
+static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
 {
     GooCanvasItemModel *root;
     gchar          *buff;
@@ -604,50 +573,82 @@ static GooCanvasItemModel *create_canvas_model(GtkSatMap * satmap)
                                             "fill-color-rgba", col,
                                             "use-markup", TRUE, NULL);
 
-    /* Create realistic shortest path lines (initially invisible) */
-    shortest_path_line_qth1_sat = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                               "parent", root,
-                                               "stroke-color", "#00FF00", /* Bright green */
-                                               "line-width", 2.0,
-                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                               NULL);
-
-    shortest_path_line_sats = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                           "parent", root,
-                                           "stroke-color", "#00FF00", /* Bright green */
-                                           "line-width", 2.0,
-                                           "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                           NULL);
-
-    shortest_path_line_sat_qth2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                               "parent", root,
-                                               "stroke-color", "#00FF00", /* Bright green */
-                                               "line-width", 2.0,
-                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                               NULL);
-
-    /* Create unrealistic shortest path lines (initially invisible) */
-    unrealistic_path_line_qth1_sat = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                               "parent", root,
-                                               "stroke-color", "#FF0000", /* Red */
-                                               "line-width", 2.0,
-                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                               NULL);
-
-    unrealistic_path_line_sats = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                           "parent", root,
-                                           "stroke-color", "#FF0000", /* Red */
-                                           "line-width", 2.0,
-                                           "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                           NULL);
-
-    unrealistic_path_line_sat_qth2 = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                               "parent", root,
-                                               "stroke-color", "#FF0000", /* Red */
-                                               "line-width", 2.0,
-                                               "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                               NULL); 
+    capacity_path_line = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                                                "parent", root,
+                                                "stroke-color", "#A020F0",
+                                                "line-width", 4.0,
+                                                "visibility", GOO_CANVAS_ITEM_HIDDEN,
+                                                NULL);
     
+    //for consistency in testing use satmap->tstamp because it doesnt change
+    //to get actual current time use time-tools.c/get_current_daynum();
+    
+    //gdouble is in days, multiply with xmnpda to convert minutes to days
+    //gdouble t_start = satmap->tstamp;
+    //gdouble t_end = satmap->tstamp + 1; //1 hour
+    gdouble t_start = 2458849.5;
+    gdouble t_end = t_start + 1;
+    gdouble time_step = 0.0007;    //1 minute time step
+    
+    clock_t timer_start, timer_end;
+    double cpu_time_used;
+    timer_start = clock();
+
+    GList *sat_list = g_hash_table_get_values(satmap->sats);
+    guint sat_hist_len = 0;
+
+    //GHashtable {gint catnr : lw_sat_t[] history}
+    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
+
+    //GHashtable {gint assigned_id : qth_t station}
+    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
+    gint key1 = -1;
+    gint key2 = -2;
+    g_hash_table_insert(ground_stations, &key1, satmap->qth);
+    g_hash_table_insert(ground_stations, &key2, satmap->qth2);
+ 
+    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
+    //returns GList of path_node
+    GList *path = get_max_link_path(satmap->sats, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
+
+    g_hash_table_destroy(sat_history);
+    g_hash_table_destroy(ground_stations);
+
+    timer_end = clock();
+    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
+    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
+
+    if (!path) {
+        g_object_set(capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+    } else {
+        capacity_points = goo_canvas_points_new(g_list_length(path));
+        gint i = 0;
+        for (GList *current = path; current != NULL; current = current->next) {
+            path_node *node = (path_node *)current->data;
+            gfloat x, y;
+
+            if (node->type == path_STATION) {
+                qth_t *station = node->obj;
+                printf("name: %s, time: %f\n", station->name, node->time);
+                lonlat_to_xy(satmap, station->lon, station->lat, &x, &y);
+                capacity_points->coords[i] = x; 
+                capacity_points->coords[i+1] = y;
+
+            } else if (node->type == path_SATELLITE) { 
+                sat_t *satellite = (sat_t *)node->obj;
+                printf("catnr: %i, time: %f\n", satellite->tle.catnr, node->time);
+                lonlat_to_xy(satmap, satellite->ssplon, satellite->ssplat, &x, &y);
+                capacity_points->coords[i] = x; 
+                capacity_points->coords[i+1] = y;
+            }
+
+            printf("added points: x: %f, y: %f\n", capacity_points->coords[i], capacity_points->coords[i+1]);
+
+            i += 2;
+        }
+    }
+    
+
     return root;
 }
 
@@ -656,10 +657,10 @@ static void size_allocate_cb(GtkWidget * widget, GtkAllocation * allocation,
 {
     (void)widget;
     (void)allocation;
-    GTK_SAT_MAP(data)->resize = TRUE;
+    GTK_MAX_PATH_MAP(data)->resize = TRUE;
 }
 
-static void update_map_size(GtkSatMap * satmap)
+static void update_map_size(GtkMaxPathMap * satmap)
 {
     GtkAllocation   allocation;
     GdkPixbuf      *pbuf;
@@ -709,7 +710,7 @@ static void update_map_size(GtkSatMap * satmap)
         }
 
         /* set canvas bounds to match new size */
-        goo_canvas_set_bounds(GOO_CANVAS(GTK_SAT_MAP(satmap)->canvas), 0, 0,
+        goo_canvas_set_bounds(GOO_CANVAS(GTK_MAX_PATH_MAP(satmap)->canvas), 0, 0,
                               satmap->width, satmap->height);
 
 
@@ -764,7 +765,7 @@ static void update_map_size(GtkSatMap * satmap)
 
 static void on_canvas_realized(GtkWidget * canvas, gpointer data)
 {
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
 
     (void)canvas;
 
@@ -775,10 +776,10 @@ static void on_canvas_realized(GtkWidget * canvas, gpointer data)
     goo_canvas_item_model_raise(satmap->curs, NULL);
 }
 
-/* Update the GtkSatMap widget. Called periodically from GtkSatModule. */
-void gtk_sat_map_update(GtkWidget * widget)
+/* Update the GtkMaxPathMap widget. Called periodically from GtkSatModule. */
+void gtk_max_path_map_update(GtkWidget * widget)
 {
-    GtkSatMap      *satmap = GTK_SAT_MAP(widget);
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(widget);
     sat_t          *sat = NULL;
     gdouble         number, now;
     gchar          *buff;
@@ -956,16 +957,11 @@ void gtk_sat_map_update(GtkWidget * widget)
         {
             g_object_set(satmap->next, "text", "", NULL);
         }
-
-        /* Draw the shortest path if both ground stations are present */
-        if (satmap->qth && satmap->qth2) {
-            draw_shortest_path_on_map(satmap);
-        }
     }
 }
 
 /* Assumes that -180 <= lon <= 180 and -90 <= lat <= 90 */
-static void lonlat_to_xy(GtkSatMap * p, gdouble lon, gdouble lat, gfloat * x,
+static void lonlat_to_xy(GtkMaxPathMap * p, gdouble lon, gdouble lat, gfloat * x,
                          gfloat * y)
 {
     *x = p->x0 + (lon - p->left_side_lon) * p->width / 360.0;
@@ -980,7 +976,7 @@ static void lonlat_to_xy(GtkSatMap * p, gdouble lon, gdouble lat, gfloat * x,
     }
 }
 
-static void xy_to_lonlat(GtkSatMap * p, gfloat x, gfloat y, gfloat * lon,
+static void xy_to_lonlat(GtkMaxPathMap * p, gfloat x, gfloat y, gfloat * lon,
                          gfloat * lat)
 {
     *lat = 90.0 - (180.0 / p->height) * (y - p->y0);
@@ -999,7 +995,7 @@ static gboolean on_motion_notify(GooCanvasItem * item,
                                  GooCanvasItem * target,
                                  GdkEventMotion * event, gpointer data)
 {
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
     gfloat          lat, lon;
     gchar          *text;
 
@@ -1059,7 +1055,7 @@ static gboolean on_button_press(GooCanvasItem * item,
                                 gpointer data)
 {
     GooCanvasItemModel *model = goo_canvas_item_get_model(item);
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
     gint            catnum =
         GPOINTER_TO_INT(g_object_get_data(G_OBJECT(model), "catnum"));
     gint           *catpoint = NULL;
@@ -1096,7 +1092,7 @@ static gboolean on_button_press(GooCanvasItem * item,
         sat = SAT(g_hash_table_lookup(satmap->sats, catpoint));
         if (sat != NULL)
         {
-            gtk_sat_map_popup_exec(sat, satmap->qth, satmap, event,
+            gtk_sat_map_popup_exec(sat, satmap->qth, (GtkSatMap *)satmap, event,
                                    gtk_widget_get_toplevel(GTK_WIDGET
                                                            (satmap)));
         }
@@ -1118,11 +1114,11 @@ static gboolean on_button_release(GooCanvasItem * item,
                                   GdkEventButton * event, gpointer data)
 {
     GooCanvasItemModel *model = goo_canvas_item_get_model(item);
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
     gint            catnum =
         GPOINTER_TO_INT(g_object_get_data(G_OBJECT(model), "catnum"));
     gint           *catpoint = NULL;
-    sat_map_obj_t  *obj = NULL;
+    max_path_map_obj_t  *obj = NULL;
     guint32         col;
 
     (void)target;
@@ -1134,7 +1130,7 @@ static gboolean on_button_release(GooCanvasItem * item,
     {
         /* Select / de-select satellite */
     case 1:
-        obj = SAT_MAP_OBJ(g_hash_table_lookup(satmap->obj, catpoint));
+        obj = MAX_PATH_MAP_OBJ(g_hash_table_lookup(satmap->obj, catpoint));
         if (obj == NULL)
         {
             sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -1192,7 +1188,7 @@ static void clear_selection(gpointer key, gpointer val, gpointer data)
 {
     gint           *old = key;
     gint           *new = data;
-    sat_map_obj_t  *obj = SAT_MAP_OBJ(val);
+    max_path_map_obj_t  *obj = MAX_PATH_MAP_OBJ(val);
     guint32         col;
 
     if ((*old != *new) && (obj->selected))
@@ -1213,17 +1209,17 @@ static void clear_selection(gpointer key, gpointer val, gpointer data)
     }
 }
 
-void gtk_sat_map_select_sat(GtkWidget * satmap, gint catnum)
+void gtk_max_path_map_select_sat(GtkWidget * satmap, gint catnum)
 {
-    GtkSatMap      *smap = GTK_SAT_MAP(satmap);
+    GtkMaxPathMap      *smap = GTK_MAX_PATH_MAP(satmap);
     gint           *catpoint = NULL;
-    sat_map_obj_t  *obj = NULL;
+    max_path_map_obj_t  *obj = NULL;
     guint32         col;
 
     catpoint = g_try_new0(gint, 1);
     *catpoint = catnum;
 
-    obj = SAT_MAP_OBJ(g_hash_table_lookup(smap->obj, catpoint));
+    obj = MAX_PATH_MAP_OBJ(g_hash_table_lookup(smap->obj, catpoint));
     if (obj == NULL)
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -1258,11 +1254,11 @@ void gtk_sat_map_select_sat(GtkWidget * satmap, gint catnum)
 /*
  * Reconfigure map.
  *
- * This function should eventually reload all configuration for the GtkSatMap.
+ * This function should eventually reload all configuration for the GtkMaxPathMap.
  * Currently this function is not implemented for any of the views. Reconfiguration
  * is done by recreating the whole module.
  */
-void gtk_sat_map_reconf(GtkWidget * widget, GKeyFile * cfgdat)
+void gtk_max_path_map_reconf(GtkWidget * widget, GKeyFile * cfgdat)
 {
     (void)widget;
     (void)cfgdat;
@@ -1271,7 +1267,7 @@ void gtk_sat_map_reconf(GtkWidget * widget, GKeyFile * cfgdat)
 /*
  * Safely load a map file.
  *
- * @param satmap The GtkSatMap widget
+ * @param satmap The GtkMaxPathMap widget
  * @param clon The longitude that should be the center of the map
  *
  * This function is called shortly after the canvas has been created. Its purpose
@@ -1288,7 +1284,7 @@ void gtk_sat_map_reconf(GtkWidget * widget, GKeyFile * cfgdat)
  * @note satmap->cfgdata should contain a valid GKeyFile.
  *
  */
-static void load_map_file(GtkSatMap * satmap, float clon)
+static void load_map_file(GtkMaxPathMap * satmap, float clon)
 {
     gchar          *buff;
     gchar          *mapfile;
@@ -1481,7 +1477,7 @@ static gboolean mirror_lon(sat_t * sat, gdouble rangelon, gdouble * mlon,
 /**
  * Calculate satellite footprint and coverage area.
  *
- * @param satmap TheGtkSatMap widget.
+ * @param satmap TheGtkMaxPathMap widget.
  * @param sat The satellite.
  * @param points1 Initialised GooCanvasPoints structure with 360 points.
  * @param points2 Initialised GooCanvasPoints structure with 360 points.
@@ -1512,7 +1508,7 @@ static gboolean mirror_lon(sat_t * sat, gdouble rangelon, gdouble * mlon,
  * total number of points will always be 360, even with the addition of the two
  * extra points. 
  */
-static guint calculate_footprint(GtkSatMap * satmap, sat_t * sat)
+static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
 {
     guint           azi;
     gfloat          sx, sy, msx, msy, ssx, ssy;
@@ -1608,7 +1604,7 @@ static guint calculate_footprint(GtkSatMap * satmap, sat_t * sat)
 /**
  * Split and sort polyline points.
  *
- * @param satmap The GtkSatMap structure.
+ * @param satmap The GtkMaxPathMap structure.
  * @param points1 GooCanvasPoints containing the footprint points.
  * @param points2 A GooCanvasPoints structure containing the second set of points.
  * @param sspx Canvas based x-coordinate of SSP.
@@ -1619,7 +1615,7 @@ static guint calculate_footprint(GtkSatMap * satmap, sat_t * sat)
  * @note DO NOT USE this function when the footprint covers one of the poles
  * (the end result may freeze the X-server requiring a hard-reset!)
  */
-static void split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx)
+static void split_points(GtkMaxPathMap * satmap, sat_t * sat, gdouble sspx)
 {
     GooCanvasPoints *tps1, *tps2;
     gint            n, n1, n2, ns, i, j, k;
@@ -1794,7 +1790,7 @@ static void split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx)
 /**
  * Sort points according to X coordinates.
  *
- * @param satmap The GtkSatMap structure.
+ * @param satmap The GtkMaxPathMap structure.
  * @param sat The satellite data structure.
  * @param points The points to sort.
  * @param num The number of points. By specifying it as parameter we can
@@ -1817,7 +1813,7 @@ static void split_points(GtkSatMap * satmap, sat_t * sat, gdouble sspx)
  * make any big difference anyway, since we have 360 points in total.
  *
  */
-static void sort_points_x(GtkSatMap * satmap, sat_t * sat,
+static void sort_points_x(GtkMaxPathMap * satmap, sat_t * sat,
                           GooCanvasPoints * points, gint num)
 {
     gsize           size = 2 * sizeof(double);
@@ -1859,7 +1855,7 @@ static void sort_points_x(GtkSatMap * satmap, sat_t * sat,
 /**
  * Sort points according to Y coordinates.
  *
- * @param satmap The GtkSatMap structure.
+ * @param satmap The GtkMaxPathMap structure.
  * @param sat The satellite data structure.
  * @param points The points to sort.
  * @param num The number of points. By specifying it as parameter we can
@@ -1868,7 +1864,7 @@ static void sort_points_x(GtkSatMap * satmap, sat_t * sat,
  * This function sorts the points in ascending order with respect
  * to their y value.
  */
-static void sort_points_y(GtkSatMap * satmap, sat_t * sat,
+static void sort_points_y(GtkMaxPathMap * satmap, sat_t * sat,
                           GooCanvasPoints * points, gint num)
 {
     gsize           size;
@@ -1964,7 +1960,7 @@ static gint compare_coordinates_y(gconstpointer a, gconstpointer b,
  *
  * @param key The hash table key.
  * @param value Pointer to the satellite.
- * @param data Pointer to the GtkSatMap widget.
+ * @param data Pointer to the GtkMaxPathMap widget.
  *
  * This function creates and initializes the canvas objects (rectangle, label,
  * footprint) for a satellite. The function is called as a g_hash_table_foreach
@@ -1972,8 +1968,8 @@ static gint compare_coordinates_y(gconstpointer a, gconstpointer b,
  */
 static void plot_sat(gpointer key, gpointer value, gpointer data)
 {
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
-    sat_map_obj_t  *obj = NULL;
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
+    max_path_map_obj_t  *obj = NULL;
     sat_t          *sat = SAT(value);
     GooCanvasItemModel *root;
     gint           *catnum;
@@ -1994,7 +1990,7 @@ static void plot_sat(gpointer key, gpointer value, gpointer data)
     lonlat_to_xy(satmap, sat->ssplon, sat->ssplat, &x, &y);
 
     /* create and initialize a sat object */
-    obj = g_try_new(sat_map_obj_t, 1);
+    obj = g_try_new(max_path_map_obj_t, 1);
 
     if (obj == NULL)
     {
@@ -2174,18 +2170,18 @@ static void plot_sat(gpointer key, gpointer value, gpointer data)
  *
  * @param key The hash table key.
  * @param value Pointer to the satellite.
- * @param data Pointer to the GtkSatMap widget.
+ * @param data Pointer to the GtkMaxPathMap widget.
  *
  * This function removes the canvas objects allocated by `plot_sat`. It needs
- * access the the GtkSatMap widget to remove the elements from the canvas and
+ * access the the GtkMaxPathMap widget to remove the elements from the canvas and
  * to pass on to `ground_track_delete`. The function must be called as a
- * g_hash_table_foreach callback in order to pass in the GtkSatMap.
+ * g_hash_table_foreach callback in order to pass in the GtkMaxPathMap.
  */
 static void free_sat_obj(gpointer key, gpointer value, gpointer data)
 {
-    sat_map_obj_t      *obj = SAT_MAP_OBJ(value);
+    max_path_map_obj_t      *obj = MAX_PATH_MAP_OBJ(value);
     sat_t              *sat = NULL;
-    GtkSatMap          *satmap = GTK_SAT_MAP(data);
+    GtkMaxPathMap          *satmap = GTK_MAX_PATH_MAP(data);
     GooCanvasItemModel *root;
     gint                idx;
 
@@ -2226,7 +2222,7 @@ static void free_sat_obj(gpointer key, gpointer value, gpointer data)
     if (obj->showtrack)
     {
         sat = SAT(g_hash_table_lookup(satmap->sats, &obj->catnum));
-        ground_track_delete(satmap, sat, satmap->qth, obj, TRUE);
+        ground_track_delete((GtkSatMap *)satmap, sat, satmap->qth, (sat_map_obj_t *)obj, TRUE);
     }
 }
 
@@ -2234,8 +2230,8 @@ static void free_sat_obj(gpointer key, gpointer value, gpointer data)
 static void update_sat(gpointer key, gpointer value, gpointer data)
 {
     gint           *catnum;
-    GtkSatMap      *satmap = GTK_SAT_MAP(data);
-    sat_map_obj_t  *obj = NULL;
+    GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
+    max_path_map_obj_t  *obj = NULL;
     sat_t          *sat = SAT(value);
     gfloat          x, y;
     gdouble         oldx, oldy;
@@ -2265,7 +2261,7 @@ static void update_sat(gpointer key, gpointer value, gpointer data)
         }
     }
 
-    obj = SAT_MAP_OBJ(g_hash_table_lookup(satmap->obj, catnum));
+    obj = MAX_PATH_MAP_OBJ(g_hash_table_lookup(satmap->obj, catnum));
 
     /* get rid of a decayed satellite */
     if (decayed(sat) && obj != NULL)
@@ -2462,12 +2458,12 @@ static void update_sat(gpointer key, gpointer value, gpointer data)
     {
         if (obj->track_orbit != sat->orbit)
         {
-            ground_track_update(satmap, sat, satmap->qth, obj, TRUE);
+            ground_track_update((GtkSatMap *)satmap, sat, satmap->qth, (sat_map_obj_t *)obj, TRUE);
         }
         /* otherwise we may be in a map rescale process */
         else if (satmap->resize)
         {
-            ground_track_update(satmap, sat, satmap->qth, obj, FALSE);
+            ground_track_update((GtkSatMap *)satmap, sat, satmap->qth, (sat_map_obj_t *)obj, FALSE);
         }
     }
 
@@ -2477,10 +2473,10 @@ static void update_sat(gpointer key, gpointer value, gpointer data)
 /**
  * Update information about the selected satellite.
  *
- * @param satmap Pointer to the GtkSatMap widget.
+ * @param satmap Pointer to the GtkMaxPathMap widget.
  * @param sat Pointer to the selected satellite
  */
-static void update_selected(GtkSatMap * satmap, sat_t * sat)
+static void update_selected(GtkMaxPathMap * satmap, sat_t * sat)
 {
     guint           h, m, s;
     gchar          *ch, *cm, *cs;
@@ -2590,7 +2586,7 @@ static void update_selected(GtkSatMap * satmap, sat_t * sat)
     g_free(text);
 }
 
-static void draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root)
+static void draw_grid_lines(GtkMaxPathMap * satmap, GooCanvasItemModel * root)
 {
     gdouble         xstep, ystep;
     gfloat          lon, lat;
@@ -2739,7 +2735,7 @@ static void draw_grid_lines(GtkSatMap * satmap, GooCanvasItemModel * root)
     }
 }
 
-static void draw_terminator(GtkSatMap * satmap, GooCanvasItemModel * root)
+static void draw_terminator(GtkMaxPathMap * satmap, GooCanvasItemModel * root)
 {
     guint32         terminator_col;
     guint32         globe_shadow_col;
@@ -2775,7 +2771,7 @@ static void draw_terminator(GtkSatMap * satmap, GooCanvasItemModel * root)
     satmap->terminator_last_tstamp = satmap->tstamp;
 }
 
-static void redraw_grid_lines(GtkSatMap * satmap)
+static void redraw_grid_lines(GtkMaxPathMap * satmap)
 {
     GooCanvasPoints *line;
     gdouble         xstep, ystep;
@@ -2852,7 +2848,7 @@ static inline gdouble sgn(gdouble const t)
     return t < 0.0 ? -1.0 : 1.0;
 }
 
-static void redraw_terminator(GtkSatMap * satmap)
+static void redraw_terminator(GtkMaxPathMap * satmap)
 {
     /* Set of (x, y) points along the terminator, one on each line of longitude in
        increments of longitudinal degrees. */
@@ -2930,7 +2926,7 @@ static void redraw_terminator(GtkSatMap * satmap)
     goo_canvas_points_unref(line);
 }
 
-void gtk_sat_map_lonlat_to_xy(GtkSatMap * m,
+void gtk_max_path_map_lonlat_to_xy(GtkMaxPathMap * m,
                               gdouble lon, gdouble lat,
                               gdouble * x, gdouble * y)
 {
@@ -2945,215 +2941,27 @@ void gtk_sat_map_lonlat_to_xy(GtkSatMap * m,
     *y = (gdouble) fy;
 }
 
-void gtk_sat_map_reload_sats(GtkWidget * satmap, GHashTable * sats)
+void gtk_max_path_map_reload_sats(GtkWidget * satmap, GHashTable * sats)
 {
-    GTK_SAT_MAP(satmap)->sats = sats;
-    GTK_SAT_MAP(satmap)->naos = 0.0;
-    GTK_SAT_MAP(satmap)->ncat = 0;
+    GTK_MAX_PATH_MAP(satmap)->sats = sats;
+    GTK_MAX_PATH_MAP(satmap)->naos = 0.0;
+    GTK_MAX_PATH_MAP(satmap)->ncat = 0;
 
     /* reset ground track orbit to force repaint */
-    g_hash_table_foreach(GTK_SAT_MAP(satmap)->obj, reset_ground_track, NULL);
+    g_hash_table_foreach(GTK_MAX_PATH_MAP(satmap)->obj, reset_ground_track, NULL);
 }
 
 static void reset_ground_track(gpointer key, gpointer value,
                                gpointer user_data)
 {
-    sat_map_obj_t  *obj = (sat_map_obj_t *) value;
+    max_path_map_obj_t  *obj = (max_path_map_obj_t *) value;
     (void) key;
     (void) user_data;
 
     obj->track_orbit = 0;
 }
 
-static void draw_shortest_path_on_map(GtkSatMap *satmap)
-{
-    GooCanvasPoints *points;
-    GList *sat_list = NULL;
-    sat_t *closest_sat1 = NULL;
-    sat_t *closest_sat2 = NULL;
-    gdouble min_dist1 = DBL_MAX;
-    gdouble min_dist2 = DBL_MAX;
-
-    /* Ensure ground stations and satellites exist */
-    if (!satmap->qth || !satmap->qth2 || !satmap->sats || g_hash_table_size(satmap->sats) == 0) {
-        // Hide all lines if no data
-        g_object_set(shortest_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        g_object_set(shortest_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        g_object_set(unrealistic_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        g_object_set(unrealistic_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        g_object_set(unrealistic_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        return;
-    }
-
-    /* 1. Find closest satellites to each QTH */
-    GHashTableIter iter;
-    gpointer key, value;
-    g_hash_table_iter_init(&iter, satmap->sats);
-    while (g_hash_table_iter_next(&iter, &key, &value))
-    {
-        sat_t *current_sat = (sat_t *)value;
-        if (decayed(current_sat)) continue;
-
-        sat_list = g_list_append(sat_list, current_sat);
-
-        gdouble dist1 = sat_qth_distance(current_sat, satmap->qth);
-        if (dist1 < min_dist1) {
-            min_dist1 = dist1;
-            closest_sat1 = current_sat;
-        }
-
-        gdouble dist2 = sat_qth_distance(current_sat, satmap->qth2);
-        if (dist2 < min_dist2) {
-            min_dist2 = dist2;
-            closest_sat2 = current_sat;
-        }
-    }
-
-    if (!closest_sat1 || !closest_sat2) {
-        g_list_free(sat_list);
-        return; // No satellites to work with
-    }
-
-    /* --- 2. REALISTIC PATH (GREEN) --- */
-    {
-        SatGraph *realistic_graph = sat_graph_new();
-        GList *path = NULL;
-
-        // Build realistic graph with LOS check
-        for (GList *l1 = sat_list; l1 != NULL; l1 = l1->next) {
-            sat_t *s1 = (sat_t *)l1->data;
-            sat_graph_add_vertex(realistic_graph, s1);
-            for (GList *l2 = g_list_next(l1); l2 != NULL; l2 = g_list_next(l2)) {
-                sat_t *s2 = (sat_t *)l2->data;
-                if (is_los_clear(s1, s2)) {
-                    sat_graph_add_edge(realistic_graph, s1, s2);
-                }
-            }
-        }
-        
-        // Calculate and draw path
-        path = sat_graph_dijkstra(realistic_graph, closest_sat1, closest_sat2);
-
-        if (!path) {
-            g_object_set(shortest_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            g_object_set(shortest_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        } else {
-            gfloat x1, y1, x2, y2;
-            sat_t *start_sat = (sat_t *)path->data;
-            lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x1, &y1);
-            lonlat_to_xy(satmap, start_sat->ssplon, start_sat->ssplat, &x2, &y2);
-            points = goo_canvas_points_new(2);
-            points->coords[0] = x1; points->coords[1] = y1;
-            points->coords[2] = x2; points->coords[3] = y2;
-            g_object_set(shortest_path_line_qth1_sat, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-            goo_canvas_points_unref(points);
-
-            if (g_list_length(path) > 1) {
-                points = goo_canvas_points_new(g_list_length(path));
-                gint i = 0;
-                for (GList *l = path; l != NULL; l = g_list_next(l)) {
-                    sat_t *sat_on_path = (sat_t *)l->data;
-                    gfloat temp_x, temp_y;
-                    lonlat_to_xy(satmap, sat_on_path->ssplon, sat_on_path->ssplat, &temp_x, &temp_y);
-                    points->coords[i*2] = temp_x;
-                    points->coords[i*2+1] = temp_y;
-                    i++;
-                }
-                g_object_set(shortest_path_line_sats, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-                goo_canvas_points_unref(points);
-            } else {
-                g_object_set(shortest_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            }
-
-            sat_t *end_sat = (sat_t *)g_list_last(path)->data;
-            lonlat_to_xy(satmap, end_sat->ssplon, end_sat->ssplat, &x1, &y1);
-            lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x2, &y2);
-            points = goo_canvas_points_new(2);
-            points->coords[0] = x1; points->coords[1] = y1;
-            points->coords[2] = x2; points->coords[3] = y2;
-            g_object_set(shortest_path_line_sat_qth2, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-            goo_canvas_points_unref(points);
-        }
-        if (path) g_list_free(path);
-        sat_graph_free(realistic_graph);
-    }
-
-    /* --- 3. UNREALISTIC PATH (RED) --- */
-    {
-        SatGraph *unrealistic_graph = sat_graph_new();
-        GList *path = NULL;
-
-        // Build unrealistic graph (fully connected)
-        for (GList *l1 = sat_list; l1 != NULL; l1 = l1->next) {
-            sat_t *s1 = (sat_t *)l1->data;
-            sat_graph_add_vertex(unrealistic_graph, s1);
-            for (GList *l2 = g_list_next(l1); l2 != NULL; l2 = g_list_next(l2)) {
-                sat_t *s2 = (sat_t *)l2->data;
-                sat_graph_add_edge(unrealistic_graph, s1, s2);
-            }
-        }
-        
-        // Calculate and draw path
-        path = sat_graph_dijkstra(unrealistic_graph, closest_sat1, closest_sat2);
-
-        if (!path) {
-            g_object_set(unrealistic_path_line_qth1_sat, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            g_object_set(unrealistic_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            g_object_set(unrealistic_path_line_sat_qth2, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        } else {
-            gfloat x1, y1, x2, y2;
-            sat_t *start_sat = (sat_t *)path->data;
-            lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x1, &y1);
-            lonlat_to_xy(satmap, start_sat->ssplon, start_sat->ssplat, &x2, &y2);
-            points = goo_canvas_points_new(2);
-            points->coords[0] = x1; points->coords[1] = y1;
-            points->coords[2] = x2; points->coords[3] = y2;
-            g_object_set(unrealistic_path_line_qth1_sat, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-            goo_canvas_points_unref(points);
-
-            if (g_list_length(path) > 1) {
-                points = goo_canvas_points_new(g_list_length(path));
-                gint i = 0;
-                for (GList *l = path; l != NULL; l = g_list_next(l)) {
-                    sat_t *sat_on_path = (sat_t *)l->data;
-                    gfloat temp_x, temp_y;
-                    lonlat_to_xy(satmap, sat_on_path->ssplon, sat_on_path->ssplat, &temp_x, &temp_y);
-                    points->coords[i*2] = temp_x;
-                    points->coords[i*2+1] = temp_y;
-                    i++;
-                }
-                g_object_set(unrealistic_path_line_sats, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-                goo_canvas_points_unref(points);
-            } else {
-                g_object_set(unrealistic_path_line_sats, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-            }
-
-            sat_t *end_sat = (sat_t *)g_list_last(path)->data;
-            lonlat_to_xy(satmap, end_sat->ssplon, end_sat->ssplat, &x1, &y1);
-            lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x2, &y2);
-            points = goo_canvas_points_new(2);
-            points->coords[0] = x1; points->coords[1] = y1;
-            points->coords[2] = x2; points->coords[3] = y2;
-            g_object_set(unrealistic_path_line_sat_qth2, "points", points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
-            goo_canvas_points_unref(points);
-        }
-        if (path) g_list_free(path);
-        sat_graph_free(unrealistic_graph);
-    }
-    
-    /* --- 4. SET STACKING ORDER --- */
-    /* Raise the green line to be on top of the red line in case of overlap */
-    goo_canvas_item_model_raise(shortest_path_line_qth1_sat, NULL);
-    goo_canvas_item_model_raise(shortest_path_line_sats, NULL);
-    goo_canvas_item_model_raise(shortest_path_line_sat_qth2, NULL);
-
-    /* Clean up */
-    g_list_free(sat_list);
-}
-
-static gchar   *aoslos_time_to_str(GtkSatMap * satmap, sat_t * sat)
+static gchar   *aoslos_time_to_str(GtkMaxPathMap * satmap, sat_t * sat)
 {
     guint           h, m, s;
     gdouble         number, now;
@@ -3190,7 +2998,7 @@ static gchar   *aoslos_time_to_str(GtkSatMap * satmap, sat_t * sat)
 }
 
 /** Load the satellites that we should show tracks for */
-static void gtk_sat_map_load_showtracks(GtkSatMap * satmap)
+static void gtk_max_path_map_load_showtracks(GtkMaxPathMap * satmap)
 {
     mod_cfg_get_integer_list_boolean(satmap->cfgdata,
                                      MOD_CFG_MAP_SECTION,
@@ -3200,7 +3008,7 @@ static void gtk_sat_map_load_showtracks(GtkSatMap * satmap)
 }
 
 /** Save the satellites that we should not show ground tracks */
-static void gtk_sat_map_store_showtracks(GtkSatMap * satmap)
+static void gtk_max_path_map_store_showtracks(GtkMaxPathMap * satmap)
 {
     mod_cfg_set_integer_list_boolean(satmap->cfgdata,
                                      satmap->showtracks,
@@ -3209,7 +3017,7 @@ static void gtk_sat_map_store_showtracks(GtkSatMap * satmap)
 }
 
 /** Save the satellites that we should not highlight coverage */
-static void gtk_sat_map_store_hidecovs(GtkSatMap * satmap)
+static void gtk_max_path_map_store_hidecovs(GtkMaxPathMap * satmap)
 {
     mod_cfg_set_integer_list_boolean(satmap->cfgdata,
                                      satmap->hidecovs,
@@ -3217,8 +3025,8 @@ static void gtk_sat_map_store_hidecovs(GtkSatMap * satmap)
                                      MOD_CFG_MAP_HIDECOVS);
 }
 
-/** Load the satellites that we should not highlight coverage */
-static void gtk_sat_map_load_hide_coverages(GtkSatMap * satmap)
+/** Load the satellite that we should not highlight coverage */
+static void gtk_max_path_map_load_hide_coverages(GtkMaxPathMap * satmap)
 {
     mod_cfg_get_integer_list_boolean(satmap->cfgdata,
                                      MOD_CFG_MAP_SECTION,

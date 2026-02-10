@@ -48,7 +48,7 @@ static GtkWidget *thumb;
 
 
 /* the number of predefined layouts (+1 for custom). */
-#define PREDEF_NUM 14
+#define PREDEF_NUM 15
 
 /* Predefined layouts. */
 gchar          *predef_layout[PREDEF_NUM][3] = {
@@ -74,7 +74,9 @@ gchar          *predef_layout[PREDEF_NUM][3] = {
      "gpredict-layout-99.png"},
     {"1;0;2;0;3;6;2;3;0;3", N_("World map and two sat view"),
      "gpredict-layout-99.png"},
-     {"1;0;2;0;3;7;2;3;0;3", N_("World map and multiple sat view"),
+    {"1;0;2;0;3;7;2;3;0;3", N_("World map and multiple sat view"),
+     "gpredict-layout-99.png"},
+    {"9;0;2;0;3;8;2;3;0;3", N_("Max Path View"),
      "gpredict-layout-99.png"},
     {"", N_("Custom"), "gpredict-layout-99.png"}
 };

@@ -48,6 +48,7 @@
 #include "gtk-rot-ctrl.h"
 #include "gtk-sat-list.h"
 #include "gtk-sat-map.h"
+#include "gtk-max-path-map.h"
 #include "gtk-sat-module.h"
 #include "gtk-sat-module-popup.h"
 #include "gtk-sat-module-tmg.h"
@@ -55,6 +56,7 @@
 #include "gtk-second-sat.h"
 #include "gtk-two-sat.h"
 #include "gtk-multiple-sat.h"
+#include "gtk-max-path-view.h"
 #include "gtk-sky-glance.h"
 #include "mod-cfg.h"
 #include "mod-cfg-get-param.h"
@@ -443,6 +445,17 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtkMultipleSat case called", __FILE__, __LINE__);
         break;
 
+    case GTK_SAT_MOD_VIEW_MAXPATH:
+        view = gtk_max_path_view_new(module->cfgdata,
+                                    module->satellites, module->qth, 0);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtMaxPathView case called", __FILE__, __LINE__);
+        break;
+    case GTK_SAT_MOD_VIEW_PATHMAP:
+        view = gtk_max_path_map_new(module->cfgdata,
+                               module->satellites, module->qth, module->qth2);
+        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtMaxPathMap case called", __FILE__, __LINE__);
+        break;   
+
     default:
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s:%d: Invalid child type (%d). Using GtkSatList."),
@@ -748,6 +761,21 @@ static void update_child(GtkWidget * child, gdouble tstamp)
             //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, i is %d", __FILE__, __LINE__, i);
             gtk_multiple_sat_update(child, i);
         }
+    }
+
+    else if (IS_GTK_MAX_PATH_VIEW(child))
+    {
+        GTK_MAX_PATH_VIEW(child)->tstamp = tstamp; 
+        for (guint i = 0; i < GTK_MAX_PATH_VIEW(child)->dyn_num_sat; i++)
+        {
+            gtk_max_path_view_update(child, i);
+        }
+    }
+
+    else if (IS_GTK_MAX_PATH_MAP(child))
+    {
+        GTK_MAX_PATH_MAP(child)->tstamp = tstamp;
+        gtk_max_path_map_update(child);
     }
 
     else
@@ -1614,6 +1642,10 @@ static void reload_sats_in_child(GtkWidget * widget, GtkSatModule * module)
     {
         gtk_multiple_sat_reload_sats(widget, module->satellites);
     }
+    else if (IS_GTK_MAX_PATH_VIEW(G_OBJECT(widget)))
+    {
+        gtk_max_path_view_reload_sats(widget, module->satellites);
+    }
     else
     {
         sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -1715,6 +1747,13 @@ void gtk_sat_module_select_sat(GtkSatModule * module, gint catnum)
             {
                 //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: breakpoint, i = %d", __FILE__, __LINE__, i);
                 gtk_multiple_sat_select_sat(child, catnum, i);
+            }
+        } 
+        else if (IS_GTK_MAX_PATH_VIEW(child))
+        {
+            for (guint i = 0; i < GTK_MAX_PATH_VIEW(child)->dyn_num_sat; i++)
+            {
+                gtk_max_path_view_select_sat(child, catnum, i);
             }
         }
         else

@@ -143,6 +143,11 @@ typedef enum {
     SAT_CFG_INT_MULTIPLE_SAT_REFRESH,   /*<! Multiple-sat refresh rate (cycle) */
     SAT_CFG_INT_MULTIPLE_SAT_FIELDS,    /*<! Multiple-sat fields. */
     SAT_CFG_INT_MULTIPLE_SAT_SELECT,    /*<! Multiple-sat selected satellites. */
+   
+    //ToDo: double check this
+    SAT_CFG_INT_MAX_PATH_VIEW_REFRESH,
+    SAT_CFG_INT_MAX_PATH_VIEW_FIELDS,
+    SAT_CFG_INT_MAX_PATH_VIEW_SELECT,
     SAT_CFG_INT_NUM,             /*!< Number of integer parameters. */
 } sat_cfg_int_e;
 
