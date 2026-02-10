@@ -122,6 +122,7 @@ static GooCanvasPoints *points2;
 
 static GooCanvasItemModel *capacity_path_line = NULL;
 static GooCanvasPoints *capacity_points = NULL;
+static GList *capacity_path_nodes = NULL;
 
 
 GType gtk_max_path_map_get_type()
@@ -579,76 +580,7 @@ static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
                                                 "line-width", 4.0,
                                                 "visibility", GOO_CANVAS_ITEM_HIDDEN,
                                                 NULL);
-    
-    //for consistency in testing use satmap->tstamp because it doesnt change
-    //to get actual current time use time-tools.c/get_current_daynum();
-    
-    //gdouble is in days, multiply with xmnpda to convert minutes to days
-    //gdouble t_start = satmap->tstamp;
-    //gdouble t_end = satmap->tstamp + 1; //1 hour
-    gdouble t_start = 2458849.5;
-    gdouble t_end = t_start + 1;
-    gdouble time_step = 0.0007;    //1 minute time step
-    
-    clock_t timer_start, timer_end;
-    double cpu_time_used;
-    timer_start = clock();
-
-    GList *sat_list = g_hash_table_get_values(satmap->sats);
-    guint sat_hist_len = 0;
-
-    //GHashtable {gint catnr : lw_sat_t[] history}
-    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
-
-    //GHashtable {gint assigned_id : qth_t station}
-    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
-    gint key1 = -1;
-    gint key2 = -2;
-    g_hash_table_insert(ground_stations, &key1, satmap->qth);
-    g_hash_table_insert(ground_stations, &key2, satmap->qth2);
- 
-    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
-    //returns GList of path_node
-    GList *path = get_max_link_path(satmap->sats, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
-
-    g_hash_table_destroy(sat_history);
-    g_hash_table_destroy(ground_stations);
-
-    timer_end = clock();
-    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
-    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
-
-    if (!path) {
-        g_object_set(capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-    } else {
-        capacity_points = goo_canvas_points_new(g_list_length(path));
-        gint i = 0;
-        for (GList *current = path; current != NULL; current = current->next) {
-            path_node *node = (path_node *)current->data;
-            gfloat x, y;
-
-            if (node->type == path_STATION) {
-                qth_t *station = node->obj;
-                printf("name: %s, time: %f\n", station->name, node->time);
-                lonlat_to_xy(satmap, station->lon, station->lat, &x, &y);
-                capacity_points->coords[i] = x; 
-                capacity_points->coords[i+1] = y;
-
-            } else if (node->type == path_SATELLITE) { 
-                sat_t *satellite = (sat_t *)node->obj;
-                printf("catnr: %i, time: %f\n", satellite->tle.catnr, node->time);
-                lonlat_to_xy(satmap, satellite->ssplon, satellite->ssplat, &x, &y);
-                capacity_points->coords[i] = x; 
-                capacity_points->coords[i+1] = y;
-            }
-
-            printf("added points: x: %f, y: %f\n", capacity_points->coords[i], capacity_points->coords[i+1]);
-
-            i += 2;
-        }
-    }
-    
-
+     
     return root;
 }
 
@@ -763,11 +695,88 @@ static void update_map_size(GtkMaxPathMap * satmap)
     }
 }
 
+void set_path_canvas_coordinates(GtkMaxPathMap *satmap) {
+    if (!capacity_path_nodes) {
+        g_object_set(capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+    } else {
+        capacity_points = goo_canvas_points_new(g_list_length(capacity_path_nodes));
+        gint i = 0;
+        for (GList *current = capacity_path_nodes; current != NULL; current = current->next) {
+            path_node *node = (path_node *)current->data;
+            gfloat x, y;
+
+            if (node->type == path_STATION) {
+                qth_t *station = node->obj;
+                printf("name: %s, time: %f\n", station->name, node->time);
+                lonlat_to_xy(satmap, station->lon, station->lat, &x, &y);
+                capacity_points->coords[i] = x; 
+                capacity_points->coords[i+1] = y;
+
+            } else if (node->type == path_SATELLITE) { 
+                sat_t *satellite = (sat_t *)node->obj;
+
+                sat_t dummy_s;
+                memcpy(&dummy_s, satellite, sizeof(sat_t));
+                qth_t dummy_q = {0};
+                predict_calc(&dummy_s, &dummy_q, node->time);
+
+                printf("catnr: %i, time: %f\n", satellite->tle.catnr, node->time);
+                lonlat_to_xy(satmap, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
+                capacity_points->coords[i] = x; 
+                capacity_points->coords[i+1] = y;
+            }
+
+            printf("added points: x: %f, y: %f\n", capacity_points->coords[i], capacity_points->coords[i+1]);
+            i += 2;
+        }
+    }
+}
+
 static void on_canvas_realized(GtkWidget * canvas, gpointer data)
 {
     GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
 
     (void)canvas;
+
+    //for consistency in testing use satmap->tstamp because it doesnt change
+    //to get actual current time use time-tools.c/get_current_daynum();
+    
+    //gdouble is in days, multiply with xmnpda to convert minutes to days
+    //gdouble t_start = satmap->tstamp;
+    //gdouble t_end = satmap->tstamp + 1; //1 day
+    gdouble t_start = 2458849.5;
+    gdouble t_end = t_start + 1;
+    gdouble time_step = 0.0007;    //1 minute time step
+    
+    clock_t timer_start, timer_end;
+    double cpu_time_used;
+    timer_start = clock();
+
+    GList *sat_list = g_hash_table_get_values(satmap->sats);
+    guint sat_hist_len = 0;
+
+    //GHashtable {gint catnr : lw_sat_t[] history}
+    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
+
+    //GHashtable {gint assigned_id : qth_t station}
+    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
+    gint key1 = -1;
+    gint key2 = -2;
+    g_hash_table_insert(ground_stations, &key1, satmap->qth);
+    g_hash_table_insert(ground_stations, &key2, satmap->qth2);
+ 
+    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
+    //returns GList of path_node
+    capacity_path_nodes = get_max_link_path(satmap->sats, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
+
+    g_hash_table_destroy(sat_history);
+    g_hash_table_destroy(ground_stations);
+
+    timer_end = clock();
+    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
+    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used); 
+    
+    set_path_canvas_coordinates(satmap);
 
     goo_canvas_item_model_raise(satmap->sel, NULL);
     goo_canvas_item_model_raise(satmap->locnam, NULL);
@@ -790,8 +799,10 @@ void gtk_max_path_map_update(GtkWidget * widget)
     gdouble         oldx, oldy;
 
     /* check whether there are any pending resize requests */
-    if (satmap->resize)
+    if (satmap->resize){
         update_map_size(satmap);
+        set_path_canvas_coordinates(satmap);
+    }
 
     /* check if qth has moved significantly, if so move it */
     lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
@@ -957,6 +968,14 @@ void gtk_max_path_map_update(GtkWidget * widget)
         {
             g_object_set(satmap->next, "text", "", NULL);
         }
+    }
+
+    //draw max capacity line
+    if (!satmap->qth || !satmap->qth2 || !satmap->sats || g_hash_table_size(satmap->sats) == 0) {
+        // Hide all lines if no data
+        g_object_set(capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
+    } else {
+        g_object_set(capacity_path_line, "points", capacity_points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
     }
 }
 
