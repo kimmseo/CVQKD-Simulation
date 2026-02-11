@@ -57,7 +57,7 @@ GList *get_max_link_path(
         mid = (low + high) / 2.0;
 
         printf("trying for data size %f kilobytes\n", mid);
-        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, -2, t_start, t_end, time_step);
+        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, 39466, t_start, t_end, time_step);
         
         if (attempt != NULL) {
 

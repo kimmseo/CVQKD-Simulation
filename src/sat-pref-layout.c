@@ -76,8 +76,8 @@ gchar          *predef_layout[PREDEF_NUM][3] = {
      "gpredict-layout-99.png"},
     {"1;0;2;0;3;7;2;3;0;3", N_("World map and multiple sat view"),
      "gpredict-layout-99.png"},
-    {"9;0;2;0;3;8;2;3;0;3", N_("Max Path View"),
-     "gpredict-layout-99.png"},
+    {"9;0;4;0;3;8;4;5;0;3", N_("Max Path View"),
+     "gpredict-layout-99.png"}, 
     {"", N_("Custom"), "gpredict-layout-99.png"}
 };
 

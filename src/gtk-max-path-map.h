@@ -70,7 +70,7 @@ typedef struct {
     guint           newrcnum;   /*!< Number of RC parts in this cycle. */
     gint            catnum;     /*!< Catalogue number of satellite. */
 
-    ground_track_t  track_data; /*!< Ground track data. */
+    mpm_ground_track_t  track_data; /*!< Ground track data. */
     long            track_orbit;        /*!< Orbit when the ground track has been updated. */
 
 } max_path_map_obj_t;
@@ -159,6 +159,8 @@ void            gtk_max_path_map_lonlat_to_xy(GtkMaxPathMap * m,
 
 void            gtk_max_path_map_reload_sats(GtkWidget * satmap, GHashTable * sats);
 void            gtk_max_path_map_select_sat(GtkWidget * satmap, gint catnum);
+
+void            set_max_capacity_path(GList *path);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

@@ -7,27 +7,20 @@
 
 #include "config-keys.h"
 #include "gpredict-utils.h"
-#include "gtk-sat-data.h"
 #include "gtk-sat-popup-common.h"
 #include "gtk-max-path-view.h"
 #include "locator.h"
 #include "mod-cfg-get-param.h"
 #include "orbit-tools.h"
-#include "predict-tools.h"
-#include "sat-cfg.h"
 #include "sat-info.h"
 #include "sat-log.h"
-#include "sat-vis.h"
-#include "sgpsdp/sgp4sdp4.h"
 #include "sat-pass-dialogs.h"
 #include "time-tools.h"
-#include "sat-kdtree-utils.h"
-#include "calc-dist-two-sat.h"
 #include "skr-utils.h"
-#include "sat-graph.h"
 
 #include "max-capacity-path/link-capacity-path.h"
 #include "max-capacity-path/satellite-history.h"
+#include "gtk-max-path-map.h"
 
 
 /* Column titles indexed with column symb. refs */
@@ -37,11 +30,6 @@ const gchar     *MAX_PATH_VIEW_FIELD_TITLE[MAX_PATH_VIEW_FIELD_NUMBER] = {
     N_("Direction"),
     N_("Right Asc."),
     N_("Declination"),
-    N_("Slant Range"),
-    N_("Range Rate"),
-    N_("Next Event"),
-    N_("Next AOS"),
-    N_("Next LOS"),
     N_("SSP Lat."),
     N_("SSP Lon."),
     N_("SSP Loc."),
@@ -50,14 +38,9 @@ const gchar     *MAX_PATH_VIEW_FIELD_TITLE[MAX_PATH_VIEW_FIELD_NUMBER] = {
     N_("Velocity"),
     N_("Doppler@100M"),
     N_("Sig. Loss"),
-    N_("Sig. Delay"),
     N_("Mean Anom."),
     N_("Orbit Phase"),
     N_("Orbit Num."),
-    N_("Visibility"),
-    N_("Downlink SKR"),
-    N_("Uplink SKR"),
-    N_("Inter-satellite SKR")
 };
 
 const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
@@ -66,11 +49,6 @@ const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
     N_("Direction of the satellite"),
     N_("Right Ascension of the satellite"),
     N_("Declination of the satellite"),
-    N_("The range between satellite and observer"),
-    N_("The rate at which the Slant Range changes"),
-    N_("The time of next AOS or LOS"),
-    N_("The time of next AOS"),
-    N_("The time of next LOS"),
     N_("Latitude of the sub-satellite point"),
     N_("Longitude of the sub-satellite point"),
     N_("Sub-Satellite Point as Maidenhead grid square"),
@@ -79,14 +57,9 @@ const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
     N_("Tangential velocity of the satellite"),
     N_("Doppler Shift @ 100MHz"),
     N_("Signal loss @ 100MHz"),
-    N_("Signal Delay"),
     N_("Mean Anomaly"),
     N_("Orbit Phase"),
     N_("Orbit Number"),
-    N_("Visibility of the satellite"),
-    N_("Secret Key Rate (satellite to ground, downlink)"),
-    N_("Secret Key Rate (ground to satellite, uplink)"),
-    N_("Secret Key Rate (satellite to nearest satellite)")
 };
 
 static GtkBoxClass *parent_class = NULL;
@@ -152,17 +125,9 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
 {
     sat_t       *sat;
     gchar       *buff = NULL;
-    gchar       tbuf[TIME_FORMAT_MAX_LENGTH];
     gchar       hmf = ' ';
     gdouble     number;
     gint        retcode;
-    gchar       *fmtstr;
-    gchar       *alstr;
-    sat_vis_t   vis;
-    sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
-    //gdouble     dist;   // Distance to nsat
-    gboolean    los_vis;   // Is LOS clear from sat to nsat
-    gdouble     up_skr, down_skr, inter_sat_skr; 
         
     // Get selected satellite
 
@@ -219,76 +184,6 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             break;
         case MAX_PATH_VIEW_FIELD_DEC:
             buff = g_strdup_printf("%6.2f\302\260", sat->dec);
-            break;
-        case MAX_PATH_VIEW_FIELD_RANGE:
-            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-                buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->range));
-            else
-                buff = g_strdup_printf("%.0f km", sat->range);
-            break;
-        case MAX_PATH_VIEW_FIELD_RANGE_RATE:
-            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-                buff = g_strdup_printf("%.3f mi/sec", KM_TO_MI(sat->range_rate));
-            else
-                buff = g_strdup_printf("%.3f km/sec", sat->range_rate);
-            break;
-        case MAX_PATH_VIEW_FIELD_NEXT_EVENT:
-            if (sat->aos > sat->los)
-            {
-                /* next event is LOS */
-                number = sat->los;
-                alstr = g_strdup("LOS: ");
-            }
-            else
-            {
-                /* next event is AOS */
-                number = sat->aos;
-                alstr = g_strdup("AOS: ");
-            }
-            if (number > 0.0)
-            {
-
-                /* format the number */
-                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, number);
-
-                g_free(fmtstr);
-
-                buff = g_strconcat(alstr, tbuf, NULL);
-
-            }
-            else
-            {
-                buff = g_strdup(_("N/A"));
-            }
-            g_free(alstr);
-            break;
-        case MAX_PATH_VIEW_FIELD_AOS:
-            if (sat->aos > 0.0)
-            {
-                /* format the number */
-                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->aos);
-                g_free(fmtstr);
-                buff = g_strdup(tbuf);
-            }
-            else
-            {
-                buff = g_strdup(_("N/A"));
-            }
-            break;
-        case MAX_PATH_VIEW_FIELD_LOS:
-            if (sat->los > 0.0)
-            {
-                fmtstr = sat_cfg_get_str(SAT_CFG_STR_TIME_FORMAT);
-                daynum_to_str(tbuf, TIME_FORMAT_MAX_LENGTH, fmtstr, sat->los);
-                g_free(fmtstr);
-                buff = g_strdup(tbuf);
-            }
-            else
-            {
-                buff = g_strdup(_("N/A"));
-            }
             break;
         case MAX_PATH_VIEW_FIELD_LAT:
             number = sat->ssplat;
@@ -367,10 +262,6 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             number = 72.4 + 20.0 * log10(sat->range);       // dB
             buff = g_strdup_printf("%.2f dB", number);
             break;
-        case MAX_PATH_VIEW_FIELD_DELAY:
-            number = sat->range / 299.7924580;      // msec 
-            buff = g_strdup_printf("%.2f msec", number);
-            break;
         case MAX_PATH_VIEW_FIELD_MA:
             buff = g_strdup_printf("%.2f\302\260", sat->ma);
             break;
@@ -379,58 +270,6 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             break;
         case MAX_PATH_VIEW_FIELD_ORBIT:
             buff = g_strdup_printf("%ld", sat->orbit);
-            break;
-        case MAX_PATH_VIEW_FIELD_VISIBILITY:
-            vis = get_sat_vis(sat, msat->qth, sat->jul_utc);
-            buff = vis_to_str(vis);
-            break;
-        case MAX_PATH_VIEW_FIELD_SKR_DOWN:
-            if (sat->el < 30)
-            {
-                buff = g_strdup_printf("Below elevation threshold");
-            }
-            else
-            {
-                // Sat is in viable elevation, calculate downlink SKR
-                down_skr = sat_to_ground_downlink(sat, msat->qth);
-                buff = g_strdup_printf("%.2e bps", down_skr);
-            }
-            break;
-
-        case MAX_PATH_VIEW_FIELD_SKR_UP:
-            if (sat->el < 30)
-            {
-                buff = g_strdup_printf("Below elevation threshold");
-            }
-            else
-            {
-                // Sat is in viable elevation, calculate uplink SKR
-                up_skr = ground_to_sat_uplink(msat->qth, sat);
-                buff = g_strdup_printf("%.2e bps", up_skr);
-            }
-            break;
-
-        case MAX_PATH_VIEW_FIELD_SKR_NEAREST:
-            nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);
-            
-            // Add a NULL check for nsat to avoid SEGFAULT
-            if (nsat == NULL) 
-            {
-                buff = g_strdup("N/A");
-                break;
-            }
-            
-            los_vis = is_los_clear(sat, nsat);
-            if (los_vis)
-            {
-                // Line of sight is clear, calculate distance and inter-satellite SKR
-                inter_sat_skr = inter_sat_link(sat, nsat);
-                buff = g_strdup_printf("%s, %.2e bps", nsat->nickname, inter_sat_skr);
-            }
-            else    // line of sight not clear
-            {
-                buff = g_strdup_printf("%s, No LOS", nsat->nickname);
-            }
             break;
         default:
             sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -520,7 +359,7 @@ static void Calculate_RADec(sat_t * sat, qth_t * qth, obs_astro_t * obs_set)
     obs_set->ra = FMod2p(obs_set->ra);
 }
 
-static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_data)
+static void select_satellite(GtkWidget * menuitem, MaxSelectSatCallbackData * cb_data)
 {
     GtkMaxPathView      *msat = GTK_MAX_PATH_VIEW(cb_data->parent);
     guint               i =
@@ -551,7 +390,7 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
         // Header is not updating (fixed - make sure i-th element in grid and index in sats is correct)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
         //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
-        SatPanel *panelI = g_array_index(msat->panels, SatPanel *, i);
+        MaxSatPanel *panelI = g_array_index(msat->panels, MaxSatPanel *, i);
         gtk_label_set_markup(GTK_LABEL(panelI->header), title);
         
         // bugged line: gtk_widget_queue_draw(msat->panels[i]->header);
@@ -571,7 +410,7 @@ static void select_satellite(GtkWidget * menuitem, SelectSatCallbackData * cb_da
 }
 
 /* Multiple sat options menu */
-static void gtk_max_path_view_popup_cb(GtkWidget * button, PopupCallbackData *cb_data)
+static void gtk_max_path_view_popup_cb(GtkWidget * button, MaxPopupCallbackData *cb_data)
 {
     GtkMaxPathView      *max_path_view = GTK_MAX_PATH_VIEW(cb_data->parent);
     GtkWidget           *menu;
@@ -660,7 +499,7 @@ static void gtk_max_path_view_popup_cb(GtkWidget * button, PopupCallbackData *cb
 
         // Store item index so that it is available in the callback
         g_object_set_data(G_OBJECT(menuitem), "index", GUINT_TO_POINTER(i));
-        SelectSatCallbackData *select_cb_data = g_new(SelectSatCallbackData, 1);
+        MaxSelectSatCallbackData *select_cb_data = g_new(MaxSelectSatCallbackData, 1);
         select_cb_data->parent = cb_data->parent;
         select_cb_data->index = index;
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite callback signal triggered", __FILE__, __LINE__);
@@ -770,7 +609,7 @@ void gtk_max_path_view_select_sat(GtkWidget * max_path_view, gint catnum, guint 
     title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
     //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
     //gtk_widget_queue_draw(msat->panels[i]->header);
-    SatPanel *panelPointer = g_array_index(msat->panels, SatPanel *, i);
+    MaxSatPanel *panelPointer = g_array_index(msat->panels, MaxSatPanel *, i);
     gtk_label_set_markup(GTK_LABEL(panelPointer->header), title);
     gtk_widget_queue_draw(panelPointer->header);
     g_free(title);
@@ -856,24 +695,22 @@ GType gtk_max_path_view_get_type()
 
 // index is the position in the grid
 // selectedSatIndex is the index of the satellite in sats
-static SatPanel *create_sat_panel(gint index, guint32 flags,
+static MaxSatPanel *create_sat_panel(gint index, guint32 flags,
                                   GtkWidget * parent, GSList * sats, gint selectedSatIndex)
 {
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: %s called, position=%d, satIndex=%d",
-                __FILE__, __LINE__, __func__, index, selectedSatIndex);
-    SatPanel * panel = g_new0(SatPanel, 1);
+    MaxSatPanel * panel = g_new0(MaxSatPanel, 1);
     GtkWidget *label1, *label2;
     sat_t *sat = NULL;
-    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+    
     if (index >= 0)
         sat = SAT(g_slist_nth_data(sats, selectedSatIndex));
 
-    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
     // Create popup button
     panel->popup_button = gpredict_mini_mod_button("gpredict-mod-popup.png",
                                                    _("Satellite options / shortcuts"));
-    //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-    PopupCallbackData *cb_data = g_new(PopupCallbackData, 1);
+    
+    
+    MaxPopupCallbackData *cb_data = g_new(MaxPopupCallbackData, 1);
     cb_data->parent = parent;
     // Index here represents the position of the SatPanel in the Multiple Sat View
     cb_data->index = index;
@@ -908,8 +745,8 @@ static SatPanel *create_sat_panel(gint index, guint32 flags,
             panel->labels[i] = label2;
             
             // Add tooltips
-            gtk_widget_set_tooltip_text(label1, MAX_PATH_VIEW_FIELD_HINT[i]);
-            gtk_widget_set_tooltip_text(label2, MAX_PATH_VIEW_FIELD_HINT[i]);
+            gtk_widget_set_tooltip_text(label1, "NONESENSE");
+            gtk_widget_set_tooltip_text(label2, "NONESENSE 2");
 
             label1 = gtk_label_new(":");
             gtk_grid_attach(GTK_GRID(panel->table), label1, 1, i, 1, 1);
@@ -923,14 +760,53 @@ static SatPanel *create_sat_panel(gint index, guint32 flags,
     return panel;
 }
 
+void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
+    (void)button;
+    GtkMaxPathView *obj = (GtkMaxPathView *)data;
+    
+    //to get actual current time use time-tools.c/get_current_daynum();
+    //gdouble is in days, multiply with xmnpda to convert minutes to days
+    
+    gdouble t_start = 2458849.5;
+    gdouble t_end = t_start + 1;
+    gdouble time_step = 0.0007;    //1 minute time step
+    
+    clock_t timer_start, timer_end;
+    double cpu_time_used;
+    timer_start = clock();
+
+    GList *sat_list = g_hash_table_get_values(obj->satsTable);
+    guint sat_hist_len = 0;
+
+    //GHashtable {gint catnr : lw_sat_t[] history}
+    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
+
+    //GHashtable {gint assigned_id : qth_t station}
+    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
+    gint key1 = -1;
+    g_hash_table_insert(ground_stations, &key1, obj->qth);
+ 
+    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
+    //returns GList of path_node
+    obj->max_capacity_path = get_max_link_path(obj->satsTable, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
+
+    g_hash_table_destroy(sat_history);
+    g_hash_table_destroy(ground_stations);
+
+    timer_end = clock();
+    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
+    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
+
+    set_max_capacity_path(obj->max_capacity_path);
+}
+
+
 GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
                                 qth_t * qth, guint32 fields)
 {
     GtkWidget       *widget;
     GtkMaxPathView  *max_path_view;
     guint           i;
-    //gint            selectedcatnum[NUMBER_OF_SATS];
-    sat_t           *sati;
 
     widget = g_object_new(GTK_TYPE_MAX_PATH_VIEW, NULL);
     gtk_orientable_set_orientation(GTK_ORIENTABLE(widget),
@@ -945,7 +821,6 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     g_hash_table_foreach(sats, store_sats, widget);
 
     max_path_view->dyn_num_sat = g_slist_length(max_path_view->sats);
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "dyn_num_sat set to %d", max_path_view->dyn_num_sat);
 
     max_path_view->selected = g_array_sized_new(FALSE, TRUE, sizeof(guint), max_path_view->dyn_num_sat);
  
@@ -953,26 +828,10 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     {
         g_array_append_val(max_path_view->selected, i);
     }
-    for (i = 0; i < max_path_view->dyn_num_sat; i++)
-    { 
-        sat_log_log(SAT_LOG_LEVEL_DEBUG,
-                    "%s %s: selected[%d] set to: %d", __func__, __FILE__, 
-                    i, g_array_index(max_path_view->selected, guint, i));
-    }
+    
     max_path_view->qth = qth;
     max_path_view->cfgdata = cfgdata;
 
-    // Populate k-d tree for calcuating nearest sat
-    GHashTableIter iter;
-    gpointer key, value;
-
-    g_hash_table_iter_init(&iter, sats);
-    max_path_view->kdtree = sat_kdtree_create();
-    while (g_hash_table_iter_next(&iter, &key, &value))
-    {
-        sati = SAT(value);
-        sat_kdtree_insert(max_path_view->kdtree, sati);
-    }
 
     // Initialise column flags
     if (fields > 0)
@@ -1001,16 +860,13 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     max_path_view->counter = 1;
 
-    /*
-    // Get selected catnum if available
-    for (i = 0; i < NUMBER_OF_SATS; i++)
-    {
-        multiple_sat->selected[i] = mod_cfg_get_int_from_list(cfgdata,
-                                                      MOD_CFG_MULTIPLE_SAT_SECTION,
-                                                      MOD_CFG_MULTIPLE_SAT_SELECT,
-                                                      i, SAT_CFG_INT_MULTIPLE_SAT_SELECT);
-    }
-    */
+    //should be empty text box 
+    max_path_view->textbox = gtk_label_new("THIS IS THE MAX PATH MODE");
+
+    max_path_view->satsTable = sats;
+    max_path_view->button = gtk_button_new_with_label("Calculate Path");
+
+    g_signal_connect(max_path_view->button, "clicked", G_CALLBACK(calculate_max_capacity_path), max_path_view);
 
     // Make a grid, then populate the grid using SatPanels
     // Create a scrollable area
@@ -1023,7 +879,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
     gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
 
-    max_path_view->panels = g_array_sized_new(FALSE, TRUE, sizeof(SatPanel *), max_path_view->dyn_num_sat);
+    max_path_view->panels = g_array_sized_new(FALSE, TRUE, sizeof(MaxSatPanel *), max_path_view->dyn_num_sat);
     max_path_view->labels = g_array_sized_new(FALSE, TRUE, sizeof(GtkWidget *), 
                             max_path_view->dyn_num_sat * MAX_PATH_VIEW_FIELD_NUMBER);
 
@@ -1037,7 +893,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
         // index is the index of the satellite in sats
 
         //multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
-        SatPanel *tmpSatPanel = create_sat_panel(i, max_path_view->flags, widget, max_path_view->sats, index);
+        MaxSatPanel *tmpSatPanel = create_sat_panel(i, max_path_view->flags, widget, max_path_view->sats, index);
         g_array_append_val(max_path_view->panels, tmpSatPanel);
 
         for (guint j = 0; j < MAX_PATH_VIEW_FIELD_NUMBER; j++)
@@ -1045,17 +901,8 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
             //multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
             g_array_append_val(max_path_view->labels, tmpSatPanel->labels[j]);
         }
-        // Some debugging stuff
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: current iteration - %d", __FILE__, __LINE__, i);
-
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-        // Load selected catnum from config
-        //multiple_sat->panels[i]->selected_catnum = selectedcatnum[i];
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Panel catnum - %d", __FILE__, __LINE__, multiple_sat->panels[i]->selected_catnum);
-
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
+        
         // Build vbox for header+table
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
 
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
@@ -1066,27 +913,17 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
         gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
         gtk_box_pack_start(GTK_BOX(vbox), tmpSatPanel->table, FALSE, FALSE, 0);
 
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
         // Place it in the 2xN grid
-        guint row = i / SATS_PER_ROW;
-        guint col = i % SATS_PER_ROW;
+        guint row = i / MAX_SATS_PER_ROW;
+        guint col = i % MAX_SATS_PER_ROW;
         gtk_grid_attach(GTK_GRID(grid), vbox, col, row, 1, 1);
         //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-
-        // Currently broken
-        // Apply selection if available
-        /*
-        if (panel->selected_catnum)
-        {
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: line called", __FILE__, __LINE__);
-            gtk_multiple_sat_select_sat(widget, panel->selected_catnum, i);
-        }
-        */
     }
     
     gtk_container_add(GTK_CONTAINER(max_path_view->swin), grid);
     gtk_box_pack_end(GTK_BOX(widget), max_path_view->swin, TRUE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), max_path_view->textbox, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), max_path_view->button, FALSE, FALSE, 0);
     gtk_widget_show_all(widget);
 
     return widget;

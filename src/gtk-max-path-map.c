@@ -722,7 +722,7 @@ void set_path_canvas_coordinates(GtkMaxPathMap *satmap) {
 
                 printf("catnr: %i, time: %f\n", satellite->tle.catnr, node->time);
                 lonlat_to_xy(satmap, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
-                capacity_points->coords[i] = x; 
+                capacity_points->coords[i] = x;
                 capacity_points->coords[i+1] = y;
             }
 
@@ -736,53 +736,20 @@ static void on_canvas_realized(GtkWidget * canvas, gpointer data)
 {
     GtkMaxPathMap      *satmap = GTK_MAX_PATH_MAP(data);
 
-    (void)canvas;
-
-    //for consistency in testing use satmap->tstamp because it doesnt change
-    //to get actual current time use time-tools.c/get_current_daynum();
-    
-    //gdouble is in days, multiply with xmnpda to convert minutes to days
-    //gdouble t_start = satmap->tstamp;
-    //gdouble t_end = satmap->tstamp + 1; //1 day
-    gdouble t_start = 2458849.5;
-    gdouble t_end = t_start + 1;
-    gdouble time_step = 0.0007;    //1 minute time step
-    
-    clock_t timer_start, timer_end;
-    double cpu_time_used;
-    timer_start = clock();
-
-    GList *sat_list = g_hash_table_get_values(satmap->sats);
-    guint sat_hist_len = 0;
-
-    //GHashtable {gint catnr : lw_sat_t[] history}
-    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
-
-    //GHashtable {gint assigned_id : qth_t station}
-    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
-    gint key1 = -1;
-    gint key2 = -2;
-    g_hash_table_insert(ground_stations, &key1, satmap->qth);
-    g_hash_table_insert(ground_stations, &key2, satmap->qth2);
- 
-    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
-    //returns GList of path_node
-    capacity_path_nodes = get_max_link_path(satmap->sats, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
-
-    g_hash_table_destroy(sat_history);
-    g_hash_table_destroy(ground_stations);
-
-    timer_end = clock();
-    cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
-    printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used); 
-    
-    set_path_canvas_coordinates(satmap);
+    (void)canvas;  
 
     goo_canvas_item_model_raise(satmap->sel, NULL);
     goo_canvas_item_model_raise(satmap->locnam, NULL);
     goo_canvas_item_model_raise(satmap->locnam2, NULL);
     goo_canvas_item_model_raise(satmap->next, NULL);
     goo_canvas_item_model_raise(satmap->curs, NULL);
+}
+
+void set_max_capacity_path(GList *path) {
+    for (GList *i = path; i != NULL; i=i->next) {
+        printf("Got values: %p\n", i->data);
+    }
+    capacity_path_nodes = path; 
 }
 
 /* Update the GtkMaxPathMap widget. Called periodically from GtkSatModule. */
@@ -801,6 +768,8 @@ void gtk_max_path_map_update(GtkWidget * widget)
     /* check whether there are any pending resize requests */
     if (satmap->resize){
         update_map_size(satmap);
+        set_path_canvas_coordinates(satmap);
+    } else if (capacity_path_nodes != NULL && capacity_points == NULL) {
         set_path_canvas_coordinates(satmap);
     }
 

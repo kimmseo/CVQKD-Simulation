@@ -5,13 +5,8 @@
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
 
-#include "gtk-sat-data.h"
-#include "gtk-sat-module.h"
-#include "sat-kdtree-utils.h"
-#include "calc-dist-two-sat.h"
-#include "skr-utils.h"
-#include "sat-graph.h"
-#include "gtk-multiple-sat.h"
+#include "qth-data.h"
+
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
@@ -19,8 +14,7 @@ extern "C" {
 #endif
 /* *INDENT-ON* */
 
-//#define NUMBER_OF_SATS 10
-#define SATS_PER_ROW 2
+#define MAX_SATS_PER_ROW 1
 
 
 /* Symbolic references to columns */
@@ -30,11 +24,6 @@ typedef enum {
     MAX_PATH_VIEW_FIELD_DIR,     // Direction, satellite on its way up or down
     MAX_PATH_VIEW_FIELD_RA,      // Right Ascension
     MAX_PATH_VIEW_FIELD_DEC,     // Declination
-    MAX_PATH_VIEW_FIELD_RANGE,   // Range
-    MAX_PATH_VIEW_FIELD_RANGE_RATE,  // Range rate
-    MAX_PATH_VIEW_FIELD_NEXT_EVENT,  // Next event AOS or LOS depending on El
-    MAX_PATH_VIEW_FIELD_AOS,     // Next AOS regardless of El
-    MAX_PATH_VIEW_FIELD_LOS,     // Next LOS regardless of El
     MAX_PATH_VIEW_FIELD_LAT,     // Latitude
     MAX_PATH_VIEW_FIELD_LON,     // Longitude
     MAX_PATH_VIEW_FIELD_SSP,     // Sub Satellite Point grid square
@@ -43,14 +32,9 @@ typedef enum {
     MAX_PATH_VIEW_FIELD_VEL,     // Velocity
     MAX_PATH_VIEW_FIELD_DOPPLER, // Doppler shift at 100 Mhz
     MAX_PATH_VIEW_FIELD_LOSS,    // Path loss at 100 Mhz
-    MAX_PATH_VIEW_FIELD_DELAY,   // Signal delay
     MAX_PATH_VIEW_FIELD_MA,      // Mean Anomaly
     MAX_PATH_VIEW_FIELD_PHASE,   // Phase
     MAX_PATH_VIEW_FIELD_ORBIT,   // Orbit number
-    MAX_PATH_VIEW_FIELD_VISIBILITY,  // Visibility
-    MAX_PATH_VIEW_FIELD_SKR_DOWN,    // Secret Key Rate downlink
-    MAX_PATH_VIEW_FIELD_SKR_UP,  // Secret Key Rate uplink
-    MAX_PATH_VIEW_FIELD_SKR_NEAREST, // Secret Key Rate (inter-sat) to nearest sat
     MAX_PATH_VIEW_FIELD_NUMBER
 } max_path_view_field_t;
 
@@ -61,11 +45,6 @@ typedef enum {
     MAX_PATH_VIEW_FLAG_DIR = 1 << MAX_PATH_VIEW_FIELD_DIR,
     MAX_PATH_VIEW_FLAG_RA = 1 << MAX_PATH_VIEW_FIELD_RA,
     MAX_PATH_VIEW_FLAG_DEC = 1 << MAX_PATH_VIEW_FIELD_DEC,
-    MAX_PATH_VIEW_FLAG_RANGE = 1 << MAX_PATH_VIEW_FIELD_RANGE,
-    MAX_PATH_VIEW_FLAG_RANGE_RATE = 1 << MAX_PATH_VIEW_FIELD_RANGE_RATE,
-    MAX_PATH_VIEW_FLAG_NEXT_EVENT = 1 << MAX_PATH_VIEW_FIELD_NEXT_EVENT,
-    MAX_PATH_VIEW_FLAG_AOS = 1 << MAX_PATH_VIEW_FIELD_AOS,
-    MAX_PATH_VIEW_FLAG_LOS = 1 << MAX_PATH_VIEW_FIELD_LOS,
     MAX_PATH_VIEW_FLAG_LAT = 1 << MAX_PATH_VIEW_FIELD_LAT,
     MAX_PATH_VIEW_FLAG_LON = 1 << MAX_PATH_VIEW_FIELD_LON,
     MAX_PATH_VIEW_FLAG_SSP = 1 << MAX_PATH_VIEW_FIELD_SSP,
@@ -74,15 +53,31 @@ typedef enum {
     MAX_PATH_VIEW_FLAG_VEL = 1 << MAX_PATH_VIEW_FIELD_VEL,
     MAX_PATH_VIEW_FLAG_DOPPLER = 1 << MAX_PATH_VIEW_FIELD_DOPPLER,
     MAX_PATH_VIEW_FLAG_LOSS = 1 << MAX_PATH_VIEW_FIELD_LOSS,
-    MAX_PATH_VIEW_FLAG_DELAY = 1 << MAX_PATH_VIEW_FIELD_DELAY,
     MAX_PATH_VIEW_FLAG_MA = 1 << MAX_PATH_VIEW_FIELD_MA,
     MAX_PATH_VIEW_FLAG_PHASE = 1 << MAX_PATH_VIEW_FIELD_PHASE,
     MAX_PATH_VIEW_FLAG_ORBIT = 1 << MAX_PATH_VIEW_FIELD_ORBIT,
-    MAX_PATH_VIEW_FLAG_VISIBILITY = 1 << MAX_PATH_VIEW_FIELD_VISIBILITY,
-    MAX_PATH_VIEW_FLAG_SKR_DOWN = 1 << MAX_PATH_VIEW_FIELD_SKR_DOWN,
-    MAX_PATH_VIEW_FLAG_SKR_UP = 1 << MAX_PATH_VIEW_FIELD_SKR_UP,
-    MAX_PATH_VIEW_FLAG_SKR_NEAREST = 1 << MAX_PATH_VIEW_FIELD_SKR_NEAREST
 } max_path_view_flag_t;
+
+// Helper struct to define a satellite panel
+typedef struct {
+    GtkWidget *header;
+    GtkWidget *table;
+    GtkWidget *popup_button;
+    GtkWidget *labels[MAX_PATH_VIEW_FIELD_NUMBER];
+    gint selected_catnum;
+} MaxSatPanel;
+
+// Helper structs for callback
+typedef struct {
+    GtkWidget *parent;
+    guint index;
+    gint selectedIndex;
+} MaxPopupCallbackData;
+
+typedef struct {
+    GtkWidget *parent;
+    guint index;
+} MaxSelectSatCallbackData;
 
 
 #define GTK_TYPE_MAX_PATH_VIEW           (gtk_max_path_view_get_type())
@@ -104,6 +99,13 @@ struct _gtk_max_path_view {
 
     //GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
     GArray          *labels;
+
+    GtkWidget       *textbox;   //temp: test tile or something
+
+    GHashTable      *satsTable;         //ToDo: maybe can fix get-max-capacity-path to use lists instead
+    GList           *max_capacity_path;
+
+    GtkWidget       *button;    //temp
 
     GtkWidget       *swin;      // Scrolled window
 
@@ -128,8 +130,6 @@ struct _gtk_max_path_view {
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 
     void            (*update) (GtkWidget * widget, guint index);     /*!< update function */
-
-    Kdtree          *kdtree;    // k-d tree to hold satellites
 };
 
 struct _GtkMaxPathViewClass {
