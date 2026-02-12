@@ -20,7 +20,6 @@
 
 #include "max-capacity-path/link-capacity-path.h"
 #include "max-capacity-path/satellite-history.h"
-#include "gtk-max-path-map.h"
 
 
 /* Column titles indexed with column symb. refs */
@@ -63,6 +62,7 @@ const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
 };
 
 static GtkBoxClass *parent_class = NULL;
+
 
 
 static void gtk_max_path_view_destroy(GtkWidget * widget)
@@ -797,7 +797,7 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
     printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
 
-    set_max_capacity_path(obj->max_capacity_path);
+    g_signal_emit_by_name(obj, "update_path");
 }
 
 
@@ -813,7 +813,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
                                    GTK_ORIENTATION_VERTICAL);
     max_path_view = GTK_MAX_PATH_VIEW(widget);
 
-    max_path_view->update = gtk_max_path_view_update;
+    max_path_view->update = gtk_max_path_view_update; 
 
     // Read configuration data
     /* ... */
@@ -865,6 +865,9 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
 
     max_path_view->satsTable = sats;
     max_path_view->button = gtk_button_new_with_label("Calculate Path");
+
+    g_signal_new("update-path", G_TYPE_FROM_INSTANCE(max_path_view),
+        G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 
     g_signal_connect(max_path_view->button, "clicked", G_CALLBACK(calculate_max_capacity_path), max_path_view);
 

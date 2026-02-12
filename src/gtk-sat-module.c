@@ -204,6 +204,19 @@ static void update_autotrack_second_sat(GtkSatModule * module)
     g_list_free(satlist);
 }
 
+static void update_max_capacity_path_callback(GtkWidget *view, gpointer user_data) {
+    (void)view;
+    GtkSatModule *module = (GtkSatModule *)user_data;
+    GtkMaxPathView *path_view = GTK_MAX_PATH_VIEW(view);
+
+    for (GSList *i = module->views; i != NULL; i = i->next) {
+       if (GTK_IS_MAX_PATH_MAP(i->data)) {
+            GtkMaxPathMap *map = GTK_MAX_PATH_MAP(i->data);
+            set_max_capacity_path(map, path_view->max_capacity_path);
+       } 
+    }
+}
+
 static void gtk_sat_module_destroy(GtkWidget * widget)
 {
     GtkSatModule   *module = GTK_SAT_MODULE(widget);
@@ -448,7 +461,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
     case GTK_SAT_MOD_VIEW_MAXPATH:
         view = gtk_max_path_view_new(module->cfgdata,
                                     module->satellites, module->qth, 0);
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtMaxPathView case called", __FILE__, __LINE__);
+        g_signal_connect(view, "update-path", G_CALLBACK(update_max_capacity_path_callback), module);
         break;
     case GTK_SAT_MOD_VIEW_PATHMAP:
         view = gtk_max_path_map_new(module->cfgdata,

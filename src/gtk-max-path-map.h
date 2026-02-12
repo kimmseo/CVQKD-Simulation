@@ -21,7 +21,7 @@ extern "C" {
 #define MAX_PATH_MAP_RANGE_CIRCLE_POINTS    180      /*!< Number of points used to plot a satellite range half circle. */
 
 #define GTK_MAX_PATH_MAP(obj)          G_TYPE_CHECK_INSTANCE_CAST (obj, gtk_max_path_map_get_type (), GtkMaxPathMap)
-#define GTK_SAX_PATH_MAP_CLASS(klass)  G_TYPE_CHECK_CLASS_CAST (klass, gtk_max_path_map_get_type (), GtkMaxPathMapClass)
+#define GTK_MAX_PATH_MAP_CLASS(klass)  G_TYPE_CHECK_CLASS_CAST (klass, gtk_max_path_map_get_type (), GtkMaxPathMapClass)
 #define GTK_IS_MAX_PATH_MAP(obj)       G_TYPE_CHECK_INSTANCE_TYPE (obj, gtk_max_path_map_get_type ())
 #define GTK_TYPE_MAX_PATH_MAP          (gtk_max_path_map_get_type ())
 #define IS_GTK_MAX_PATH_MAP(obj)       G_TYPE_CHECK_INSTANCE_TYPE (obj, gtk_max_path_map_get_type ())
@@ -103,6 +103,10 @@ typedef struct {
     GooCanvasItemModel *gridh[5];       /*!< Horizontal grid lines, 30 deg resolution. */
     GooCanvasItemModel *gridhlab[5];    /*!< Horizontal grid labels. */
 
+    GooCanvasItemModel *capacity_path_line;     /*!< Stroke properties for drawing line */
+    GooCanvasPoints *capacity_points;           /*!< X,Y coordinates of points along line */
+    GList *capacity_path_nodes;                 /*!< X,Y coordinates of points along line */
+
     GooCanvasItemModel *terminator;     /*!< Outline of sun shadow on Earth. */
 
     gdouble         terminator_last_tstamp;     /*!< Timestamp of the last terminator drawn. Used to prevent redrawing the terminator too often. */
@@ -160,7 +164,7 @@ void            gtk_max_path_map_lonlat_to_xy(GtkMaxPathMap * m,
 void            gtk_max_path_map_reload_sats(GtkWidget * satmap, GHashTable * sats);
 void            gtk_max_path_map_select_sat(GtkWidget * satmap, gint catnum);
 
-void            set_max_capacity_path(GList *path);
+void            set_max_capacity_path(GtkMaxPathMap *map, GList *path);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
