@@ -5,7 +5,7 @@
 #include "transfer-time.h"
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
-void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type);
+void tdsp_node_from_GSList(GArray *tdsp_array, GSList *list, path_type type);
 GList *TDSP_fixed_size(
     GArray *const_tdsp_array,
     GHashTable *sat_history,
@@ -27,10 +27,10 @@ GList *TDSP_fixed_size(
  * running modified time-dependent Dijkstra.
  */
 GList *get_max_link_path(
-    GHashTable *sats, 
+    GSList *sats, 
     GHashTable *sat_history,
     guint sat_hist_len,
-    GHashTable *ground_stations,
+    GSList *ground_stations,
     double t_start, 
     double t_end, 
     double time_step) {
@@ -41,8 +41,8 @@ GList *get_max_link_path(
     printf("start time %f\n", t_start);
 
     GArray *nodes = g_array_new(FALSE, TRUE, sizeof(tdsp_node));
-    tdsp_node_from_table(nodes, sats, path_SATELLITE);
-    tdsp_node_from_table(nodes, ground_stations, path_STATION);
+    tdsp_node_from_GSList(nodes, sats, path_SATELLITE);
+    tdsp_node_from_GSList(nodes, ground_stations, path_STATION);
 
     gdouble low = 0;
     gdouble high = 25000000;
@@ -57,7 +57,7 @@ GList *get_max_link_path(
         mid = (low + high) / 2.0;
 
         printf("trying for data size %f kilobytes\n", mid);
-        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, 39466, t_start, t_end, time_step);
+        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, -2, t_start, t_end, time_step);
         
         if (attempt != NULL) {
 
@@ -89,22 +89,19 @@ GList *get_max_link_path(
     return best_so_far;
 }
 
-void tdsp_node_from_table(GArray *tdsp_array, GHashTable *table, path_type type) {
-    GList *list = g_hash_table_get_keys(table);
-
-    for (GList *current = list; current != NULL; current = current->next) {
+void tdsp_node_from_GSList(GArray *tdsp_array, GSList *list, path_type type) {
+    gint i = -1;
+    for (GSList *current = list; current != NULL; current = current->next) {
         tdsp_node node = {
             .prev_node = NULL,
-            .node.id = *(gint *)current->data,
+            .node.id = (type == path_STATION ? i : ((sat_t *)current->data)->tle.catnr),
             .node.time = G_MAXDOUBLE,
             .node.type = type,
-            .node.obj = g_hash_table_lookup(table, (gint *)current->data)
-        };
-
+            .node.obj = current->data
+        }; 
         g_array_append_val(tdsp_array, node);
+        i--;
     }
-
-    g_list_free(list);
 }
 
 // Time-dependent shortest path for a data amount of fixed size. Modified Dijkstra

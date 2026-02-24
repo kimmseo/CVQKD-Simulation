@@ -460,7 +460,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
 
     case GTK_SAT_MOD_VIEW_MAXPATH:
         view = gtk_max_path_view_new(module->cfgdata,
-                                    module->satellites, module->qth, 0);
+                                    module->satellites, module->qth, module->qth2, 0);
         g_signal_connect(view, "update-path", G_CALLBACK(update_max_capacity_path_callback), module);
         break;
     case GTK_SAT_MOD_VIEW_PATHMAP:

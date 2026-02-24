@@ -2,10 +2,10 @@
 #include "path-util.h"
 
 GList *get_max_link_path(
-    GHashTable *sats, 
+    GSList *sats, 
     GHashTable *sat_history,
     guint sat_hist_len,
-    GHashTable *ground_stations,
+    GSList *ground_stations,
     double t_start, 
     double t_end, 
     double time_step);

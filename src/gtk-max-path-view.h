@@ -15,6 +15,7 @@ extern "C" {
 /* *INDENT-ON* */
 
 #define MAX_SATS_PER_ROW 1
+#define UNUSED(x) (void)(x)
 
 
 /* Symbolic references to columns */
@@ -100,12 +101,9 @@ struct _gtk_max_path_view {
     //GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
     GArray          *labels;
 
-    GtkWidget       *textbox;   //temp: test tile or something
-
-    GHashTable      *satsTable;         //ToDo: maybe can fix get-max-capacity-path to use lists instead
     GList           *max_capacity_path;
 
-    GtkWidget       *button;    //temp
+    GtkWidget       *search_controls;
 
     GtkWidget       *swin;      // Scrolled window
 
@@ -116,9 +114,11 @@ struct _gtk_max_path_view {
     
     //GtkWidget       *popup_button[NUMBER_OF_SATS];  // Popup button
 
-    GKeyFile        *cfgdata;       // Configuration data
+    GKeyFile        *cfgdata;   // Configuration data
     GSList          *sats;      // Satellites
+    GSList          *qths;
     qth_t           *qth;       // Pointer to current location
+    qth_t           *qth2;      //TEMP: replace this and qth with qth_t GSList
 
     guint32         flags;      // Flags indicating which columns are visible
     guint           refresh;    // Refresh rate
@@ -137,9 +137,11 @@ struct _GtkMaxPathViewClass {
 };
 
 GType           gtk_max_path_view_get_type(void);
-GtkWidget       *gtk_max_path_view_new(GKeyFile * cfgdata,
-                                      GHashTable * sats,
-                                      qth_t * qth, guint fields);
+GtkWidget       *gtk_max_path_view_new(GKeyFile * cfgdata, 
+                                        GHashTable * sats, 
+                                        qth_t * qth, 
+                                        qth_t * qth2, 
+                                        guint32 fields);
 void            gtk_max_path_view_update(GtkWidget * widget, guint index);
 void            gtk_max_path_view_reconf(GtkWidget * widget,
                                         GKeyFile * newcfg,

@@ -4,6 +4,7 @@
 
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <ctype.h>
 
 #include "config-keys.h"
 #include "gpredict-utils.h"
@@ -745,8 +746,8 @@ static MaxSatPanel *create_sat_panel(gint index, guint32 flags,
             panel->labels[i] = label2;
             
             // Add tooltips
-            gtk_widget_set_tooltip_text(label1, "NONESENSE");
-            gtk_widget_set_tooltip_text(label2, "NONESENSE 2");
+            gtk_widget_set_tooltip_text(label1, MAX_PATH_VIEW_FIELD_HINT[i]);
+            gtk_widget_set_tooltip_text(label2, MAX_PATH_VIEW_FIELD_HINT[i]);
 
             label1 = gtk_label_new(":");
             gtk_grid_attach(GTK_GRID(panel->table), label1, 1, i, 1, 1);
@@ -775,23 +776,14 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     double cpu_time_used;
     timer_start = clock();
 
-    GList *sat_list = g_hash_table_get_values(obj->satsTable);
     guint sat_hist_len = 0;
-
     //GHashtable {gint catnr : lw_sat_t[] history}
-    GHashTable *sat_history = generate_sat_pos_data(sat_list, &sat_hist_len, t_start, t_end, time_step);
-
-    //GHashtable {gint assigned_id : qth_t station}
-    GHashTable *ground_stations = g_hash_table_new(g_int_hash, g_int_equal);
-    gint key1 = -1;
-    g_hash_table_insert(ground_stations, &key1, obj->qth);
+    GHashTable *sat_history = generate_sat_pos_data(obj->sats, &sat_hist_len, t_start, t_end, time_step);
  
-    //get_all_link_capacities(satmap->sats, 1, t_start, t_end, time_step);
     //returns GList of path_node
-    obj->max_capacity_path = get_max_link_path(obj->satsTable, sat_history, sat_hist_len, ground_stations, t_start, t_end, time_step);    
+    obj->max_capacity_path = get_max_link_path(obj->sats, sat_history, sat_hist_len, obj->qths, t_start, t_end, time_step);    
 
     g_hash_table_destroy(sat_history);
-    g_hash_table_destroy(ground_stations);
 
     timer_end = clock();
     cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
@@ -800,9 +792,206 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     g_signal_emit_by_name(obj, "update_path");
 }
 
+void update_time_display(GtkWidget *entry, gpointer data) { 
+    GtkWidget *display = (GtkWidget *)data;
+    const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry)); 
+    
+    gdouble val = strtod(text, NULL);
+
+    //daynum_to_str can only handle 12 digits before . numbers
+    if (val > 999999999) {
+        gtk_label_set_text(GTK_LABEL(display), "number too big");
+        return;
+    }
+
+    char msg[50];
+    char fmt[] = "%d/%m/%G - %H:%M";
+
+    daynum_to_str(msg, 50, fmt, val);
+
+    gtk_label_set_text(GTK_LABEL(display), msg);
+}
+
+gboolean entry_lost_focus_cb(GtkWidget *self, GdkEventFocus *event, gpointer user_data) {
+    UNUSED(event);
+    update_time_display(self, user_data);
+
+    return FALSE;
+}
+
+void float_only_input(GtkEditable *editable, const gchar *text, gint length, gint *position, gpointer data) {
+    UNUSED(position);
+    UNUSED(data);
+
+    int already_dot = FALSE;
+
+    gchar *cur_text = gtk_editable_get_chars(editable, 0, -1);
+    for (int i = 0; cur_text[i] != '\0'; i++) {
+        if (cur_text[i] == '.') {
+            already_dot = TRUE;
+            break;
+        }
+    }
+
+    for (int i = 0; i < length; i++) { 
+        if ((text[i] == '.' && already_dot) ||
+            (text[i] != '.' && !isdigit(text[i]))) {
+            g_signal_stop_emission_by_name(G_OBJECT(editable), "insert-text");
+            return;
+        }
+    }
+}
+
+GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
+    GtkWidget *label;
+
+    GtkWidget *controls = gtk_grid_new();    
+
+    gtk_grid_set_column_spacing(GTK_GRID(controls), 5);
+    gtk_grid_set_row_spacing(GTK_GRID(controls), 5);
+    gtk_container_set_border_width(GTK_CONTAINER(controls), 10);
+
+    //start location
+    label = gtk_label_new("Source:");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 0, 1, 1);
+
+    GtkWidget *src_select =  gtk_combo_box_text_new();
+    g_object_set(src_select, "hexpand", TRUE, NULL);
+    gtk_grid_attach(GTK_GRID(controls), src_select, 1, 0, 3, 1);
+
+    //end location
+    label = gtk_label_new("Destination:");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 1, 1, 1);
+
+    GtkWidget *dst_select =  gtk_combo_box_text_new();
+    g_object_set(dst_select, "hexpand", TRUE, NULL);
+    gtk_grid_attach(GTK_GRID(controls), dst_select, 1, 1, 3, 1);
+
+    //Add names to drop down selectors
+    for (GSList *i = max_path_view->qths; i != NULL; i=i->next) {
+        qth_t *station = (qth_t *)i->data;
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(src_select), station->name); 
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(dst_select), station->name); 
+    }
+   
+    //max data size
+    label = gtk_label_new("Max Data:");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 3, 1, 1);
+
+    GtkWidget *data = gtk_spin_button_new_with_range(0.00, G_MAXDOUBLE - 10, 0.0001);
+    gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(data), TRUE);
+    gtk_spin_button_set_increments(GTK_SPIN_BUTTON(data), 10, 1.0);
+    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(data), 3);
+
+    GtkWidget *kb_vs_gb= gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(kb_vs_gb), "  Gb  ");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(kb_vs_gb), "  Kb  ");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(kb_vs_gb), 0);
+    gtk_widget_set_halign(kb_vs_gb, GTK_ALIGN_END);
+
+    GtkWidget *overlay = gtk_overlay_new();
+    gtk_container_add(GTK_CONTAINER(overlay), data);
+    gtk_overlay_add_overlay(GTK_OVERLAY(overlay), kb_vs_gb);
+    
+    gtk_grid_attach(GTK_GRID(controls), overlay, 1, 3, 3, 1);
+
+    //reduce min required space by child widgets, allow window to be resize smaller
+    /*
+    GList *renderers;
+    GtkCellRenderer *renderer;
+    GtkWidget *elements[3] = {kb_vs_gb, dst_select, src_select};
+    for (int i = 0; i < (int)(sizeof(elements)/sizeof(GtkWidget *)); i++) {
+        renderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(elements[i]));
+        if (renderers != NULL) {
+            renderer = GTK_CELL_RENDERER(renderers->data);
+            g_object_set(renderer, 
+                        "width-chars", 1,
+                        "ellipsize", PANGO_ELLIPSIZE_END, 
+                        NULL);
+
+            g_list_free(renderers);
+        }   
+    }
+    */
+
+    gdouble daynum_val = get_current_daynum();
+    char daynum_str[20];
+    snprintf(daynum_str, 20, "%f", daynum_val);
+    
+    char daynum_fmted[50];
+    char fmt[] = "%d/%m/%G - %H:%M";
+    daynum_to_str(daynum_fmted, 50, fmt, daynum_val);
+
+    //time start
+    label = gtk_label_new("time start:");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 4, 1, 1);
+
+    GtkWidget *start_display = gtk_label_new(daynum_fmted);
+    gtk_grid_attach(GTK_GRID(controls), start_display, 1, 5, 3, 1);
+
+    GtkWidget *time_start = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(time_start), daynum_str);
+    g_signal_connect(time_start, "insert-text", G_CALLBACK(float_only_input), NULL);
+    g_signal_connect(time_start, "focus-out-event", G_CALLBACK(entry_lost_focus_cb), start_display);
+    g_signal_connect(time_start, "activate", G_CALLBACK(update_time_display), start_display);
+    gtk_grid_attach(GTK_GRID(controls), time_start, 1, 4, 3, 1);
+
+    //time end
+    label = gtk_label_new("time end:");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 6, 1, 1);
+
+    GtkWidget *end_display = gtk_label_new(daynum_fmted);
+    gtk_grid_attach(GTK_GRID(controls), end_display, 1, 7, 3, 1);
+
+    GtkWidget *time_end = gtk_entry_new();
+    gtk_entry_set_text(GTK_ENTRY(time_end), daynum_str);
+    g_signal_connect(time_end, "insert-text", G_CALLBACK(float_only_input), NULL);
+    g_signal_connect(time_end, "focus-out-event", G_CALLBACK(entry_lost_focus_cb), end_display);
+    g_signal_connect(time_end, "activate", G_CALLBACK(update_time_display), end_display);
+    gtk_grid_attach(GTK_GRID(controls), time_end, 1, 6, 3, 1);
+
+    //time steps
+    label = gtk_label_new("Step Size:"); 
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 8, 1, 1);
+
+    GtkWidget *time_step = gtk_spin_button_new_with_range(0.00, G_MAXDOUBLE - 10, 0.0001);
+    gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(time_step), TRUE);
+    gtk_spin_button_set_increments(GTK_SPIN_BUTTON(time_step), 10, 1.0);
+    gtk_spin_button_set_digits(GTK_SPIN_BUTTON(time_step), 3);
+
+    GtkWidget *sec_vs_min = gtk_combo_box_text_new();
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(sec_vs_min), " Min  ");
+    gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(sec_vs_min), " Sec  ");
+    gtk_combo_box_set_active(GTK_COMBO_BOX(sec_vs_min), 0);
+    gtk_widget_set_halign(sec_vs_min, GTK_ALIGN_END);
+
+    GtkWidget *t_overlay = gtk_overlay_new();
+    gtk_container_add(GTK_CONTAINER(t_overlay), time_step);
+    gtk_overlay_add_overlay(GTK_OVERLAY(t_overlay), sec_vs_min);
+    
+    gtk_grid_attach(GTK_GRID(controls), t_overlay, 1, 8, 3, 1);
+
+    //button
+    GtkWidget *button = gtk_button_new_with_label("Calculate Path");
+    gtk_grid_attach(GTK_GRID(controls), button, 0, 9, 4, 1);
+
+    g_signal_new("update-path", G_TYPE_FROM_INSTANCE(max_path_view),
+        G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
+
+    g_signal_connect(button, "clicked", G_CALLBACK(calculate_max_capacity_path), max_path_view);
+    
+    return controls;
+}
+
 
 GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
-                                qth_t * qth, guint32 fields)
+                                qth_t * qth, qth_t * qth2, guint32 fields)
 {
     GtkWidget       *widget;
     GtkMaxPathView  *max_path_view;
@@ -830,8 +1019,12 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     
     max_path_view->qth = qth;
-    max_path_view->cfgdata = cfgdata;
+    max_path_view->qth2 = qth2;
 
+    max_path_view->qths = g_slist_append(NULL, qth);
+    max_path_view->qths = g_slist_append(max_path_view->qths, qth2);
+    
+    max_path_view->cfgdata = cfgdata;
 
     // Initialise column flags
     if (fields > 0)
@@ -860,16 +1053,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     max_path_view->counter = 1;
 
-    //should be empty text box 
-    max_path_view->textbox = gtk_label_new("THIS IS THE MAX PATH MODE");
-
-    max_path_view->satsTable = sats;
-    max_path_view->button = gtk_button_new_with_label("Calculate Path");
-
-    g_signal_new("update-path", G_TYPE_FROM_INSTANCE(max_path_view),
-        G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
-
-    g_signal_connect(max_path_view->button, "clicked", G_CALLBACK(calculate_max_capacity_path), max_path_view);
+    max_path_view->search_controls = gen_search_controls(max_path_view); 
 
     // Make a grid, then populate the grid using SatPanels
     // Create a scrollable area
@@ -925,8 +1109,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     
     gtk_container_add(GTK_CONTAINER(max_path_view->swin), grid);
     gtk_box_pack_end(GTK_BOX(widget), max_path_view->swin, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(widget), max_path_view->textbox, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(widget), max_path_view->button, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0);
     gtk_widget_show_all(widget);
 
     return widget;
