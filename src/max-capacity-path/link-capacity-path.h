@@ -1,14 +1,13 @@
 #include <glib/gi18n.h>
 #include "path-util.h"
 
+
 GList *get_max_link_path(
-    GSList *sats, 
+    GSList *sats,
     GHashTable *sat_history,
     guint sat_hist_len,
     GSList *ground_stations,
-    double t_start, 
-    double t_end, 
-    double time_step);
+    MaxSearchParams *params);
 
 GList *TDSP_fixed_size(
     GArray *const_tdsp_array,

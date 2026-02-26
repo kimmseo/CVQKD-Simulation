@@ -4,6 +4,15 @@
 #ifndef PATH_UTIL_H
 #define PATH_UTIL_H
 
+typedef struct {
+    gchar *src;
+    gchar *dst;
+    gdouble max_data;
+    gdouble t_start;
+    gdouble t_end;
+    gdouble t_step;
+} MaxSearchParams;
+
 typedef enum {
     path_STATION,
     path_SATELLITE

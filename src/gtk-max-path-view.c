@@ -761,16 +761,69 @@ static MaxSatPanel *create_sat_panel(gint index, guint32 flags,
     return panel;
 }
 
+gdouble get_overlay_values(GtkWidget *overlay, gchar **text) {
+    GList *children = gtk_container_get_children(GTK_CONTAINER(overlay));
+    gdouble value = 0;
+   
+    for (GList *child = children; child != NULL; child = child->next) {
+        GtkWidget *w_child = (GtkWidget *)child->data;
+        if (IS_GTK_COMBO_BOX_TEXT(w_child)) {
+            *text = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(w_child));
+        } else if (IS_GTK_SPIN_BUTTON(w_child)) {
+            value = gtk_spin_button_get_value(GTK_SPIN_BUTTON(w_child));
+        } 
+    }
+
+    return value;
+}
+
+MaxSearchParams *get_path_search_fields(GtkWidget *controls) {
+    MaxSearchParams *params = malloc(sizeof(MaxSearchParams));
+
+    GtkWidget *src_select = gtk_grid_get_child_at(GTK_GRID(controls), 1, 0);
+    params->src = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(src_select));
+    if (params->src == NULL) return NULL;
+
+    GtkWidget *dst_select = gtk_grid_get_child_at(GTK_GRID(controls), 1, 1);
+    params->dst = gtk_combo_box_text_get_active_text(GTK_COMBO_BOX_TEXT(dst_select));
+    if (params->dst == NULL) return NULL;
+
+    GtkWidget *overlay = gtk_grid_get_child_at(GTK_GRID(controls), 1, 2); 
+    gchar *unit = NULL;
+    gdouble val = get_overlay_values(overlay, &unit);
+
+    if (unit == NULL) return NULL;
+    
+    if (strcmp(unit, "  Gb  ") == 0) val *= 1000;
+    params->max_data = val;
+
+    GtkWidget *time_start = gtk_grid_get_child_at(GTK_GRID(controls), 1, 3);
+    params->t_start = strtod(gtk_entry_get_text(GTK_ENTRY(time_start)), NULL);
+
+    GtkWidget *time_end = gtk_grid_get_child_at(GTK_GRID(controls), 1, 5);
+    params->t_end = strtod(gtk_entry_get_text(GTK_ENTRY(time_end)), NULL);
+
+    GtkWidget *t_overlay = gtk_grid_get_child_at(GTK_GRID(controls), 1, 7);
+    unit = NULL;
+    val  = get_overlay_values(t_overlay, &unit);
+    if (unit == NULL) return NULL;
+
+    if (strcmp(unit, " Sec  ") == 0) val /= 60;
+    //val in minutes divided by # minutes per day = val in days
+    params->t_step = val / xmnpda;
+
+    return params;
+}
+
 void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     (void)button;
     GtkMaxPathView *obj = (GtkMaxPathView *)data;
-    
-    //to get actual current time use time-tools.c/get_current_daynum();
+
+    MaxSearchParams *search = get_path_search_fields(obj->search_controls);
+    if (search == NULL) {
+        return;
+    }   
     //gdouble is in days, multiply with xmnpda to convert minutes to days
-    
-    gdouble t_start = 2458849.5;
-    gdouble t_end = t_start + 1;
-    gdouble time_step = 0.0007;    //1 minute time step
     
     clock_t timer_start, timer_end;
     double cpu_time_used;
@@ -778,10 +831,20 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
 
     guint sat_hist_len = 0;
     //GHashtable {gint catnr : lw_sat_t[] history}
-    GHashTable *sat_history = generate_sat_pos_data(obj->sats, &sat_hist_len, t_start, t_end, time_step);
+    GHashTable *sat_history = generate_sat_pos_data(
+        obj->sats, 
+        &sat_hist_len, 
+        search->t_start, 
+        search->t_end, 
+        search->t_step);
  
     //returns GList of path_node
-    obj->max_capacity_path = get_max_link_path(obj->sats, sat_history, sat_hist_len, obj->qths, t_start, t_end, time_step);    
+    obj->max_capacity_path = get_max_link_path(
+        obj->sats, 
+        sat_history, 
+        sat_hist_len, 
+        obj->qths,
+        search);    
 
     g_hash_table_destroy(sat_history);
 
@@ -794,9 +857,8 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
 
 void update_time_display(GtkWidget *entry, gpointer data) { 
     GtkWidget *display = (GtkWidget *)data;
-    const gchar *text = gtk_entry_get_text(GTK_ENTRY(entry)); 
     
-    gdouble val = strtod(text, NULL);
+    gdouble val = strtod(gtk_entry_get_text(GTK_ENTRY(entry)), NULL);
 
     //daynum_to_str can only handle 12 digits before . numbers
     if (val > 999999999) {
@@ -879,7 +941,7 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     //max data size
     label = gtk_label_new("Max Data:");
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
-    gtk_grid_attach(GTK_GRID(controls), label, 0, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 2, 1, 1);
 
     GtkWidget *data = gtk_spin_button_new_with_range(0.00, G_MAXDOUBLE - 10, 0.0001);
     gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(data), TRUE);
@@ -896,7 +958,7 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     gtk_container_add(GTK_CONTAINER(overlay), data);
     gtk_overlay_add_overlay(GTK_OVERLAY(overlay), kb_vs_gb);
     
-    gtk_grid_attach(GTK_GRID(controls), overlay, 1, 3, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), overlay, 1, 2, 3, 1);
 
     //reduce min required space by child widgets, allow window to be resize smaller
     /*
@@ -928,37 +990,37 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     //time start
     label = gtk_label_new("time start:");
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
-    gtk_grid_attach(GTK_GRID(controls), label, 0, 4, 1, 1);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 3, 1, 1);
 
     GtkWidget *start_display = gtk_label_new(daynum_fmted);
-    gtk_grid_attach(GTK_GRID(controls), start_display, 1, 5, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), start_display, 1, 4, 3, 1);
 
     GtkWidget *time_start = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(time_start), daynum_str);
     g_signal_connect(time_start, "insert-text", G_CALLBACK(float_only_input), NULL);
     g_signal_connect(time_start, "focus-out-event", G_CALLBACK(entry_lost_focus_cb), start_display);
     g_signal_connect(time_start, "activate", G_CALLBACK(update_time_display), start_display);
-    gtk_grid_attach(GTK_GRID(controls), time_start, 1, 4, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), time_start, 1, 3, 3, 1);
 
     //time end
     label = gtk_label_new("time end:");
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
-    gtk_grid_attach(GTK_GRID(controls), label, 0, 6, 1, 1);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 5, 1, 1);
 
     GtkWidget *end_display = gtk_label_new(daynum_fmted);
-    gtk_grid_attach(GTK_GRID(controls), end_display, 1, 7, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), end_display, 1, 6, 3, 1);
 
     GtkWidget *time_end = gtk_entry_new();
     gtk_entry_set_text(GTK_ENTRY(time_end), daynum_str);
     g_signal_connect(time_end, "insert-text", G_CALLBACK(float_only_input), NULL);
     g_signal_connect(time_end, "focus-out-event", G_CALLBACK(entry_lost_focus_cb), end_display);
     g_signal_connect(time_end, "activate", G_CALLBACK(update_time_display), end_display);
-    gtk_grid_attach(GTK_GRID(controls), time_end, 1, 6, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), time_end, 1, 5, 3, 1);
 
     //time steps
     label = gtk_label_new("Step Size:"); 
     g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
-    gtk_grid_attach(GTK_GRID(controls), label, 0, 8, 1, 1);
+    gtk_grid_attach(GTK_GRID(controls), label, 0, 7, 1, 1);
 
     GtkWidget *time_step = gtk_spin_button_new_with_range(0.00, G_MAXDOUBLE - 10, 0.0001);
     gtk_spin_button_set_numeric(GTK_SPIN_BUTTON(time_step), TRUE);
@@ -975,11 +1037,11 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     gtk_container_add(GTK_CONTAINER(t_overlay), time_step);
     gtk_overlay_add_overlay(GTK_OVERLAY(t_overlay), sec_vs_min);
     
-    gtk_grid_attach(GTK_GRID(controls), t_overlay, 1, 8, 3, 1);
+    gtk_grid_attach(GTK_GRID(controls), t_overlay, 1, 7, 3, 1);
 
     //button
     GtkWidget *button = gtk_button_new_with_label("Calculate Path");
-    gtk_grid_attach(GTK_GRID(controls), button, 0, 9, 4, 1);
+    gtk_grid_attach(GTK_GRID(controls), button, 0, 8, 4, 1);
 
     g_signal_new("update-path", G_TYPE_FROM_INSTANCE(max_path_view),
         G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);

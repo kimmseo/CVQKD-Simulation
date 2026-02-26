@@ -89,6 +89,8 @@ typedef struct {
                                            gtk_max_path_view_get_type (),\
                                            GtkMaxPathViewClass)
 #define IS_GTK_MAX_PATH_VIEW(obj)        G_TYPE_CHECK_INSTANCE_TYPE(obj, gtk_max_path_view_get_type ())
+#define IS_GTK_COMBO_BOX_TEXT(obj)       G_TYPE_CHECK_INSTANCE_TYPE(obj, gtk_combo_box_text_get_type ())
+#define IS_GTK_SPIN_BUTTON(obj)          G_TYPE_CHECK_INSTANCE_TYPE(obj, gtk_spin_button_get_type ())
 
 typedef struct _gtk_max_path_view GtkMaxPathView;
 typedef struct _GtkMaxPathViewClass GtkMaxPathViewClass;

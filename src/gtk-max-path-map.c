@@ -702,8 +702,7 @@ void set_path_canvas_coordinates(GtkMaxPathMap *map) {
             gfloat x, y;
 
             if (node->type == path_STATION) {
-                qth_t *station = node->obj;
-                printf("name: %s, time: %f\n", station->name, node->time);
+                qth_t *station = node->obj; 
                 lonlat_to_xy(map, station->lon, station->lat, &x, &y);
                 map->capacity_points->coords[i] = x; 
                 map->capacity_points->coords[i+1] = y;
@@ -716,13 +715,11 @@ void set_path_canvas_coordinates(GtkMaxPathMap *map) {
                 qth_t dummy_q = {0};
                 predict_calc(&dummy_s, &dummy_q, node->time);
 
-                printf("catnr: %i, time: %f\n", satellite->tle.catnr, node->time);
                 lonlat_to_xy(map, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
                 map->capacity_points->coords[i] = x;
                 map->capacity_points->coords[i+1] = y;
             }
 
-            printf("added points: x: %f, y: %f\n", map->capacity_points->coords[i], map->capacity_points->coords[i+1]);
             i += 2;
         }
     }

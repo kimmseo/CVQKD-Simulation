@@ -1,11 +1,13 @@
 #include <glib/gi18n.h>
 #include <stdio.h>
+#include "link-capacity-path.h"
+#include "../qth-data.h"
 #include "path-util.h"
 #include "transfer-heap.h"
 #include "transfer-time.h"
 
 gboolean catnr_equal(gconstpointer a, gconstpointer b);
-void tdsp_node_from_GSList(GArray *tdsp_array, GSList *list, path_type type);
+void tdsp_node_from_GSList(GArray *tdsp_array, gchar *src_name, gchar *dst_name, gint *src_i, gint *dst_i, GSList *list, path_type type);
 GList *TDSP_fixed_size(
     GArray *const_tdsp_array,
     GHashTable *sat_history,
@@ -25,52 +27,68 @@ GList *TDSP_fixed_size(
  * Runs binary search on size of data it transfers to find max limit for which 
  * a path exists in the time window given.Find a path for a given fixed size by
  * running modified time-dependent Dijkstra.
+ * 
+ * in params struct
+ * @param max_data_size     data size in kilobytes
+ * @param time_step         in astronomical julian date
  */
 GList *get_max_link_path(
-    GSList *sats, 
+    GSList *sats,
     GHashTable *sat_history,
     guint sat_hist_len,
     GSList *ground_stations,
-    double t_start, 
-    double t_end, 
-    double time_step) {
+    MaxSearchParams *params) {
 
     //GHashtable sats has {key:value} = {gint Catnr : sat_t *satellite}
     
     //print_GHashTable_key_value(sat_history, t_start, t_end, time_step);
-    printf("start time %f\n", t_start);
+    printf("start time %f\n", params->t_start);
 
     GArray *nodes = g_array_new(FALSE, TRUE, sizeof(tdsp_node));
-    tdsp_node_from_GSList(nodes, sats, path_SATELLITE);
-    tdsp_node_from_GSList(nodes, ground_stations, path_STATION);
+   
+    gint src_i = 0;
+    gint dst_i = 0;
+    tdsp_node_from_GSList(nodes, params->src, params->dst, &src_i, &dst_i, sats, path_SATELLITE);
+    tdsp_node_from_GSList(nodes, params->src, params->dst, &src_i, &dst_i, ground_stations, path_STATION);
+    if (src_i == 0 ||dst_i == 0) return NULL;
 
     gdouble low = 0;
-    gdouble high = 25000000;
+    gdouble high = params->max_data;
     gdouble mid = -1;
 
     GList *attempt = NULL;
     GList *best_so_far = NULL;
 
-    gdouble end_time = -1;
+    gdouble best_end_time = -1;
 
     while (low <= high) {
         mid = (low + high) / 2.0;
 
         printf("trying for data size %f kilobytes\n", mid);
-        attempt = TDSP_fixed_size(nodes, sat_history, get_transfer_time, sat_hist_len, mid, -1, -2, t_start, t_end, time_step);
+        attempt = TDSP_fixed_size(
+            nodes, 
+            sat_history, 
+            get_transfer_time, 
+            sat_hist_len, 
+            mid, 
+            src_i, 
+            dst_i, 
+            params->t_start, 
+            params->t_end, 
+            params->t_step);
         
         if (attempt != NULL) {
 
             if (best_so_far != NULL) {
                 g_list_free_full(best_so_far, free);
             }
-
+            
             printf("    found path\n");
             for (GList *S = attempt; S != NULL; S=S->next) {
                 printf("        time: %f, catnr: %i\n", ((path_node *)S->data)->time, ((path_node *)S->data)->id);
-                end_time = ((path_node *)S->data)->time;
-            }    
-            
+                best_end_time = ((path_node *)S->data)->time;
+            }
+
             low = mid + 1;
             best_so_far = attempt;
             attempt = NULL;
@@ -82,16 +100,32 @@ GList *get_max_link_path(
     } 
    
     if (mid != -1) {
-        printf("FOUND MAX CAPACITY TRANSFER (over %f minutes): %f (gigabytes)\n", (end_time - t_start) * 1440, mid / 1000);
+        printf("FOUND MAX CAPACITY TRANSFER (over %f minutes): %f (gigabytes)\n", (best_end_time - params->t_start) * 1440, mid / 1000);
     }
 
     g_array_free(nodes, TRUE);
     return best_so_far;
 }
 
-void tdsp_node_from_GSList(GArray *tdsp_array, GSList *list, path_type type) {
+void tdsp_node_from_GSList(
+    GArray *tdsp_array, 
+    gchar *src_name, 
+    gchar *dst_name, 
+    gint *src_i, 
+    gint *dst_i, 
+    GSList *list, 
+    path_type type) {
+
     gint i = -1;
     for (GSList *current = list; current != NULL; current = current->next) {
+        if (type == path_STATION && 
+            strcmp(src_name, ((qth_t *)current->data)->name) == 0) {
+                *src_i = i;
+        } else if (type == path_STATION && 
+            strcmp(dst_name, ((qth_t *)current->data)->name) == 0) {
+                *dst_i = i;
+            }
+
         tdsp_node node = {
             .prev_node = NULL,
             .node.id = (type == path_STATION ? i : ((sat_t *)current->data)->tle.catnr),
