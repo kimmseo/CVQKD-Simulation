@@ -2,7 +2,7 @@
 #include "path-util.h"
 
 
-GList *get_max_link_path(
+max_path_t *get_max_link_path(
     GSList *sats,
     GHashTable *sat_history,
     guint sat_hist_len,

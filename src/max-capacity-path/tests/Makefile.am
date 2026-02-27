@@ -8,7 +8,7 @@ test_result_SOURCES = \
     test-headers.h \
     t_time_test.c \
     tdsp_test.c \
-    ../path-util.h \
+    ../path-util.h              ../path-util.c\
     ../transfer-heap.c          ../transfer-heap.h \
     ../transfer-time.c          ../transfer-time.h \
     ../link-capacity-path.c     ../link-capacity-path.h \

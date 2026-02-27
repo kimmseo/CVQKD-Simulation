@@ -816,7 +816,7 @@ MaxSearchParams *get_path_search_fields(GtkWidget *controls) {
 }
 
 void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
-    (void)button;
+    UNUSED(button);
     GtkMaxPathView *obj = (GtkMaxPathView *)data;
 
     MaxSearchParams *search = get_path_search_fields(obj->search_controls);
@@ -902,6 +902,56 @@ void float_only_input(GtkEditable *editable, const gchar *text, gint length, gin
             return;
         }
     }
+}
+
+GtkWidget *gen_path_display() {
+    GtkWidget *display_path = gtk_expander_new("Result");
+
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL); 
+    gtk_container_add(GTK_CONTAINER(display_path), scroll);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("THIS IS THE NEW ONE"), 0, 0, 1, 1);
+
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
+
+    return display_path;
+}
+
+void update_path_display(GtkWidget *button, gpointer data) {
+    UNUSED(button);
+    GtkMaxPathView *max_path_view = (GtkMaxPathView *)data;
+
+    if (max_path_view->max_capacity_path == NULL) {
+        return;
+    }
+
+    GtkWidget *expandable = max_path_view->display_path;
+    GtkWidget *scroll = gtk_container_get_children(GTK_CONTAINER(expandable))->data;
+
+    for (GList *iter = gtk_container_get_children(GTK_CONTAINER(scroll));
+            iter != NULL; iter = iter->next) {
+        gtk_widget_destroy(GTK_WIDGET(iter->data));
+    }
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
+
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called"), 0, 1, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 1"), 0, 2, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 2"), 0, 3, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 3"), 0, 4, 1, 1);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 4"), 0, 5, 1, 1);
+    printf("ADDED NEW CLASS\n");
+
+    gtk_widget_show_all(expandable);
+
+    /*gchar str_data_size[40];
+    snprintf(str_data_size, 40, "Max Data Tranferable: %f", max_path_view->max_capacity_path->size);
+    gtk_grid_attach(GTK_GRID(grid), gtk_label_new(str_data_size), 0, 0, 1, 1);
+    */
+
+    
 }
 
 GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
@@ -1047,6 +1097,7 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
         G_SIGNAL_RUN_LAST, 0, NULL, NULL, NULL, G_TYPE_NONE, 0);
 
     g_signal_connect(button, "clicked", G_CALLBACK(calculate_max_capacity_path), max_path_view);
+    g_signal_connect(button, "clicked", G_CALLBACK(update_path_display), max_path_view);
     
     return controls;
 }
@@ -1117,6 +1168,8 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
 
     max_path_view->search_controls = gen_search_controls(max_path_view); 
 
+    max_path_view->display_path = gen_path_display();
+
     // Make a grid, then populate the grid using SatPanels
     // Create a scrollable area
     max_path_view->swin = gtk_scrolled_window_new(NULL, NULL);
@@ -1170,8 +1223,11 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     
     gtk_container_add(GTK_CONTAINER(max_path_view->swin), grid);
+
+    gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0); 
     gtk_box_pack_end(GTK_BOX(widget), max_path_view->swin, TRUE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0);
+    gtk_box_pack_end(GTK_BOX(widget), max_path_view->display_path, FALSE, FALSE, 0);
+    
     gtk_widget_show_all(widget);
 
     return widget;

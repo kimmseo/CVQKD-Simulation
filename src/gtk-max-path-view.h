@@ -6,6 +6,7 @@
 #include <gtk/gtk.h>
 
 #include "qth-data.h"
+#include "max-capacity-path/path-util.h"
 
 
 /* *INDENT-OFF* */
@@ -103,9 +104,11 @@ struct _gtk_max_path_view {
     //GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
     GArray          *labels;
 
-    GList           *max_capacity_path;
+    max_path_t      *max_capacity_path;
+    GList           *path_colors;               //GList of GdkRGBA
 
     GtkWidget       *search_controls;
+    GtkWidget       *display_path;
 
     GtkWidget       *swin;      // Scrolled window
 

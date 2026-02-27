@@ -13,6 +13,11 @@ typedef struct {
     gdouble t_step;
 } MaxSearchParams;
 
+typedef struct {
+    GList *path;            //GList of path_node
+    gdouble size;
+} max_path_t;
+
 typedef enum {
     path_STATION,
     path_SATELLITE
@@ -41,5 +46,7 @@ typedef struct {
     vector_t vel;
     gdouble jul_utc;
 } lw_sat_t;
+
+lw_sat_t sat_at_time(sat_t *sat, gdouble time);
 
 #endif

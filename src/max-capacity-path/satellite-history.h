@@ -1,5 +1,4 @@
 #include <glib/gi18n.h>
-#include "../sgpsdp/sgp4sdp4.h"
 
 GHashTable *generate_sat_pos_data(
     GSList *sats_list, 

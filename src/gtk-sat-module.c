@@ -212,7 +212,7 @@ static void update_max_capacity_path_callback(GtkWidget *view, gpointer user_dat
     for (GSList *i = module->views; i != NULL; i = i->next) {
        if (GTK_IS_MAX_PATH_MAP(i->data)) {
             GtkMaxPathMap *map = GTK_MAX_PATH_MAP(i->data);
-            set_max_capacity_path(map, path_view->max_capacity_path);
+            set_max_capacity_path(map, path_view->max_capacity_path->path);
        } 
     }
 }

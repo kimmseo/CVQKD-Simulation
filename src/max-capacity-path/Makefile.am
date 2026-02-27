@@ -8,4 +8,6 @@ EXTRA_DIST = \
     transfer-time.c \ 
     transfer-time.h \
     satellite-history.c \
-    satellite-history.h
+    satellite-history.h \
+    path-util.c \
+    path-util.h

@@ -1,9 +1,6 @@
 #include <glib/gi18n.h>
-#include "../sgpsdp/sgp4sdp4.h"
 #include "path-util.h"
 #include "../qth-data.h"
-
-lw_sat_t sat_at_time(sat_t *sat, gdouble time);
 
 /**
  * Generates the GHashtable {gint catnr : lw_sat_t[] history} where the history
@@ -35,30 +32,4 @@ GHashTable *generate_sat_pos_data(GSList *sats_list, guint *sat_hist_len, gdoubl
     }
 
     return data_fields;
-}
-
-/**
- * Set pos and vel of satellites at given time.
- * Copies first half of predict_calc() from predict-tools.c
- */
-lw_sat_t sat_at_time(sat_t *sat, gdouble time) {
-    lw_sat_t answer;
-
-    sat->jul_utc = time;
-    sat->tsince = (sat->jul_utc - sat->jul_epoch) * xmnpda;
-
-    /* call the norad routines according to the deep-space flag */
-    if (sat->flags & DEEP_SPACE_EPHEM_FLAG)
-        SDP4(sat, sat->tsince);
-    else
-        SGP4(sat, sat->tsince);
-
-    Convert_Sat_State(&sat->pos, &sat->vel);
-    Magnitude(&sat->vel);
-
-    answer.pos = sat->pos;
-    answer.vel = sat->vel;
-    answer.jul_utc = sat->jul_utc;
-
-    return answer;
 }

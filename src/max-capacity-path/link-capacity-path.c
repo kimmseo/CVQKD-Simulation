@@ -32,7 +32,7 @@ GList *TDSP_fixed_size(
  * @param max_data_size     data size in kilobytes
  * @param time_step         in astronomical julian date
  */
-GList *get_max_link_path(
+max_path_t *get_max_link_path(
     GSList *sats,
     GHashTable *sat_history,
     guint sat_hist_len,
@@ -57,7 +57,7 @@ GList *get_max_link_path(
     gdouble mid = -1;
 
     GList *attempt = NULL;
-    GList *best_so_far = NULL;
+    max_path_t *best_so_far = calloc(1, sizeof(max_path_t));
 
     gdouble best_end_time = -1;
 
@@ -79,8 +79,8 @@ GList *get_max_link_path(
         
         if (attempt != NULL) {
 
-            if (best_so_far != NULL) {
-                g_list_free_full(best_so_far, free);
+            if (best_so_far->path != NULL) {
+                g_list_free_full(best_so_far->path, free);
             }
             
             printf("    found path\n");
@@ -90,7 +90,8 @@ GList *get_max_link_path(
             }
 
             low = mid + 1;
-            best_so_far = attempt;
+            best_so_far->path = attempt;
+            best_so_far->size = mid;
             attempt = NULL;
 
         } else if (attempt == NULL) {
@@ -109,11 +110,11 @@ GList *get_max_link_path(
 
 void tdsp_node_from_GSList(
     GArray *tdsp_array, 
-    gchar *src_name, 
-    gchar *dst_name, 
-    gint *src_i, 
-    gint *dst_i, 
-    GSList *list, 
+    gchar *src_name,
+    gchar *dst_name,
+    gint *src_i,
+    gint *dst_i,
+    GSList *list,
     path_type type) {
 
     gint i = -1;
