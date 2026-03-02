@@ -318,7 +318,6 @@ static void Calculate_RADec(sat_t * sat, qth_t * qth, obs_astro_t * obs_set)
 {
     /* Reference:  Methods of Orbit Determination by  */
     /*                Pedro Ramon Escobal, pp. 401-402 */
-
     double          phi, theta, sin_theta, cos_theta, sin_phi, cos_phi,
         az, el, Lxh, Lyh, Lzh, Sx, Ex, Zx, Sy, Ey, Zy, Sz, Ez, Zz,
         Lx, Ly, Lz, cos_delta, sin_alpha, cos_alpha;
@@ -815,9 +814,29 @@ MaxSearchParams *get_path_search_fields(GtkWidget *controls) {
     return params;
 }
 
+//ToDo: Generate evenly space colors for number of points
+GList *generate_path_colors(GList *path_colors, GList *path) {
+
+    //ToDo: maybe_g_list_free_full
+    if (path_colors != NULL) g_list_free(path_colors);
+
+    guint len = g_list_length(path);
+
+    GList *new_colors = NULL;
+    for (guint i = 0; i < len; i++) {
+        GdkRGBA *color = malloc(sizeof(GdkRGBA));
+        *color = (GdkRGBA){.red=0.5, .green=0.5, .blue=0.5, .alpha=0.5};
+        new_colors = g_list_prepend(new_colors, color);
+    }
+
+    return new_colors;
+}
+
 void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     UNUSED(button);
     GtkMaxPathView *obj = (GtkMaxPathView *)data;
+
+    if (obj->max_capacity_path != NULL) free(obj->max_capacity_path); 
 
     MaxSearchParams *search = get_path_search_fields(obj->search_controls);
     if (search == NULL) {
@@ -851,6 +870,8 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     timer_end = clock();
     cpu_time_used = ((double)(timer_end - timer_start)) / CLOCKS_PER_SEC;
     printf("Function took %f seconds to execute (CPU time).\n", cpu_time_used);
+
+    obj->path_colors = generate_path_colors(obj->path_colors, obj->max_capacity_path->path);
 
     g_signal_emit_by_name(obj, "update_path");
 }
@@ -907,24 +928,86 @@ void float_only_input(GtkEditable *editable, const gchar *text, gint length, gin
 GtkWidget *gen_path_display() {
     GtkWidget *display_path = gtk_expander_new("Result");
 
-    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL); 
+    gtk_expander_set_label_fill(GTK_EXPANDER(display_path), TRUE);
+
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
     gtk_container_add(GTK_CONTAINER(display_path), scroll);
+    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scroll), 200);
 
     GtkWidget *grid = gtk_grid_new();
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("THIS IS THE NEW ONE"), 0, 0, 1, 1);
-
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
     return display_path;
 }
 
+GtkWidget *new_path_grid_panel(path_node *node, GdkRGBA *color) {
+    gchar *label;
+    gchar *name;
+    gdouble alt, lat, lon;
+    if (node->type == path_SATELLITE) {
+        sat_t sat = *(sat_t*)node->obj;
+        label = "Satellite";
+        name = ((sat_t *)node->obj)->name;
+
+        sat_at_time(&sat, node->time);
+        alt = sat.alt;
+        lat = sat.ssplat;
+        lon = sat.ssplon;
+        
+    } else { //node->type == path_STATION
+        qth_t ogs = *(qth_t *)node->obj;
+        label = "OGS";
+        name = ogs.name;
+        alt = ogs.alt;
+        lat = ogs.lat; 
+        lon = ogs.lon; 
+    } 
+
+    GtkWidget *frame = gtk_frame_new(label);
+    GtkWidget *box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 10);
+    gtk_container_add(GTK_CONTAINER(frame), box);
+
+    //node color indicator
+    GtkWidget *indi = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_pack_start(GTK_BOX(box), indi, FALSE, FALSE, 5); 
+    gtk_widget_override_background_color(indi, GTK_STATE_FLAG_NORMAL, color);
+    gtk_widget_set_size_request(indi, 30, 50);
+    
+
+    //satellite name
+    GtkWidget *name_date = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_pack_start(GTK_BOX(box), name_date, FALSE, FALSE, 0); 
+
+    gtk_box_pack_start(GTK_BOX(name_date), gtk_label_new(name), FALSE, FALSE, 0);
+ 
+    char fmted_time[50];
+    daynum_to_str(fmted_time, 50, "%d/%m/%G - %H:%M", node->time);
+    gtk_box_pack_start(GTK_BOX(name_date), gtk_label_new(fmted_time), TRUE, TRUE, 0);   
+
+    //info like time and pos when last transfer happens
+    GtkWidget *sat_info = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+    gtk_box_pack_start(GTK_BOX(box), sat_info, TRUE, TRUE, 0);
+
+    gchar *str_alt = (node->type == path_SATELLITE ? 
+        fmted_to_string("Alt: %.2f km", alt) 
+        :fmted_to_string("Alt: %i m", (int)alt));
+    gtk_box_pack_start(GTK_BOX(sat_info), gtk_label_new(str_alt), TRUE, TRUE, 0);
+
+    gchar *str_lat = fmted_to_string("Lat: %.2f\u00b0", lat);
+    gtk_box_pack_start(GTK_BOX(sat_info), gtk_label_new(str_lat), TRUE, TRUE, 0);
+
+    gchar *str_lon = fmted_to_string("Lon: %.2f\u00b0 \0", lon);
+    gtk_box_pack_start(GTK_BOX(sat_info), gtk_label_new(str_lon), TRUE, TRUE, 0);
+
+    free(str_alt);
+    free(str_lat);
+    free(str_lon);
+    return frame;
+}
+
 void update_path_display(GtkWidget *button, gpointer data) {
     UNUSED(button);
-    GtkMaxPathView *max_path_view = (GtkMaxPathView *)data;
-
-    if (max_path_view->max_capacity_path == NULL) {
-        return;
-    }
+    GtkMaxPathView *max_path_view = (GtkMaxPathView *)data; 
 
     GtkWidget *expandable = max_path_view->display_path;
     GtkWidget *scroll = gtk_container_get_children(GTK_CONTAINER(expandable))->data;
@@ -935,23 +1018,35 @@ void update_path_display(GtkWidget *button, gpointer data) {
     }
 
     GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
+    //press button but max_capacity_path is empty, then 
+    if (max_path_view->max_capacity_path == NULL) {
+        gtk_container_add(GTK_CONTAINER(scroll), grid);
+        gtk_grid_attach(GTK_GRID(grid), gtk_label_new("NO_PATH_FOUND"), 0, 0, 1, 1);
+    } else {
+        gchar *str_data_size = fmted_to_string("Max Data Tranferable: %.2f (kb)", 
+            max_path_view->max_capacity_path->size);
+        gtk_grid_attach(GTK_GRID(grid), gtk_label_new(str_data_size), 0, 0, 1, 1);
+
+        GList *node = max_path_view->max_capacity_path->path;
+        GList *color = max_path_view->path_colors;
+        guint node_len = g_list_length(node);
+        
+        for (guint i = 1; i < node_len+1; i++) {
+            gtk_grid_attach(
+                GTK_GRID(grid),
+                new_path_grid_panel((path_node *)node->data, (GdkRGBA *)color->data),
+                0, i, 1, 1);
+            node = node->next;
+            color = color->next;
+
+        }
+    }
+
     gtk_container_add(GTK_CONTAINER(scroll), grid);
 
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called"), 0, 1, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 1"), 0, 2, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 2"), 0, 3, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 3"), 0, 4, 1, 1);
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new("button called 4"), 0, 5, 1, 1);
-    printf("ADDED NEW CLASS\n");
-
     gtk_widget_show_all(expandable);
-
-    /*gchar str_data_size[40];
-    snprintf(str_data_size, 40, "Max Data Tranferable: %f", max_path_view->max_capacity_path->size);
-    gtk_grid_attach(GTK_GRID(grid), gtk_label_new(str_data_size), 0, 0, 1, 1);
-    */
-
-    
 }
 
 GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
@@ -1009,25 +1104,6 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     gtk_overlay_add_overlay(GTK_OVERLAY(overlay), kb_vs_gb);
     
     gtk_grid_attach(GTK_GRID(controls), overlay, 1, 2, 3, 1);
-
-    //reduce min required space by child widgets, allow window to be resize smaller
-    /*
-    GList *renderers;
-    GtkCellRenderer *renderer;
-    GtkWidget *elements[3] = {kb_vs_gb, dst_select, src_select};
-    for (int i = 0; i < (int)(sizeof(elements)/sizeof(GtkWidget *)); i++) {
-        renderers = gtk_cell_layout_get_cells(GTK_CELL_LAYOUT(elements[i]));
-        if (renderers != NULL) {
-            renderer = GTK_CELL_RENDERER(renderers->data);
-            g_object_set(renderer, 
-                        "width-chars", 1,
-                        "ellipsize", PANGO_ELLIPSIZE_END, 
-                        NULL);
-
-            g_list_free(renderers);
-        }   
-    }
-    */
 
     gdouble daynum_val = get_current_daynum();
     char daynum_str[20];
@@ -1136,6 +1212,9 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
 
     max_path_view->qths = g_slist_append(NULL, qth);
     max_path_view->qths = g_slist_append(max_path_view->qths, qth2);
+
+    max_path_view->path_colors = NULL;
+    max_path_view->max_capacity_path = NULL;
     
     max_path_view->cfgdata = cfgdata;
 

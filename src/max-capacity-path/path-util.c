@@ -1,9 +1,20 @@
 #include <stdarg.h>
 #include "path-util.h"
 
-/*void floats_to_string(gchar *string, gchar *fmt, ) {
+char *fmted_to_string(gchar *fmt, ...) {
+    va_list args;
 
-}*/
+    va_start(args, fmt);
+    int len = vsnprintf(NULL, 0, fmt, args);
+    va_end(args);
+   
+    char *answer = malloc(len + 1);
+    va_start(args, fmt); 
+    vsnprintf(answer, len + 1, fmt, args);
+    va_end(args);
+
+    return answer;
+}
 
 /**
  * Set pos and vel of satellites at given time.

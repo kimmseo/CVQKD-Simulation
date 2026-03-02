@@ -41,7 +41,6 @@ max_path_t *get_max_link_path(
 
     //GHashtable sats has {key:value} = {gint Catnr : sat_t *satellite}
     
-    //print_GHashTable_key_value(sat_history, t_start, t_end, time_step);
     printf("start time %f\n", params->t_start);
 
     GArray *nodes = g_array_new(FALSE, TRUE, sizeof(tdsp_node));
@@ -109,7 +108,7 @@ max_path_t *get_max_link_path(
 }
 
 void tdsp_node_from_GSList(
-    GArray *tdsp_array, 
+    GArray *tdsp_array,
     gchar *src_name,
     gchar *dst_name,
     gint *src_i,
@@ -236,7 +235,7 @@ GList *TDSP_fixed_size(
        
         for (tdsp_node *b=end_best->prev_node; b != NULL; b = b->prev_node) {
 
-            copy_node = malloc(sizeof(tdsp_node));
+            copy_node = malloc(sizeof(path_node));
             memcpy(copy_node, &b->node, sizeof(path_node));
 
             path = g_list_append(path, copy_node);

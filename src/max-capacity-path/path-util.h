@@ -49,4 +49,6 @@ typedef struct {
 
 lw_sat_t sat_at_time(sat_t *sat, gdouble time);
 
+char *fmted_to_string(gchar *fmt, ...);
+
 #endif

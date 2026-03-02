@@ -15,5 +15,6 @@
         "calc-dist-two-sat.h": "c",
         "time-tools.h": "c",
         "math.h": "c"
-    }
+    },
+    "makefile.configureOnOpen": false
 }
