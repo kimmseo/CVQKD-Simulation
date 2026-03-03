@@ -814,18 +814,62 @@ MaxSearchParams *get_path_search_fields(GtkWidget *controls) {
     return params;
 }
 
-//ToDo: Generate evenly space colors for number of points
+GdkRGBA hsv_2_rgb(gdouble h, gdouble s, gdouble v) {
+    gdouble hh, p, q, t, ff;
+    glong i;
+    GdkRGBA out;
+
+    if (s <= 0.0) {
+       return (GdkRGBA){.red=v, .green=v, .blue=v, .alpha=1}; 
+    }
+
+    hh = h;
+    if (hh >= 360.0) hh = 0.0;
+    hh /= 60.0;
+    i = (glong)hh;
+    ff = hh - i;
+    p = v * (1.0 - s);
+    q = v * (1.0 - (s * ff));
+    t = v * (1.0 - (s * (1.0 - ff)));
+
+    switch (i) {
+        case 0:
+            out = (GdkRGBA){.red=v, .green=t, .blue=p};
+            break;
+        case 1:
+            out = (GdkRGBA){.red=q, .green=v, .blue=p};
+            break;
+        case 2:
+            out = (GdkRGBA){.red=p, .green=v, .blue=t};
+            break;
+        case 3:
+            out = (GdkRGBA){.red=p, .green=q, .blue=v};
+            break;
+        case 4:
+            out = (GdkRGBA){.red=t, .green=p, .blue=v};
+            break;
+        case 5:
+        default:
+            out = (GdkRGBA){.red=v, .green=p, .blue=q};
+            break;
+    }
+
+    out.alpha = 1.0;
+    return out;
+}
+
 GList *generate_path_colors(GList *path_colors, GList *path) {
 
     //ToDo: maybe_g_list_free_full
     if (path_colors != NULL) g_list_free(path_colors);
 
     guint len = g_list_length(path);
+    GdkRGBA *color;
 
     GList *new_colors = NULL;
-    for (guint i = 0; i < len; i++) {
-        GdkRGBA *color = malloc(sizeof(GdkRGBA));
-        *color = (GdkRGBA){.red=0.5, .green=0.5, .blue=0.5, .alpha=0.5};
+    for (gdouble i = 0; i < 360; i += 360 / len) {
+        color = malloc(sizeof(GdkRGBA));
+        *color = hsv_2_rgb(i, 1.0, 0.8);
         new_colors = g_list_prepend(new_colors, color);
     }
 
@@ -999,6 +1043,7 @@ GtkWidget *new_path_grid_panel(path_node *node, GdkRGBA *color) {
     gchar *str_lon = fmted_to_string("Lon: %.2f\u00b0 \0", lon);
     gtk_box_pack_start(GTK_BOX(sat_info), gtk_label_new(str_lon), TRUE, TRUE, 0);
 
+    //ToDo: change it to local variables??
     free(str_alt);
     free(str_lat);
     free(str_lon);
