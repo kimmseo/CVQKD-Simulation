@@ -209,10 +209,15 @@ static void update_max_capacity_path_callback(GtkWidget *view, gpointer user_dat
     GtkSatModule *module = (GtkSatModule *)user_data;
     GtkMaxPathView *path_view = GTK_MAX_PATH_VIEW(view);
 
+    for (GList *i = path_view->path_colors; i != NULL; i = i->next) {
+        GdkRGBA *colors = (GdkRGBA *)i->data;
+        printf("sat moduel received colors: %f, %f, %f\n", colors->red, colors->green, colors->blue);
+    }
+
     for (GSList *i = module->views; i != NULL; i = i->next) {
        if (GTK_IS_MAX_PATH_MAP(i->data)) {
             GtkMaxPathMap *map = GTK_MAX_PATH_MAP(i->data);
-            set_max_capacity_path(map, path_view->max_capacity_path->path);
+            set_max_capacity_path(map, path_view->max_capacity_path->path, path_view->path_colors);
        } 
     }
 }

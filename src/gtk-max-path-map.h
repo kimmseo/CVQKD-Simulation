@@ -107,6 +107,10 @@ typedef struct {
     GooCanvasPoints *capacity_points;           /*!< X,Y coordinates of points along line */
     GList *capacity_path_nodes;                 /*!< X,Y coordinates of points along line */
 
+    GList *capacity_path_lines;                 //GList * where data = (GooCanvasItemModel *)
+    GList *capacity_arcs;                       //GList * where data = (GooCanvasPoints *)
+    GList *capacity_path_colors;                //GList * where data = (GdkRGBA *)
+
     GooCanvasItemModel *terminator;     /*!< Outline of sun shadow on Earth. */
 
     gdouble         terminator_last_tstamp;     /*!< Timestamp of the last terminator drawn. Used to prevent redrawing the terminator too often. */
@@ -164,7 +168,7 @@ void            gtk_max_path_map_lonlat_to_xy(GtkMaxPathMap * m,
 void            gtk_max_path_map_reload_sats(GtkWidget * satmap, GHashTable * sats);
 void            gtk_max_path_map_select_sat(GtkWidget * satmap, gint catnum);
 
-void            set_max_capacity_path(GtkMaxPathMap *map, GList *path);
+void            set_max_capacity_path(GtkMaxPathMap *map, GList *path, GList *colors);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus
