@@ -103,10 +103,8 @@ typedef struct {
     GooCanvasItemModel *gridh[5];       /*!< Horizontal grid lines, 30 deg resolution. */
     GooCanvasItemModel *gridhlab[5];    /*!< Horizontal grid labels. */
 
-    GList *capacity_path_nodes;                 //GList of path_node 
-    GList *capacity_path_lines;                 //GList of GooCanvasItem. Line on canvas objects
-    GList *capacity_arcs;                       //GList of GooCanvasPoints *). <X, Y> positions on canvas
-    GList *capacity_path_colors;                //GList * where data = (GdkRGBA *)
+    GList *capacity_path_nodes;                 //GList of path_node. Owned by gtk-sat-module.c 
+    GList *capacity_path_colors;                //GList * where data = (GdkRGBA *). Owned by gtk-sat-module.c
     GList *capacity_path;                      //GList of GooCanvasItem. Path lines on the map
 
     GooCanvasItemModel *terminator;     /*!< Outline of sun shadow on Earth. */
