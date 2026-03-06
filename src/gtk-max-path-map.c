@@ -116,6 +116,8 @@ static void     gtk_max_path_map_store_hidecovs(GtkMaxPathMap * satmap);
 static void     reset_ground_track(gpointer key, gpointer value,
                                    gpointer user_data);
 
+void destroy_path_lines(GList *lines, GooCanvasItemModel *root);
+
 static GtkVBoxClass *parent_class = NULL;
 static GooCanvasPoints *points1;
 static GooCanvasPoints *points2;
@@ -301,13 +303,28 @@ static void gtk_max_path_map_destroy(GtkWidget * widget)
             goo_canvas_item_model_remove_child(root, idx);
         satmap->map = NULL;
         
-        if (satmap->capacity_path_line) {
-            idx = goo_canvas_item_model_find_child(root, satmap->capacity_path_line);
-            if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            satmap->capacity_path_line = NULL;
+
+        if (satmap->capacity_path_lines) {
+            destroy_path_lines(satmap->capacity_path_lines, root);
+        }
+
+        if (satmap->capacity_arcs) {
+            g_list_free_full(satmap->capacity_arcs, (GDestroyNotify)goo_canvas_points_unref);
         }
     }
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
+}
+
+void destroy_path_lines(GList *lines, GooCanvasItemModel *root) {
+    int idx = 0;
+    if (!lines || !root) return;
+
+    for (GList *i = lines; i!=NULL; i=i->next) {
+        idx = goo_canvas_item_model_find_child(root, i->data);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+    }
+    
+    g_list_free_full(lines, g_object_unref);
 }
 
 GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
@@ -570,15 +587,10 @@ static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
                                             "fill-color-rgba", col,
                                             "use-markup", TRUE, NULL);
 
-    satmap->capacity_path_line = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                                                "parent", root,
-                                                "stroke-color", "#A020F0",
-                                                "line-width", 4.0,
-                                                "visibility", GOO_CANVAS_ITEM_HIDDEN,
-                                                NULL);
-
+    satmap->capacity_path_nodes = NULL;
     satmap->capacity_path_lines = NULL;
     satmap->capacity_arcs = NULL;
+    satmap->capacity_path_colors = NULL;
      
     return root;
 }
@@ -694,18 +706,12 @@ static void update_map_size(GtkMaxPathMap * satmap)
     }
 }
 
-void clear_canvas_points(gpointer data) {
-    goo_canvas_points_unref(data);
-}
-
 void set_path_canvas_colors(GtkMaxPathMap *map, GList *colors) {
     if (!map->capacity_arcs) return;
 
     if (map->capacity_path_lines) {
-        for (GList *i=map->capacity_path_lines; i!=NULL; i=i->next) {
-            g_object_set(i->data, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-        }
-        g_list_free_full(map->capacity_path_lines, g_object_unref);
+        destroy_path_lines(map->capacity_path_lines, 
+            goo_canvas_get_root_item_model(GOO_CANVAS(map->canvas)));
         map->capacity_path_lines = NULL;
     }
 
@@ -723,7 +729,7 @@ void set_path_canvas_colors(GtkMaxPathMap *map, GList *colors) {
                         (int)(250*c->red),
                         (int)(250*c->green),
                         (int)(250*c->blue)),
-                    "line-width", 5.0,
+                    "line-width", 2.0,
                     "visibility", GOO_CANVAS_ITEM_VISIBLE,
                     NULL));
 
@@ -732,105 +738,103 @@ void set_path_canvas_colors(GtkMaxPathMap *map, GList *colors) {
 }
 
 //ToDo: Replace this with code that traces movement of satellite
-GooCanvasPoints *generate_arc(GtkMaxPathMap *map, path_node *start, path_node *end) {
-    GooCanvasPoints *arc = goo_canvas_points_new(2);
+GooCanvasPoints *generate_arc(GtkMaxPathMap *map, sat_t *satellite, gdouble t_start, gdouble t_end) {
+    guint len = (guint)((t_end - t_start) * 1440); //draw point for every 5
+    const gdouble t_step = 1.0 / 1440.0;
+
+    GooCanvasPoints *arc = goo_canvas_points_new(len + 1);
+    sat_t dummy_s;
+    memcpy(&dummy_s, satellite, sizeof(sat_t));
+    qth_t dummy_q = {0};
     gfloat x, y;
-    if (start->type == path_STATION) {
-        qth_t *station = start->obj; 
-        lonlat_to_xy(map, station->lon, station->lat, &x, &y);
-        arc->coords[0] = x; 
-        arc->coords[1] = y;
-    } else if (start->type == path_SATELLITE) { 
-        sat_t *satellite = (sat_t *)start->obj;
 
-        sat_t dummy_s;
-        memcpy(&dummy_s, satellite, sizeof(sat_t));
-        qth_t dummy_q = {0};
-        predict_calc(&dummy_s, &dummy_q, start->time);
+    printf("calc pos for %s\n", satellite->name);
+
+    for (guint i = 0; i < len + 1; i++) {
+        if (i == len) predict_calc(&dummy_s, &dummy_q, t_end);
+        else predict_calc(&dummy_s, &dummy_q, t_start + i * t_step);
 
         lonlat_to_xy(map, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
-        arc->coords[0] = x;
-        arc->coords[1] = y;
+        arc->coords[2 * i] = x;
+        arc->coords[(2 * i) + 1] = y;
+        printf("    time: %f, pos: %f, %f\n", t_start + i * t_step, x, y);
     }
-
-    if (end->type == path_STATION) {
-        qth_t *station = end->obj; 
-        lonlat_to_xy(map, station->lon, station->lat, &x, &y);
-        arc->coords[2] = x; 
-        arc->coords[3] = y;
-    } else if (end->type == path_SATELLITE) { 
-        sat_t *satellite = (sat_t *)end->obj;
-
-        sat_t dummy_s;
-        memcpy(&dummy_s, satellite, sizeof(sat_t));
-        qth_t dummy_q = {0};
-        predict_calc(&dummy_s, &dummy_q, end->time);
-
-        lonlat_to_xy(map, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
-        arc->coords[2] = x;
-        arc->coords[3] = y;
-    }
-
+    
     return arc;
+}
+
+
+void draw_capacity_paths(GtkMaxPathMap *map, GList *path, GList *colors) {
+    if (!map || !path || !colors) return;
+
+    GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(map->canvas));
+
+    if (map->capacity_path) { 
+        destroy_path_lines(map->capacity_path, root);
+        map->capacity_path = NULL;
+    }
+
+    GList *c_iter = colors;
+    for (GList *p_iter = path; p_iter->next != NULL; p_iter = p_iter->next) {
+        GdkRGBA *color = (GdkRGBA *)c_iter->data;
+        path_node *node = (path_node *)p_iter->data;
+        path_node *next_node = (path_node *)p_iter->next->data;
+        GooCanvasPoints *points = NULL;
+
+        if (node->type == path_SATELLITE) {
+            points = generate_arc(map, node->obj, node->time, next_node->time);
+        } else if (node->type == path_STATION) {
+            c_iter = c_iter->next;
+            continue;
+        }
+
+        map->capacity_path = g_list_append(map->capacity_path,
+            g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                    "parent", root,
+                    "points", points,
+                    "stroke-color", fmted_to_string("#%.2X%.2X%.2X",
+                        (int)(250*color->red),
+                        (int)(250*color->green),
+                        (int)(250*color->blue)),
+                    "line-width", 2.0,
+                    "visibility", GOO_CANVAS_ITEM_VISIBLE,
+                    NULL));
+
+        c_iter = c_iter->next;
+    }     
+
 }
 
 void set_path_canvas_coordinates(GtkMaxPathMap *map) {
     if (!map->capacity_path_nodes) return;
 
     if (map->capacity_arcs) {
-        g_list_free_full(map->capacity_arcs, clear_canvas_points);
+        g_list_free_full(map->capacity_arcs, (GDestroyNotify)goo_canvas_points_unref);
         map->capacity_arcs = NULL;
     }
 
     for (GList *iter = map->capacity_path_nodes; iter->next!=NULL; iter=iter->next){
-        map->capacity_arcs = g_list_append(map->capacity_arcs, 
-            generate_arc(map, iter->data, iter->next->data));
+        path_node *node = (path_node *)iter->data;
+        path_node *next_node = (path_node *)iter->next->data;
 
-        GooCanvasPoints *temp = generate_arc(map, iter->data, iter->next->data);
-        printf("added points start, %i, end: %i, (%f, %f), (%f, %f)\n", 
-            ((path_node *)iter->data)->id, ((path_node *)iter->next->data)->id,
-            temp->coords[0], temp->coords[1],
-            temp->coords[2], temp->coords[3]);
-    }
-
-    if (!map->capacity_path_nodes) {
-        g_object_set(map->capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-    } else {
-        map->capacity_points = goo_canvas_points_new(g_list_length(map->capacity_path_nodes));
-        gint i = 0;
-        for (GList *current = map->capacity_path_nodes; current != NULL; current = current->next) {
-            path_node *node = (path_node *)current->data;
-            gfloat x, y;
-
-            if (node->type == path_STATION) {
-                qth_t *station = node->obj; 
-                lonlat_to_xy(map, station->lon, station->lat, &x, &y);
-                map->capacity_points->coords[i] = x; 
-                map->capacity_points->coords[i+1] = y;
-
-            } else if (node->type == path_SATELLITE) { 
-                sat_t *satellite = (sat_t *)node->obj;
-
-                sat_t dummy_s;
-                memcpy(&dummy_s, satellite, sizeof(sat_t));
-                qth_t dummy_q = {0};
-                predict_calc(&dummy_s, &dummy_q, node->time);
-
-                lonlat_to_xy(map, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
-                map->capacity_points->coords[i] = x;
-                map->capacity_points->coords[i+1] = y;
-            }
-
-            i += 2;
+        //ToDo: maybe draw a line from where statllite line stop to station
+        //and from station to where next statellite line start
+        if (node->type == path_STATION) {
+            printf("skipping station %s\n", ((qth_t *)node->obj)->name);
+            continue;
         }
-    }
+
+        map->capacity_arcs = g_list_append(map->capacity_arcs, 
+            generate_arc(map, node->obj, node->time, next_node->time));
+    } 
 }
 
 void set_max_capacity_path(GtkMaxPathMap *map, GList *path, GList *colors) {
     map->capacity_path_nodes = path;
     map->capacity_path_colors = colors;
-    set_path_canvas_coordinates(map);
-    set_path_canvas_colors(map, colors);
+    //set_path_canvas_coordinates(map);
+    //set_path_canvas_colors(map, colors);
+    draw_capacity_paths(map, path, colors);
 }
 
 static void on_canvas_realized(GtkWidget * canvas, gpointer data)
@@ -862,8 +866,11 @@ void gtk_max_path_map_update(GtkWidget * widget)
     /* check whether there are any pending resize requests */
     if (satmap->resize){
         update_map_size(satmap);
+        /*
         set_path_canvas_coordinates(satmap);
         set_path_canvas_colors(satmap, satmap->capacity_path_colors);
+        */
+       draw_capacity_paths(satmap, satmap->capacity_path, satmap->capacity_path_colors);
     }
     /* check if qth has moved significantly, if so move it */
     lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
@@ -1029,14 +1036,6 @@ void gtk_max_path_map_update(GtkWidget * widget)
         {
             g_object_set(satmap->next, "text", "", NULL);
         }
-    }
-
-    //draw max capacity line
-    if (!satmap->qth || !satmap->qth2 || !satmap->sats || g_hash_table_size(satmap->sats) == 0) {
-        // Hide all lines if no data
-        g_object_set(satmap->capacity_path_line, "visibility", GOO_CANVAS_ITEM_HIDDEN, NULL);
-    } else {
-        g_object_set(satmap->capacity_path_line, "points", satmap->capacity_points, "visibility", GOO_CANVAS_ITEM_VISIBLE, NULL);
     }
 }
 
