@@ -40,6 +40,12 @@ typedef struct {
     GSList         *lines;      /*!< List of GooCanvasPolyLine */
 } mpm_ground_track_t;
 
+typedef struct {
+    gdouble lat, lon;
+    GooCanvasItemModel *mark;
+    GooCanvasItemModel *label;
+} mpm_qth_marks;
+
 /**
  * Satellite object.
  *
@@ -87,15 +93,12 @@ typedef struct {
 
     gdouble         left_side_lon;      /*!< Left-most longitude (used when center is not 0 lon). */
 
-    GooCanvasItemModel *qthmark;        /*!< QTH marker, e.g. small rectangle. */
-    GooCanvasItemModel *qth2mark;       /*!< Second QTH Marker */
-    GooCanvasItemModel *qthlabel;       /*!< Label showing the QTH name. */
-    GooCanvasItemModel *qth2label;      /*!< Label showing second QTH name */
+    GList *qths;                        //GList of qth_t. Optical Ground Stations.
+    GList *qth_marks;                   //Glist of mpm_qth_marks. Markings on canvas
 
     GooCanvasItemModel *locnam; /*!< Location name. */
     GooCanvasItemModel *locnam2; /*!< Second location name */
     GooCanvasItemModel *curs;   /*!< Cursor tracking text. */
-    GooCanvasItemModel *next;   /*!< Next event text. */
     GooCanvasItemModel *sel;    /*!< Text showing info about the selected satellite. */
 
     GooCanvasItemModel *gridv[11];      /*!< Vertical grid lines, 30 deg resolution. */
@@ -104,7 +107,7 @@ typedef struct {
     GooCanvasItemModel *gridhlab[5];    /*!< Horizontal grid labels. */
 
     GList *capacity_path_nodes;                 //GList of path_node. Owned by gtk-sat-module.c 
-    GList *capacity_path_colors;                //GList * where data = (GdkRGBA *). Owned by gtk-sat-module.c
+    GList *capacity_path_colors;                //GList of GdkRGBA. Owned by gtk-sat-module.c
     GList *capacity_path;                      //GList of GooCanvasItem. Path lines on the map
 
     GooCanvasItemModel *terminator;     /*!< Outline of sun shadow on Earth. */
@@ -119,7 +122,6 @@ typedef struct {
     GKeyFile       *cfgdata;    /*!< Module configuration data. */
     GHashTable     *sats;       /*!< Pointer to satellites (owned by parent GtkSatModule). */
     qth_t          *qth;        /*!< Pointer to current location. */
-    qth_t          *qth2;       /*!< Pointer to the second QTH. */
 
     GHashTable     *obj;        /*!< Canvas items representing each satellite. */
     GHashTable     *showtracks; /*!< A hash of satellites to show tracks for. */
@@ -134,9 +136,6 @@ typedef struct {
     guint           counter;    /*!< Cycle counter. */
 
     gboolean        show_terminator;    // show solar terminator
-    gboolean        qthinfo;    /*!< Show the QTH info. */
-    gboolean        qth2info;   /*<! Show the second QTH info. */
-    gboolean        eventinfo;  /*!< Show info about the next event. */
     gboolean        cursinfo;   /*!< Track the mouse cursor. */
     gboolean        showgrid;   /*!< Show grid on map. */
     gboolean        keepratio;  /*!< Keep map aspect ratio. */

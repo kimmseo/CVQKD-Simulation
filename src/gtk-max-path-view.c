@@ -918,10 +918,6 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
     if (obj->max_capacity_path->size == 0) return;
 
     obj->path_colors = generate_path_colors(obj->path_colors, obj->max_capacity_path->path);
-    for (GList *iter = obj->path_colors; iter!=NULL; iter=iter->next) {
-        GdkRGBA *col = (GdkRGBA *)iter->data;
-        printf("generate path colors returned %f, %f, %f\n", col->red, col->green, col->blue);
-    }
 
     g_signal_emit_by_name(obj, "update_path");
 }

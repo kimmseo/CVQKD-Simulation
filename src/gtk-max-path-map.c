@@ -169,7 +169,8 @@ static void gtk_max_path_map_init(GtkMaxPathMap * satmap,
 
     satmap->sats = NULL;
     satmap->qth = NULL;
-    satmap->qth2 = NULL;
+    satmap->qths = NULL;
+    satmap->qth_marks = NULL;
     satmap->obj = NULL;
     satmap->showtracks = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                NULL, NULL);
@@ -185,9 +186,6 @@ static void gtk_max_path_map_init(GtkMaxPathMap * satmap,
     satmap->refresh = 0;
     satmap->counter = 0;
     satmap->show_terminator = FALSE;
-    satmap->qthinfo = FALSE;
-    satmap->qth2info = FALSE;
-    satmap->eventinfo = FALSE;
     satmap->cursinfo = FALSE;
     satmap->showgrid = FALSE;
     satmap->keepratio = FALSE;
@@ -222,45 +220,10 @@ static void gtk_max_path_map_destroy(GtkWidget * widget)
 
         root = goo_canvas_get_root_item_model(GOO_CANVAS(satmap->canvas));
 
-        idx = goo_canvas_item_model_find_child(root, satmap->qthmark);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->qthmark = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->qthlabel);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->qthlabel = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->qth2mark);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->qth2mark = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->qth2label);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->qth2label = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->locnam);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->locnam = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->locnam2);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->locnam2 = NULL;
-
         idx = goo_canvas_item_model_find_child(root, satmap->curs);
         if (idx != -1)
             goo_canvas_item_model_remove_child(root, idx);
         satmap->curs = NULL;
-
-        idx = goo_canvas_item_model_find_child(root, satmap->next);
-        if (idx != -1)
-            goo_canvas_item_model_remove_child(root, idx);
-        satmap->next = NULL;
 
         idx = goo_canvas_item_model_find_child(root, satmap->sel);
         if (idx != -1)
@@ -307,6 +270,18 @@ static void gtk_max_path_map_destroy(GtkWidget * widget)
             destroy_path_lines(satmap->capacity_path, root);
         }
 
+        if (satmap->qth_marks) {
+            for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
+                mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+
+                idx = goo_canvas_item_model_find_child(root, marking->mark);
+                if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+
+                idx = goo_canvas_item_model_find_child(root, marking->label);
+                if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+            }
+            g_list_free(satmap->qth_marks);
+        }
     }
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
 }
@@ -335,7 +310,14 @@ GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
     satmap->cfgdata = cfgdata;
     satmap->sats = sats;
     satmap->qth = qth;
-    satmap->qth2 = qth2;
+
+    satmap->qths = g_list_prepend(NULL, qth);
+    satmap->qths = g_list_prepend(satmap->qths, qth2);
+    qth_t *test_q = malloc(sizeof(qth_t));
+    test_q->name = "test Station";
+    test_q->lat = 0.7893;
+    test_q->lon = 50.9213;
+    satmap->qths = g_list_prepend(satmap->qths, test_q);
 
     satmap->obj = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
 
@@ -344,21 +326,6 @@ GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
                                       MOD_CFG_MAP_REFRESH,
                                       SAT_CFG_INT_MAP_REFRESH);
     satmap->counter = 1;
-
-    satmap->qthinfo = mod_cfg_get_bool(cfgdata,
-                                       MOD_CFG_MAP_SECTION,
-                                       MOD_CFG_MAP_SHOW_QTH_INFO,
-                                       SAT_CFG_BOOL_MAP_SHOW_QTH_INFO);
-
-    satmap->qth2info = mod_cfg_get_bool(cfgdata,
-                                        MOD_CFG_MAP_SECTION,
-                                        MOD_CFG_MAP_SHOW_SECOND_QTH_INFO,
-                                        SAT_CFG_BOOL_MAP_SHOW_SECOND_QTH_INFO);
-
-    satmap->eventinfo = mod_cfg_get_bool(cfgdata,
-                                         MOD_CFG_MAP_SECTION,
-                                         MOD_CFG_MAP_SHOW_NEXT_EVENT,
-                                         SAT_CFG_BOOL_MAP_SHOW_NEXT_EV);
 
     satmap->cursinfo = mod_cfg_get_bool(cfgdata,
                                         MOD_CFG_MAP_SECTION,
@@ -434,7 +401,6 @@ GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
 static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
 {
     GooCanvasItemModel *root;
-    gchar          *buff;
     gfloat          x, y;
     guint32         col;
 
@@ -458,109 +424,34 @@ static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
     if (satmap->show_terminator)
         draw_terminator(satmap, root);
 
-    /* QTH mark */
     col = mod_cfg_get_int(satmap->cfgdata,
                           MOD_CFG_MAP_SECTION,
                           MOD_CFG_MAP_QTH_COL, SAT_CFG_INT_MAP_QTH_COL);
-    lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
-    satmap->qthmark = goo_canvas_rect_model_new(root,
-                                                x - MARKER_SIZE_HALF,
-                                                y - MARKER_SIZE_HALF,
-                                                2 * MARKER_SIZE_HALF,
-                                                2 * MARKER_SIZE_HALF,
-                                                "fill-color-rgba", col,
-                                                "stroke-color-rgba", col,
-                                                NULL);
-    satmap->qthlabel = goo_canvas_text_model_new(root, satmap->qth->name,
-                                                 x, y + 2, -1,
-                                                 GOO_CANVAS_ANCHOR_NORTH,
-                                                 "font", "Sans 8",
-                                                 "fill-color-rgba", col, NULL);
 
-    // Second QTH Mark
-    col = mod_cfg_get_int(satmap->cfgdata,
-                          MOD_CFG_MAP_SECTION,
-                          MOD_CFG_MAP_QTH_COL, SAT_CFG_INT_MAP_QTH_COL);
-    lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x, &y);
-    satmap->qth2mark = goo_canvas_rect_model_new(root,
-                                                 x - MARKER_SIZE_HALF,
-                                                 y - MARKER_SIZE_HALF,
-                                                 2 * MARKER_SIZE_HALF,
-                                                 2 * MARKER_SIZE_HALF,
-                                                 "fill-color-rgba", col,
-                                                 "stroke-color-rgba", col,
-                                                 NULL);
-    satmap->qth2label = goo_canvas_text_model_new(root, satmap->qth2->name,
-                                                  x, y + 2, -1,
-                                                  GOO_CANVAS_ANCHOR_NORTH,
-                                                  "font", "Sans 8",
-                                                  "fill-color-rgba", col, NULL);
+    for (GList *iter = satmap->qths; iter != NULL; iter = iter->next) {
+        qth_t *OGS = (qth_t *)iter->data;
+        mpm_qth_marks *marking = malloc(sizeof(mpm_qth_marks));
+        satmap->qth_marks = g_list_append(satmap->qth_marks, marking);
+        marking->lat = OGS->lat;
+        marking->lon = OGS->lon;
 
-    /* QTH info */
-    col = mod_cfg_get_int(satmap->cfgdata,
-                          MOD_CFG_MAP_SECTION,
-                          MOD_CFG_MAP_INFO_COL, SAT_CFG_INT_MAP_INFO_COL);
+        lonlat_to_xy(satmap, OGS->lon, OGS->lat, &x, &y);
 
-    satmap->locnam = goo_canvas_text_model_new(root, "",
-                                               satmap->x0 + 2, satmap->y0 + 1,
-                                               -1,
-                                               GOO_CANVAS_ANCHOR_NORTH_WEST,
-                                               "font", "Sans 8",
-                                               "fill-color-rgba", col,
-                                               "use-markup", TRUE, NULL);
+        marking->mark = goo_canvas_rect_model_new(root,
+                                            x - MARKER_SIZE_HALF,
+                                            y - MARKER_SIZE_HALF,
+                                            2 * MARKER_SIZE_HALF,
+                                            2 * MARKER_SIZE_HALF,
+                                            "fill-color-rgba", col,
+                                            "stroke-color-rgba", col,
+                                            NULL);
 
-    // Second QTH info
-    col = mod_cfg_get_int(satmap->cfgdata,
-                          MOD_CFG_MAP_SECTION,
-                          MOD_CFG_MAP_INFO_COL, SAT_CFG_INT_MAP_INFO_COL);
-
-    satmap->locnam2 = goo_canvas_text_model_new(root, "",
-                                                satmap->x0 + 4, satmap->y0 + 2,
-                                                -1,
-                                                GOO_CANVAS_ANCHOR_NORTH_WEST,
-                                                "font", "Sans 8",
-                                                "fill-color-rgba", col,
-                                                "use-markup", TRUE, NULL);
-    
-
-    /* set text only if QTH info is enabled */
-    if (satmap->qthinfo)
-    {
-        buff =
-            g_strdup_printf("<span background=\"#%s\"> %s \302\267 %s </span>",
-                            satmap->infobgd, satmap->qth->name,
-                            satmap->qth->loc);
-        g_object_set(satmap->locnam, "text", buff, NULL);
-        g_free(buff);
-    }
-
-    // Set text if second QTH info is enabled
-    if (satmap->qth2info)
-    {
-        buff =
-            g_strdup_printf("<span background=\"#%s\"> %s \302\267 %s </span>",
-                            satmap->infobgd, satmap->qth->name,
-                            satmap->qth2->loc);
-        g_object_set(satmap->locnam2, "text", buff, NULL);
-        g_free(buff);
-    }
-
-    /* next event */
-    satmap->next = goo_canvas_text_model_new(root, "",
-                                             satmap->x0 + satmap->width - 2,
-                                             satmap->y0 + 1, -1,
-                                             GOO_CANVAS_ANCHOR_NORTH_EAST,
-                                             "font", "Sans 8",
-                                             "fill-color-rgba", col,
-                                             "use-markup", TRUE, NULL);
-
-    /* set text only if QTH info is enabled */
-    if (satmap->eventinfo)
-    {
-        buff = g_strdup_printf("<span background=\"#%s\"> ... </span>",
-                               satmap->infobgd);
-        g_object_set(satmap->next, "text", buff, NULL);
-        g_free(buff);
+        marking->label = goo_canvas_text_model_new(root, 
+                                            OGS->name,
+                                            x, y + 2, -1,
+                                            GOO_CANVAS_ANCHOR_NORTH,
+                                            "font", "Sans 8",
+                                            "fill-color-rgba", col, NULL);
     }
 
     /* cursor track */
@@ -663,29 +554,14 @@ static void update_map_size(GtkMaxPathMap * satmap)
         if (satmap->show_terminator)
             redraw_terminator(satmap);
 
-        lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
-        g_object_set(satmap->qthmark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qthlabel, "x", x, "y", y + 2, NULL);
-
-        g_object_set(satmap->locnam,
-                     "x", (gdouble) satmap->x0 + 2,
-                     "y", (gdouble) satmap->y0 + 1, NULL);
-
-        lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x, &y);
-        g_object_set(satmap->qth2mark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qth2label, "x", x, "y", y + 4, NULL);
-
-        g_object_set(satmap->locnam2,
-                     "x", (gdouble) satmap->x0 + 4,
-                     "y", (gdouble) satmap->y0 + 2, NULL);
-
-        g_object_set(satmap->next,
-                     "x", (gdouble) satmap->x0 + satmap->width - 2,
-                     "y", (gdouble) satmap->y0 + 1, NULL);
+        for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
+            mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+            lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
+            g_object_set(marking->mark,
+                        "x", x - MARKER_SIZE_HALF,
+                        "y", y - MARKER_SIZE_HALF, NULL);
+            g_object_set(marking->label, "x", x, "y", y + 2, NULL);
+        }
 
         g_object_set(satmap->curs,
                      "x", (gdouble) satmap->x0 + 2,
@@ -728,7 +604,7 @@ void draw_capacity_paths(GtkMaxPathMap *map, GList *path, GList *colors) {
 
     GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(map->canvas));
 
-    if (map->capacity_path) { 
+    if (map->capacity_path) {
         destroy_path_lines(map->capacity_path, root);
         map->capacity_path = NULL;
     }
@@ -778,9 +654,6 @@ static void on_canvas_realized(GtkWidget * canvas, gpointer data)
     (void)canvas;  
 
     goo_canvas_item_model_raise(satmap->sel, NULL);
-    goo_canvas_item_model_raise(satmap->locnam, NULL);
-    goo_canvas_item_model_raise(satmap->locnam2, NULL);
-    goo_canvas_item_model_raise(satmap->next, NULL);
     goo_canvas_item_model_raise(satmap->curs, NULL);
 }
 
@@ -788,52 +661,12 @@ static void on_canvas_realized(GtkWidget * canvas, gpointer data)
 void gtk_max_path_map_update(GtkWidget * widget)
 {
     GtkMaxPathMap  *satmap = GTK_MAX_PATH_MAP(widget);
-    sat_t          *sat = NULL;
-    gdouble         number, now;
-    gchar          *buff;
-    gint           *catnr;
-    guint           h, m, s;
-    gchar          *ch, *cm, *cs;
     gfloat          x, y;
-    gdouble         oldx, oldy;
 
     /* check whether there are any pending resize requests */
     if (satmap->resize){
         update_map_size(satmap);
         draw_capacity_paths(satmap, satmap->capacity_path_nodes, satmap->capacity_path_colors);
-    }
-    /* check if qth has moved significantly, if so move it */
-    lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
-    g_object_get(satmap->qthmark, "x", &oldx, "y", &oldy, NULL);
-
-    if ((fabs(oldx - x) >= 2 * MARKER_SIZE_HALF) ||
-        (fabs(oldy - y) >= 2 * MARKER_SIZE_HALF))
-    {
-        g_object_set(satmap->qthmark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qthlabel, "x", x, "y", y + 2, NULL);
-        g_object_set(satmap->locnam,
-                     "x", (gdouble) satmap->x0 + 2,
-                     "y", (gdouble) satmap->y0 + 1, NULL);
-        satmap->counter = satmap->refresh;
-    }
-
-    // for second qth check
-    lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x, &y);
-    g_object_get(satmap->qthmark, "x", &oldx, "y", &oldy, NULL);
-
-    if ((fabs(oldx - x) >= 2 * MARKER_SIZE_HALF) ||
-        (fabs(oldy - y) >= 2 * MARKER_SIZE_HALF))
-    {
-        g_object_set(satmap->qth2mark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qth2label, "x", x, "y", y + 4, NULL);
-        g_object_set(satmap->locnam2,
-                     "x", (gdouble) satmap->x0 + 4,
-                     "y", (gdouble) satmap->y0 + 2, NULL);
-        satmap->counter = satmap->refresh;
     }
 
     /* check refresh rate and refresh sats/qth if time */
@@ -849,23 +682,14 @@ void gtk_max_path_map_update(GtkWidget * widget)
         satmap->naos = 0.0;
         satmap->ncat = 0;
 
-        lonlat_to_xy(satmap, satmap->qth->lon, satmap->qth->lat, &x, &y);
-        g_object_set(satmap->qthmark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qthlabel, "x", x, "y", y + 2, NULL);
-        g_object_set(satmap->locnam,
-                     "x", (gdouble) satmap->x0 + 2,
-                     "y", (gdouble) satmap->y0 + 1, NULL);
-
-        lonlat_to_xy(satmap, satmap->qth2->lon, satmap->qth2->lat, &x, &y);
-        g_object_set(satmap->qth2mark,
-                     "x", x - MARKER_SIZE_HALF,
-                     "y", y - MARKER_SIZE_HALF, NULL);
-        g_object_set(satmap->qth2label, "x", x, "y", y + 4, NULL);
-        g_object_set(satmap->locnam2,
-                      "x", (gdouble) satmap->x0 + 4,
-                      "y", (gdouble) satmap->y0 + 2, NULL);
+        for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
+            mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+            lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
+            g_object_set(marking->mark,
+                        "x", x - MARKER_SIZE_HALF,
+                        "y", y - MARKER_SIZE_HALF, NULL);
+            g_object_set(marking->label, "x", x, "y", y + 2, NULL);
+        }
 
         g_hash_table_foreach(satmap->sats, update_sat, satmap);
 
@@ -878,93 +702,6 @@ void gtk_max_path_map_update(GtkWidget * widget)
         {
             satmap->terminator_last_tstamp = satmap->tstamp;
             redraw_terminator(satmap);
-        }
-
-        if (satmap->eventinfo)
-        {
-            // ncat = next event cat number
-            if (satmap->ncat > 0)
-            {
-                catnr = g_try_new0(gint, 1);
-                *catnr = satmap->ncat;
-                sat = SAT(g_hash_table_lookup(satmap->sats, catnr));
-                g_free(catnr);
-
-                /* last desperate sanity check */
-                if (sat != NULL)
-                {
-                    now = satmap->tstamp;       //get_current_daynum ();
-                    number = satmap->naos - now;
-
-                    /* convert julian date to seconds */
-                    s = (guint) (number * 86400);
-
-                    /* extract hours */
-                    h = (guint) floor(s / 3600);
-                    s -= 3600 * h;
-
-                    /* leading zero */
-                    if ((h > 0) && (h < 10))
-                        ch = g_strdup("0");
-                    else
-                        ch = g_strdup("");
-
-                    /* extract minutes */
-                    m = (guint) floor(s / 60);
-                    s -= 60 * m;
-
-                    /* leading zero */
-                    if (m < 10)
-                        cm = g_strdup("0");
-                    else
-                        cm = g_strdup("");
-
-                    /* leading zero */
-                    if (s < 10)
-                        cs = g_strdup(":0");
-                    else
-                        cs = g_strdup(":");
-
-                    if (h > 0)
-                        buff =
-                            g_markup_printf_escaped(_
-                                                    ("<span background=\"#%s\"> "
-                                                     "Next: %s in %s%d:%s%d%s%d </span>"),
-                                                    satmap->infobgd,
-                                                    sat->nickname, ch, h, cm,
-                                                    m, cs, s);
-                    else
-                        buff =
-                            g_markup_printf_escaped(_
-                                                    ("<span background=\"#%s\"> "
-                                                     "Next: %s in %s%d%s%d </span>"),
-                                                    satmap->infobgd,
-                                                    sat->nickname, cm, m, cs,
-                                                    s);
-
-                    g_object_set(satmap->next, "text", buff, NULL);
-
-                    g_free(buff);
-                    g_free(ch);
-                    g_free(cm);
-                    g_free(cs);
-                }
-                else
-                {
-                    sat_log_log(SAT_LOG_LEVEL_ERROR,
-                                _("%s: Can not find NEXT satellite."),
-                                __func__);
-                    g_object_set(satmap->next, "text", _("Next: ERR"), NULL);
-                }
-            }
-            else
-            {
-                g_object_set(satmap->next, "text", _("Next: N/A"), NULL);
-            }
-        }
-        else
-        {
-            g_object_set(satmap->next, "text", "", NULL);
         }
     }
 }
