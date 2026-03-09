@@ -37,6 +37,7 @@
 #include "sat-cfg.h"
 #include "sat-log.h"
 #include "sat-pref-modules.h"
+#include "loc-tree.h"
 
 
 extern GtkWidget *app;
@@ -865,6 +866,10 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     gtk_grid_attach(GTK_GRID(grid), label, 0, 2, 2, 1);
     gtk_grid_attach(GTK_GRID(grid), locw2, 2, 2, 2, 1);
 
+    label = gtk_label_new("Add To Ground Station List");
+    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+    gtk_grid_attach(GTK_GRID(grid), label, 0, 3, 2, 1);
+
     /* add button */
     add = gtk_button_new_with_label(_("Add"));
     gtk_widget_set_tooltip_text(add, _("Add a new ground station"));
@@ -877,8 +882,26 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     g_signal_connect(add2, "clicked", G_CALLBACK(add_second_qth_cb), dialog);
     gtk_grid_attach(GTK_GRID(grid), add2, 4, 2, 1, 1);
 
+    // Add ground station to list
+    GtkWidget *list_add = gtk_button_new_with_label("Add To List");
+    gtk_widget_set_tooltip_text(list_add, "Add to ground station list");
+    gtk_grid_attach(GTK_GRID(grid), list_add, 2, 3, 3, 1);
+
+    // Ground station list
+    GList *qths = NULL;
+    qth_t *q1 = malloc(sizeof(qth_t));
+    *q1 = (qth_t){.name="home", .loc="Spot 32, The Sun", .lat=100.32, .lon=123123, .alt=15, .wx="werd"};
+    qths = g_list_append(qths, q1);
+
+    GtkWidget *qth_selected_list = create_selected_qths_list(qths);
+    
+    GtkWidget *top_part = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
+    gtk_box_pack_start(GTK_BOX(top_part), grid, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(top_part), qth_selected_list, FALSE, FALSE, 0);
+
+
     vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));
-    gtk_box_pack_start(GTK_BOX(vbox), grid, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(vbox), top_part, FALSE, FALSE, 0);
     gtk_box_pack_start(GTK_BOX(vbox),
                        gtk_separator_new(GTK_ORIENTATION_HORIZONTAL),
                        FALSE, FALSE, 10);

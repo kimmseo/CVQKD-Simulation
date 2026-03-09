@@ -30,6 +30,7 @@
 #include "loc-tree.h"
 #include "sat-cfg.h"
 #include "sat-log.h"
+#include "qth-data.h"
 
 
 /* long story... */
@@ -605,4 +606,137 @@ static void loc_tree_get_selection(GtkWidget * view,
         sat_log_log(SAT_LOG_LEVEL_ERROR,
                     _("%s: No selection found!"), __func__);
     }
+}
+
+static void remove_qth_from_list_cb(GtkTreeView *view, GtkTreePath *path,
+                                GtkTreeViewColumn *column, gpointer data) {
+    (void)path;
+    (void)column;
+    (void)data;
+
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    GtkTreeSelection *select = gtk_tree_view_get_selection(view);
+    gboolean exist_select = gtk_tree_selection_get_selected(select, &model, &iter);
+
+    if (exist_select) {
+        //ToDo: Delete qth or add it to the list of qths to delete
+        gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+    }
+}
+
+GtkWidget *create_selected_qths_list(GList *qths) {
+    GtkCellRenderer *renderer;
+    GtkTreeViewColumn *column;
+    GtkWidget      *view;
+    GtkWidget      *swin;
+
+    view = gtk_tree_view_new();
+
+    g_signal_connect(GTK_TREE_VIEW(view), "row-activated", 
+                    G_CALLBACK(remove_qth_from_list_cb), NULL);
+
+    /* Name Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Name"),
+                                                      renderer,
+                                                      "text", QTHS_COL_NAME,
+                                                      NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    /* Location Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Location"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LOC,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    /* Latitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Lat"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LAT,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_float_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_LAT),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    /* Longitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Lon"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LON,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_float_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_LON),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    /* Altitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Alt"),
+                                                      renderer,
+                                                      "text", QTHS_COL_ALT,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_int_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_ALT),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    /* WX ID Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("WX"),
+                                                      renderer,
+                                                      "text", QTHS_COL_WX,
+                                                      NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+
+    GtkListStore *store = gtk_list_store_new(QTHS_NUM_COLS, 
+        G_TYPE_STRING, //name
+        G_TYPE_STRING, //location
+        G_TYPE_FLOAT,  //lat
+        G_TYPE_FLOAT,  //lon
+        G_TYPE_UINT,   //alt
+        G_TYPE_STRING); //wx
+
+    for (GList *iter = qths; iter != NULL; iter = iter->next) {
+        qth_t *q = (qth_t *)iter->data;
+        GtkTreeIter child;
+        gtk_list_store_append(store, &child);
+        gtk_list_store_set(store, &child,
+                               QTHS_COL_NAME, q->name,
+                               QTHS_COL_LOC, q->loc,
+                               QTHS_COL_LAT, q->lat,
+                               QTHS_COL_LON, q->lon,
+                               QTHS_COL_ALT, q->alt,
+                               QTHS_COL_WX, q->wx, -1);
+    }
+    gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
+    g_object_unref(store);
+
+    /* scrolled window */
+    swin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
+                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(swin), view);
+
+    gtk_widget_show_all(swin);
+
+    GtkWidget *frame = gtk_frame_new(NULL);
+    gtk_container_add(GTK_CONTAINER(frame), swin);
+
+    return frame;
 }

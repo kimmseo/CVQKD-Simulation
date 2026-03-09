@@ -12,6 +12,16 @@ typedef enum {
     TREE_COL_NUM                /*!< The total number of columns. */
 } loc_tree_col_t;
 
+typedef enum {
+    QTHS_COL_NAME = 0,
+    QTHS_COL_LOC,
+    QTHS_COL_LAT,
+    QTHS_COL_LON,
+    QTHS_COL_ALT,
+    QTHS_COL_WX,
+    QTHS_NUM_COLS
+} qth_tree_col_t;
+
 
 /** Column flags */
 typedef enum {
@@ -29,5 +39,7 @@ gboolean        loc_tree_create(const gchar * fname,
                                 gchar ** loc,
                                 gfloat * lat,
                                 gfloat * lon, guint * alt, gchar ** wx);
+
+GtkWidget *create_selected_qths_list(GList *qths);
 
 #endif
