@@ -9,6 +9,11 @@ typedef enum {
     MOD_CFG_ERROR
 } mod_cfg_status_t;
 
+typedef struct {
+    GtkWidget *parent;
+    GtkWidget *q_list;
+} mod_cfg_qlist_cb_data;
+
 gchar          *mod_cfg_new(void);
 mod_cfg_status_t mod_cfg_edit(gchar * modname, GKeyFile * cfgdata,
                               GtkWidget * toplevel);

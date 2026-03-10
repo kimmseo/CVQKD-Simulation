@@ -47,6 +47,10 @@ static GtkWidget *namew;        /* GtkEntry widget for module name */
 static GtkWidget *locw;         /* GtkComboBox for location selection */
 static GtkWidget *locw2;        // GtkComboBox for 2nd location selection
 static GtkWidget *satlist;      /* list of selected satellites */
+static GtkWidget *qthlist;      /* list of selected qths */
+
+//ToDo: pretty sure satlist leak memory but its part of original gpredict.
+// idk I followed same style for qthlist
 
 
 static gint qth_name_compare(const gchar * a, const gchar * b)
@@ -336,6 +340,48 @@ static void add_second_qth_cb(GtkWidget * button, gpointer data)
             g_free(qth2.qra);
         }
     }
+}
+
+static void add_to_qth_list_cb(GtkWidget *button, gpointer data) {
+    mod_cfg_qlist_cb_data *params = (mod_cfg_qlist_cb_data *)data;
+    GtkWindow *parent = GTK_WINDOW(params->parent);
+    GtkTreeModel *store = gtk_tree_view_get_model(GTK_TREE_VIEW(params->q_list));
+    qth_t qth = {0};
+    GtkTreeIter t_iter;
+    gchararray q_name;
+    
+    (void) button;
+
+    GtkResponseType response = qth_editor_run(&qth, GTK_WINDOW(parent));
+
+    if (response != GTK_RESPONSE_OK) return;
+    
+    gint num_qths = gtk_tree_model_iter_n_children(GTK_TREE_MODEL(store), NULL);
+    
+    for (gint i = 0; i < num_qths; i++) {
+        if (gtk_tree_model_iter_nth_child(GTK_TREE_MODEL(store), &t_iter, NULL, i)) {
+
+            gtk_tree_model_get(GTK_TREE_MODEL(store), &t_iter,
+                            QTHS_COL_NAME, &q_name, -1);
+
+            if (g_str_equal(qth.name, q_name)) return;
+                
+        } else {
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _("%s:%s: Could not fetch entry %d in qths list"),
+                        __FILE__, __func__, i);
+        }
+    }
+
+    GtkTreeIter child;
+    gtk_list_store_append(GTK_LIST_STORE(store), &child);
+    gtk_list_store_set(GTK_LIST_STORE(store), &child,
+                            QTHS_COL_NAME, qth.name,
+                            QTHS_COL_LOC, qth.loc,
+                            QTHS_COL_LAT, qth.lat,
+                            QTHS_COL_LON, qth.lon,
+                            QTHS_COL_ALT, qth.alt,
+                            QTHS_COL_WX, qth.wx, -1);
 }
 
 static GtkWidget *create_loc_selector(GKeyFile * cfgdata)
@@ -884,20 +930,35 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
 
     // Add ground station to list
     GtkWidget *list_add = gtk_button_new_with_label("Add To List");
-    gtk_widget_set_tooltip_text(list_add, "Add to ground station list");
+    gtk_widget_set_tooltip_text(list_add, "Add to ground station list"); 
     gtk_grid_attach(GTK_GRID(grid), list_add, 2, 3, 3, 1);
 
     // Ground station list
     GList *qths = NULL;
     qth_t *q1 = malloc(sizeof(qth_t));
-    *q1 = (qth_t){.name="home", .loc="Spot 32, The Sun", .lat=100.32, .lon=123123, .alt=15, .wx="werd"};
+    *q1 = (qth_t){.name="home", .loc="Spot 32, The Sun", .lat=100.32, .lon=123, .alt=15, .wx="werd"};
     qths = g_list_append(qths, q1);
 
-    GtkWidget *qth_selected_list = create_selected_qths_list(qths);
+    qthlist = create_selected_qths_list(qths);
+    swin = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin), GTK_POLICY_NEVER,
+                                   GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(swin), qthlist);
+
+    frame = gtk_frame_new(NULL);
+    gtk_container_add(GTK_CONTAINER(frame), swin);
+
+    //Gets freed when window is closed bc g_singal_connect_data
+    mod_cfg_qlist_cb_data *data = g_new(mod_cfg_qlist_cb_data, 1);
+    data->parent = dialog;
+    data->q_list = qthlist;
     
+    g_signal_connect_data(list_add, "clicked", G_CALLBACK(add_to_qth_list_cb), 
+        data, (GClosureNotify)g_free, 0); 
+
     GtkWidget *top_part = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_box_pack_start(GTK_BOX(top_part), grid, FALSE, FALSE, 0);
-    gtk_box_pack_start(GTK_BOX(top_part), qth_selected_list, FALSE, FALSE, 0);
+    gtk_box_pack_start(GTK_BOX(top_part), frame, FALSE, FALSE, 0);
 
 
     vbox = gtk_dialog_get_content_area(GTK_DIALOG(dialog));

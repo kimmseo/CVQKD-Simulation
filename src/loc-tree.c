@@ -608,7 +608,7 @@ static void loc_tree_get_selection(GtkWidget * view,
     }
 }
 
-static void remove_qth_from_list_cb(GtkTreeView *view, GtkTreePath *path,
+static void remove_qth_from_tree_cb(GtkTreeView *view, GtkTreePath *path,
                                 GtkTreeViewColumn *column, gpointer data) {
     (void)path;
     (void)column;
@@ -629,13 +629,11 @@ static void remove_qth_from_list_cb(GtkTreeView *view, GtkTreePath *path,
 GtkWidget *create_selected_qths_list(GList *qths) {
     GtkCellRenderer *renderer;
     GtkTreeViewColumn *column;
-    GtkWidget      *view;
-    GtkWidget      *swin;
 
-    view = gtk_tree_view_new();
+    GtkWidget *qthlist = gtk_tree_view_new();
 
-    g_signal_connect(GTK_TREE_VIEW(view), "row-activated", 
-                    G_CALLBACK(remove_qth_from_list_cb), NULL);
+    g_signal_connect(GTK_TREE_VIEW(qthlist), "row-activated", 
+                    G_CALLBACK(remove_qth_from_tree_cb), NULL);
 
     /* Name Column */
     renderer = gtk_cell_renderer_text_new();
@@ -643,7 +641,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                                       renderer,
                                                       "text", QTHS_COL_NAME,
                                                       NULL);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     /* Location Column */
     renderer = gtk_cell_renderer_text_new();
@@ -652,7 +650,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                                       "text", QTHS_COL_LOC,
                                                       NULL);
     gtk_tree_view_column_set_alignment(column, 0.5);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     /* Latitude Column */
     renderer = gtk_cell_renderer_text_new();
@@ -666,7 +664,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                             loc_tree_float_cell_data_function,
                                             GUINT_TO_POINTER(QTHS_COL_LAT),
                                             NULL);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     /* Longitude Column */
     renderer = gtk_cell_renderer_text_new();
@@ -680,7 +678,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                             loc_tree_float_cell_data_function,
                                             GUINT_TO_POINTER(QTHS_COL_LON),
                                             NULL);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     /* Altitude Column */
     renderer = gtk_cell_renderer_text_new();
@@ -694,7 +692,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                             loc_tree_int_cell_data_function,
                                             GUINT_TO_POINTER(QTHS_COL_ALT),
                                             NULL);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     /* WX ID Column */
     renderer = gtk_cell_renderer_text_new();
@@ -702,7 +700,7 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                                       renderer,
                                                       "text", QTHS_COL_WX,
                                                       NULL);
-    gtk_tree_view_insert_column(GTK_TREE_VIEW(view), column, -1);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
 
     GtkListStore *store = gtk_list_store_new(QTHS_NUM_COLS, 
         G_TYPE_STRING, //name
@@ -724,19 +722,8 @@ GtkWidget *create_selected_qths_list(GList *qths) {
                                QTHS_COL_ALT, q->alt,
                                QTHS_COL_WX, q->wx, -1);
     }
-    gtk_tree_view_set_model(GTK_TREE_VIEW(view), GTK_TREE_MODEL(store));
+    gtk_tree_view_set_model(GTK_TREE_VIEW(qthlist), GTK_TREE_MODEL(store));
     g_object_unref(store);
 
-    /* scrolled window */
-    swin = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin),
-                                   GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
-    gtk_container_add(GTK_CONTAINER(swin), view);
-
-    gtk_widget_show_all(swin);
-
-    GtkWidget *frame = gtk_frame_new(NULL);
-    gtk_container_add(GTK_CONTAINER(frame), swin);
-
-    return frame;
+    return qthlist;
 }
