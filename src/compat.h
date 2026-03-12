@@ -8,6 +8,7 @@ gchar          *get_logo_dir(void);
 gchar          *get_icon_dir(void);
 gchar          *get_user_conf_dir(void);
 gchar          *get_modules_dir(void);
+gchar          *get_qths_dir(const gchar *mod_name);
 gchar          *get_satdata_dir(void);
 gchar          *get_trsp_dir(void);
 gchar          *get_hwconf_dir(void);

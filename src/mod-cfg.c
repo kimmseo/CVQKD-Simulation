@@ -27,6 +27,7 @@
 #endif
 #include <glib/gi18n.h>
 #include <gtk/gtk.h>
+#include <glib/gstdio.h>
 
 #include "compat.h"
 #include "config-keys.h"
@@ -382,6 +383,13 @@ static void add_to_qth_list_cb(GtkWidget *button, gpointer data) {
                             QTHS_COL_LON, qth.lon,
                             QTHS_COL_ALT, qth.alt,
                             QTHS_COL_WX, qth.wx, -1);
+    /* clean up */
+    g_free(qth.name);
+    if (qth.loc != NULL) g_free(qth.loc);
+    if (qth.desc != NULL) g_free(qth.desc);
+    if (qth.wx != NULL) g_free(qth.wx);
+    if (qth.qra != NULL) g_free(qth.qra);
+    
 }
 
 static GtkWidget *create_loc_selector(GKeyFile * cfgdata)
@@ -707,6 +715,219 @@ static void row_activated_cb(GtkTreeView * view, GtkTreePath * path,
     }
 }
 
+static void replace_temp_qthfolder(gchar *name) {
+    gchar *temp_folder = get_qths_dir(MOD_CFG_TEMP_QTHS_FOLDER);
+    gchar *new_folder = get_qths_dir(name);
+    g_rename(temp_folder, new_folder);
+    g_free(temp_folder);
+    g_free(new_folder);
+}
+
+void rm_non_empty_dir(const gchar *path) { 
+    if (!g_file_test(path, G_FILE_TEST_IS_DIR)) return; 
+
+    GError *error = NULL; 
+    GDir *folder = g_dir_open(path, 0, &error);
+
+    if (error != NULL) {
+        sat_log_log(SAT_LOG_LEVEL_ERROR, ("%s: Failed to open and empty: %s (%s)"),
+            __func__, path, error->message);
+        return;
+    }
+        
+    for (const char *file = g_dir_read_name(folder); file != NULL; 
+            file = g_dir_read_name(folder)) {
+        
+        gchar *file_path = g_strconcat(path, G_DIR_SEPARATOR_S, file, NULL);
+        if (g_file_test(file_path, G_FILE_TEST_IS_DIR)) {
+            rm_non_empty_dir(file_path); 
+        }
+
+        gboolean success = g_remove(file_path);
+        if (success == -1) sat_log_log(SAT_LOG_LEVEL_ERROR, 
+                    ("%s: Failed to delete file/dir %s"), __func__, file_path);
+
+        g_free(file_path);
+    }
+
+    g_remove(path);
+
+    g_dir_close(folder);
+}
+
+static void remove_qth_from_tree_cb(GtkTreeView *view, GtkTreePath *path,
+                                GtkTreeViewColumn *column, gpointer data) {
+    (void)path;
+    (void)column;
+    (void)data;
+
+    GtkTreeModel *model;
+    GtkTreeIter iter;
+
+    GtkTreeSelection *select = gtk_tree_view_get_selection(view);
+    gboolean exist_select = gtk_tree_selection_get_selected(select, &model, &iter);
+
+    if (exist_select) {
+        gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+    }
+}
+
+GtkWidget *create_selected_qths_list(const gchar *modname, gboolean new) {
+    GtkCellRenderer *renderer;
+    GtkTreeViewColumn *column;
+
+    GtkWidget *qthlist = gtk_tree_view_new();
+
+    g_signal_connect(GTK_TREE_VIEW(qthlist), "row-activated", 
+                    G_CALLBACK(remove_qth_from_tree_cb), NULL);
+
+    /* Name Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Name"),
+                                                      renderer,
+                                                      "text", QTHS_COL_NAME,
+                                                      NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    /* Location Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Location"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LOC,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    /* Latitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Lat"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LAT,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_float_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_LAT),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    /* Longitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Lon"),
+                                                      renderer,
+                                                      "text", QTHS_COL_LON,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_float_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_LON),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    /* Altitude Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("Alt"),
+                                                      renderer,
+                                                      "text", QTHS_COL_ALT,
+                                                      NULL);
+    gtk_tree_view_column_set_alignment(column, 0.5);
+    gtk_tree_view_column_set_cell_data_func(column,
+                                            renderer,
+                                            loc_tree_int_cell_data_function,
+                                            GUINT_TO_POINTER(QTHS_COL_ALT),
+                                            NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    /* WX ID Column */
+    renderer = gtk_cell_renderer_text_new();
+    column = gtk_tree_view_column_new_with_attributes(_("WX"),
+                                                      renderer,
+                                                      "text", QTHS_COL_WX,
+                                                      NULL);
+    gtk_tree_view_insert_column(GTK_TREE_VIEW(qthlist), column, -1);
+
+    GtkListStore *store = gtk_list_store_new(QTHS_NUM_COLS, 
+        G_TYPE_STRING, //name
+        G_TYPE_STRING, //location
+        G_TYPE_FLOAT,  //lat
+        G_TYPE_FLOAT,  //lon
+        G_TYPE_UINT,   //alt
+        G_TYPE_STRING); //wx
+
+    gtk_tree_view_set_model(GTK_TREE_VIEW(qthlist), GTK_TREE_MODEL(store));
+
+    GError *error = NULL;
+    gint success;
+    gchar *qth_folder_path;
+    GDir *qth_folder;
+
+    if (new) {      //make temp folder for qths
+        qth_folder_path = get_qths_dir(MOD_CFG_TEMP_QTHS_FOLDER);
+        //get renamed or removed when module configuration popup is closed
+        //have to do this because new module name isn't confirmed until popup ok
+
+        rm_non_empty_dir(qth_folder_path);
+
+        success = g_mkdir_with_parents(qth_folder_path, 0755);
+
+        if (success == -1) {
+        sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: New Module creation, failed to get make temp dir for qths"),
+                    __func__);
+        }
+
+    } else {        //open existing folder for qths
+        qth_folder_path = get_qths_dir(modname); 
+        qth_folder = g_dir_open(qth_folder_path, 0, &error);
+
+        if (error != NULL) {
+            sat_log_log(SAT_LOG_LEVEL_ERROR,
+                        _("%s: Failed to get list of qths (%s)"),
+                        __func__, error->message);
+            g_clear_error(&error);
+            g_free(qth_folder_path);
+            g_object_unref(store);
+            return qthlist;
+        }
+    
+        //load existing qths to store from files
+        for (const char *q_name = g_dir_read_name(qth_folder); 
+            q_name != NULL; q_name = g_dir_read_name(qth_folder)){
+
+            qth_t q = {0};
+            gchar *q_path = g_strconcat(qth_folder_path, G_DIR_SEPARATOR_S, q_name, NULL); 
+            gboolean success = qth_data_read(q_path, &q);
+            g_free(q_path);
+
+            if (!success) {
+                sat_log_log(SAT_LOG_LEVEL_ERROR,
+                    _("%s: Failed to load qth from file (%s)"),
+                    __func__, q_name);
+                continue;
+            }
+
+            GtkTreeIter child;
+            gtk_list_store_append(store, &child);
+            gtk_list_store_set(store, &child,
+                            QTHS_COL_NAME, q.name,
+                            QTHS_COL_LOC, q.loc,
+                            QTHS_COL_LAT, q.lat,
+                            QTHS_COL_LON, q.lon,
+                            QTHS_COL_ALT, q.alt,
+                            QTHS_COL_WX, q.wx, -1);
+        }
+        g_dir_close(qth_folder);
+    }
+
+    
+    g_free(qth_folder_path);
+    g_object_unref(store);
+
+    return qthlist;
+}
+
 /**
  * Create the list containing the selected satellites.
  *
@@ -934,12 +1155,7 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     gtk_grid_attach(GTK_GRID(grid), list_add, 2, 3, 3, 1);
 
     // Ground station list
-    GList *qths = NULL;
-    qth_t *q1 = malloc(sizeof(qth_t));
-    *q1 = (qth_t){.name="home", .loc="Spot 32, The Sun", .lat=100.32, .lon=123, .alt=15, .wx="werd"};
-    qths = g_list_append(qths, q1);
-
-    qthlist = create_selected_qths_list(qths);
+    qthlist = create_selected_qths_list(modname, new);
     swin = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(swin), GTK_POLICY_NEVER,
                                    GTK_POLICY_AUTOMATIC);
@@ -1278,6 +1494,16 @@ gchar          *mod_cfg_new()
             finished = TRUE;
             break;
         }
+    }
+
+    //cleaning up temp qth folder if not creating new module
+    if (name == NULL) {
+        gchar *tmp_qth_folder = get_qths_dir(MOD_CFG_TEMP_QTHS_FOLDER);
+        rm_non_empty_dir(tmp_qth_folder);
+        g_free(tmp_qth_folder);
+    } else {
+    //renaming to real name if creating new module
+        replace_temp_qthfolder(name);
     }
 
     /* clean up */

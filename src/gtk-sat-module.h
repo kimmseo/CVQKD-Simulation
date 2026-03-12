@@ -86,6 +86,7 @@ struct _gtk_sat_module {
     qth_t          *qth2;       /*<! Second QTH information. */
     qth_small_t     qth_event;  /*!< QTH information for last AOS/LOS update. */
     GHashTable     *satellites; /*!< Satellites. */
+    GSList         *qths;       /*!< Ground stations */
 
     guint32         timeout;    /*!< Timeout value [msec] */
 

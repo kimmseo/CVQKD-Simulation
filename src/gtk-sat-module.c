@@ -138,10 +138,6 @@ static void update_autotrack(GtkSatModule * module)
     g_list_free(satlist);
 }
 
-
-// TODO: Bug here, when selecting second satellite from popup menu for sat module
-// autotrack will be called and change the second satellite back to original
-// Above TODO status: done (fixed)
 static void update_autotrack_second_sat(GtkSatModule * module)
 {
     GList          *satlist = NULL;
@@ -291,6 +287,12 @@ static void gtk_sat_module_destroy(GtkWidget * widget)
         module->satellites = NULL;
     }
 
+    if (module->qths) 
+    {
+        g_slist_free_full(module->qths, g_free);
+        module->qths = NULL;
+    }
+
     if (module->grid)
     {
         g_free(module->grid);
@@ -337,6 +339,8 @@ static void gtk_sat_module_init(GtkSatModule * module,
 
     module->satellites = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                g_free, gtk_sat_module_free_sat);
+
+    module->qths = NULL;
 
     module->rotctrlwin = NULL;
     module->rotctrl = NULL;
@@ -458,6 +462,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtkMultipleSat case called", __FILE__, __LINE__);
         break;
 
+    //ToDo: add qths here to pass it to view and map
     case GTK_SAT_MOD_VIEW_MAXPATH:
         view = gtk_max_path_view_new(module->cfgdata,
                                     module->satellites, module->qth, module->qth2, 0);

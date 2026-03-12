@@ -284,6 +284,20 @@ gchar          *get_modules_dir(void)
     return dir;
 }
 
+/** Get USER_CONF_DIR/qths */
+gchar          *get_qths_dir(const gchar *mod_name)
+{
+    gchar          *confdir;
+    gchar          *dir;
+
+    confdir = get_user_conf_dir();
+    dir = g_strconcat(confdir, G_DIR_SEPARATOR_S, "qths", 
+        G_DIR_SEPARATOR_S, mod_name, NULL);
+    g_free(confdir);
+ 
+    return dir;
+}
+
 /** Get USER_CONF_DIR/satdata */
 gchar          *get_satdata_dir(void)
 {

@@ -43,6 +43,7 @@ static void     first_time_check_step_05(guint * error);
 static void     first_time_check_step_06(guint * error);
 static void     first_time_check_step_07(guint * error);
 static void     first_time_check_step_08(guint * error);
+static void     first_time_check_step_09(guint * error);
 
 /**
  * Perform first time checks.
@@ -104,6 +105,7 @@ guint first_time_check_run()
     first_time_check_step_06(&error);
     first_time_check_step_07(&error);
     first_time_check_step_08(&error);
+    first_time_check_step_09(&error);
 
     return error;
 }
@@ -819,4 +821,60 @@ static void first_time_check_step_08(guint * error)
     }
 
     g_free(dir);
+}
+
+gchar *read_name_wo_extension(GDir *dir) {
+    const char *filename = g_dir_read_name(dir);
+    if (filename == NULL) return NULL;
+    
+    char *name = malloc(strlen(filename) + 1);
+    memcpy(name, filename, strlen(filename)+1);
+
+    if (g_str_has_suffix(name, ".mod")) {
+        name[strlen(name) - 4] = '\0';
+    }
+
+    return name;
+}
+
+/**
+ * Execute step 9 of the first time checks.
+ *
+ * 9. Check for the existence of USER_CONF_DIR/qths directory. This
+ *    directory contains a subdirectory for each module in 
+ *    USER_CONF_DIR/modules.
+ */
+static void first_time_check_step_09(guint * error)
+{
+    int status;
+    GDir *mod_dir = g_dir_open(get_modules_dir(), 0, NULL);
+    gchar *full_path;
+
+    for (gchar *module = read_name_wo_extension(mod_dir); 
+        module != NULL; 
+        module = read_name_wo_extension(mod_dir)) {
+            
+        full_path = get_qths_dir(module);
+
+        if (g_file_test(full_path, G_FILE_TEST_IS_DIR)) {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG, 
+                    _("%s-%s: Check successful."), __func__, module);
+        } else {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                    _("%s: Check failed. Creating %s"), __func__, module);
+
+            status = g_mkdir_with_parents(full_path, 0755);
+
+            if (status) {
+                *error |= FTC_ERROR_STEP_09;
+                sat_log_log(SAT_LOG_LEVEL_ERROR, _("%s: Failed to create %s"),
+                        __func__, module);
+            } else {
+            sat_log_log(SAT_LOG_LEVEL_DEBUG,
+                        _("%s: Created %s."), __func__, module);
+            }
+        }
+
+        free(module); 
+    }
 }

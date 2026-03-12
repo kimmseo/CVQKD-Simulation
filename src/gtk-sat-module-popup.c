@@ -46,6 +46,7 @@
 #include "predict-tools.h"
 #include "orbit-tools.h"
 #include "skr-utils.h"
+#include "mod-cfg.h"
 
 
 extern GtkWidget *app;          /* in main.c */
@@ -1015,10 +1016,12 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
     gint            response;
     gchar          *file;
     gchar          *moddir;
+    gchar          *qths_folder;
 
 	toplevel = gtk_widget_get_toplevel(GTK_WIDGET(data));
     moddir = get_modules_dir();
     file = g_strconcat(moddir, G_DIR_SEPARATOR_S, module->name, ".mod", NULL);
+    qths_folder = get_qths_dir(module->name);
     g_free(moddir);
 
     /* ask user to confirm removal */
@@ -1075,6 +1078,11 @@ static void delete_cb(GtkWidget * menuitem, gpointer data)
         {
             sat_log_log(SAT_LOG_LEVEL_INFO, _("%s deleted"), file);
         }
+
+        //delete qths folder associated with module 
+        rm_non_empty_dir(qths_folder);
+        g_free(qths_folder);
+
         break;
     default:
         break;

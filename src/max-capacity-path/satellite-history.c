@@ -23,7 +23,7 @@ GHashTable *generate_sat_pos_data(GSList *sats_list, guint *sat_hist_len, gdoubl
         *cat_nr = sat.tle.catnr;
 
         lw_sat_t *entries = malloc(*sat_hist_len * sizeof(lw_sat_t));
-        
+
         for (guint i = 0; i < *sat_hist_len; i++) {
             entries[i] = sat_at_time(&sat, start_time + (i * time_step));
         }

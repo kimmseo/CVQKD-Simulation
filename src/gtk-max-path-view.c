@@ -907,7 +907,7 @@ void calculate_max_capacity_path(GtkWidget *button, gpointer data) {
         sat_history, 
         sat_hist_len, 
         obj->qths,
-        search);    
+        search);
 
     g_hash_table_destroy(sat_history);
 

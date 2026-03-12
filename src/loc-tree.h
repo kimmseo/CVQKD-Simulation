@@ -40,6 +40,18 @@ gboolean        loc_tree_create(const gchar * fname,
                                 gfloat * lat,
                                 gfloat * lon, guint * alt, gchar ** wx);
 
-GtkWidget *create_selected_qths_list(GList *qths);
+void     loc_tree_int_cell_data_function(GtkTreeViewColumn * col,
+                                                GtkCellRenderer * renderer,
+                                                GtkTreeModel * model,
+                                                GtkTreeIter * iter,
+                                                gpointer column);
+
+void     loc_tree_float_cell_data_function(GtkTreeViewColumn * col,
+                                                  GtkCellRenderer * renderer,
+                                                  GtkTreeModel * model,
+                                                  GtkTreeIter * iter,
+                                                  gpointer column);
+
+
 
 #endif
