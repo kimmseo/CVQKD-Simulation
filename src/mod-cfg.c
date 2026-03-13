@@ -275,7 +275,7 @@ static void add_qth_cb(GtkWidget * button, gpointer data)
     qth.qra = NULL;
     qth.data = NULL;
 
-    response = qth_editor_run(&qth, parent);
+    response = qth_editor_run(&qth, parent, FALSE);
 
     if (response == GTK_RESPONSE_OK)
     {
@@ -361,7 +361,7 @@ static void add_to_qth_list_cb(GtkWidget *button, gpointer data) {
     
     (void) button;
 
-    GtkResponseType response = qth_editor_run(&qth, GTK_WINDOW(parent));
+    GtkResponseType response = qth_editor_run(&qth, GTK_WINDOW(parent), TRUE);
 
     if (response != GTK_RESPONSE_OK) return;
     

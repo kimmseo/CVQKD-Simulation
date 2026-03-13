@@ -123,7 +123,7 @@ static void clear_widgets()
  *
  * This function is usually called when the user clicks the OK button.
  */
-static gboolean apply_changes(qth_t * qth)
+static gboolean apply_changes(qth_t * qth, gboolean mod_qth_list)
 {
     const gchar    *qthname = NULL;
     const gchar    *qthloc = NULL;
@@ -140,7 +140,7 @@ static gboolean apply_changes(qth_t * qth)
     gdouble         qthlon;
     guint           qthalt;
     gchar          *fname, *confdir;
-    gboolean        retcode;
+    gboolean        retcode = TRUE;
 
     /* get values from widgets */
     qthname = gtk_entry_get_text(GTK_ENTRY(name));
@@ -192,14 +192,18 @@ static gboolean apply_changes(qth_t * qth)
     qth->lon = qthlon;
     qth->alt = qthalt;
 
-    /* store values */
-    confdir = get_user_conf_dir();
-    fname = g_strconcat(confdir, G_DIR_SEPARATOR_S, qth->name, ".qth", NULL);
+    if (!mod_qth_list) {
+        /* store values */
+        confdir = get_user_conf_dir();
+        fname = g_strconcat(confdir, G_DIR_SEPARATOR_S, qth->name, ".qth", NULL);
 
-    retcode = qth_data_save(fname, qth);
-    g_free(fname);
-    g_free(confdir);
+        retcode = qth_data_save(fname, qth);
 
+        g_free(fname);
+        g_free(confdir);
+
+    }
+    
     return retcode;
 }
 
@@ -783,7 +787,7 @@ static GtkWidget *create_editor_widgets(qth_t * qth)
  * @bug Edit mode doesn't really works, that is, it does, but probably leaks memory
  *      because I can't free existing data in qth_t
  */
-GtkResponseType qth_editor_run(qth_t * qth, GtkWindow * parent)
+GtkResponseType qth_editor_run(qth_t * qth, GtkWindow * parent, gboolean mod_qth_list)
 {
     gint            response;
     gboolean        finished = FALSE;
@@ -815,7 +819,8 @@ GtkResponseType qth_editor_run(qth_t * qth, GtkWindow * parent)
         {
             /* OK */
         case GTK_RESPONSE_OK:
-            if (apply_changes(qth))
+
+            if (apply_changes(qth, mod_qth_list))
             {
                 finished = TRUE;
             }
