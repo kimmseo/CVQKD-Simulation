@@ -343,10 +343,18 @@ static void add_second_qth_cb(GtkWidget * button, gpointer data)
     }
 }
 
+static void mod_cfg_qth_list_cb_data_free(gpointer data, GClosure *closure) {
+    (void)closure;
+    mod_cfg_qlist_cb_data *params = (mod_cfg_qlist_cb_data *)data;
+    g_free(params->modname);
+    g_free(data);
+}
+
 static void add_to_qth_list_cb(GtkWidget *button, gpointer data) {
     mod_cfg_qlist_cb_data *params = (mod_cfg_qlist_cb_data *)data;
     GtkWindow *parent = GTK_WINDOW(params->parent);
     GtkTreeModel *store = gtk_tree_view_get_model(GTK_TREE_VIEW(params->q_list));
+    gchar *mod_name = params->modname;
     qth_t qth = {0};
     GtkTreeIter t_iter;
     gchararray q_name;
@@ -383,6 +391,18 @@ static void add_to_qth_list_cb(GtkWidget *button, gpointer data) {
                             QTHS_COL_LON, qth.lon,
                             QTHS_COL_ALT, qth.alt,
                             QTHS_COL_WX, qth.wx, -1);
+
+    //new module
+    if (mod_name == NULL) mod_name = MOD_CFG_TEMP_QTHS_FOLDER;
+    
+    gchar *qth_folder = get_qths_dir(mod_name);
+    gchar *qth_file = g_strconcat(qth_folder, G_DIR_SEPARATOR_S, qth.name, ".qth", NULL);
+    GFile *file = g_file_new_for_path(qth_file);
+    qth_data_save(qth_file, &qth);
+    g_object_unref(file);
+    g_free(qth_file);
+    g_free(qth_folder);
+
     /* clean up */
     g_free(qth.name);
     if (qth.loc != NULL) g_free(qth.loc);
@@ -732,6 +752,7 @@ void rm_non_empty_dir(const gchar *path) {
     if (error != NULL) {
         sat_log_log(SAT_LOG_LEVEL_ERROR, ("%s: Failed to open and empty: %s (%s)"),
             __func__, path, error->message);
+        g_clear_error(&error);
         return;
     }
         
@@ -759,7 +780,9 @@ static void remove_qth_from_tree_cb(GtkTreeView *view, GtkTreePath *path,
                                 GtkTreeViewColumn *column, gpointer data) {
     (void)path;
     (void)column;
-    (void)data;
+    char *mod_name = ((mod_cfg_qlist_cb_data *)data)->modname;
+
+    if (mod_name == NULL) mod_name = MOD_CFG_TEMP_QTHS_FOLDER;
 
     GtkTreeModel *model;
     GtkTreeIter iter;
@@ -768,7 +791,25 @@ static void remove_qth_from_tree_cb(GtkTreeView *view, GtkTreePath *path,
     gboolean exist_select = gtk_tree_selection_get_selected(select, &model, &iter);
 
     if (exist_select) {
-        gtk_list_store_remove(GTK_LIST_STORE(model), &iter);
+        gchararray qth_name;
+        gtk_tree_model_get(model, &iter, QTHS_COL_NAME, &qth_name, -1);
+        gchar* qth_folder = get_qths_dir(mod_name);
+        gchar* qth_file = g_strconcat(qth_folder, G_DIR_SEPARATOR_S, qth_name, ".qth", NULL);
+        GFile *file = g_file_new_for_path(qth_file);
+        GError *error = NULL;
+        g_file_delete(file, NULL, &error);
+
+        if (error != NULL) {        
+            sat_log_log(SAT_LOG_LEVEL_ERROR, ("%s: Failed to delete file: %s (%s)"),
+            __func__, qth_file, error->message);
+            g_clear_error(&error);
+        }
+
+        g_object_unref(file);
+        g_free(qth_file);
+        g_free(qth_folder);
+        g_free(qth_name);
+        gtk_list_store_remove(GTK_LIST_STORE(model), &iter); 
     }
 }
 
@@ -778,8 +819,12 @@ GtkWidget *create_selected_qths_list(const gchar *modname, gboolean new) {
 
     GtkWidget *qthlist = gtk_tree_view_new();
 
-    g_signal_connect(GTK_TREE_VIEW(qthlist), "row-activated", 
-                    G_CALLBACK(remove_qth_from_tree_cb), NULL);
+    mod_cfg_qlist_cb_data *data = g_new(mod_cfg_qlist_cb_data, 1);
+    data->modname = g_strdup(modname);
+
+    g_signal_connect_data(GTK_TREE_VIEW(qthlist), "row-activated", 
+                    G_CALLBACK(remove_qth_from_tree_cb), data, 
+                    (GClosureNotify)mod_cfg_qth_list_cb_data_free, 0);
 
     /* Name Column */
     renderer = gtk_cell_renderer_text_new();
@@ -1168,9 +1213,10 @@ static GtkWidget *mod_cfg_editor_create(const gchar * modname,
     mod_cfg_qlist_cb_data *data = g_new(mod_cfg_qlist_cb_data, 1);
     data->parent = dialog;
     data->q_list = qthlist;
+    data->modname = g_strdup(modname);
     
     g_signal_connect_data(list_add, "clicked", G_CALLBACK(add_to_qth_list_cb), 
-        data, (GClosureNotify)g_free, 0); 
+        data, (GClosureNotify)mod_cfg_qth_list_cb_data_free, 0); 
 
     GtkWidget *top_part = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 0);
     gtk_box_pack_start(GTK_BOX(top_part), grid, FALSE, FALSE, 0);

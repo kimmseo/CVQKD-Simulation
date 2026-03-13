@@ -12,6 +12,7 @@ typedef enum {
 typedef struct {
     GtkWidget *parent;
     GtkWidget *q_list;
+    gchar *modname;
 } mod_cfg_qlist_cb_data;
 
 #define MOD_CFG_TEMP_QTHS_FOLDER "TempModule546048"
