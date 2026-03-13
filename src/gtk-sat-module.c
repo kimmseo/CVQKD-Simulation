@@ -67,6 +67,7 @@
 #include "sat-log.h"
 #include "sgpsdp/sgp4sdp4.h"
 #include "time-tools.h"
+#include "qth-data.h"
 
 
 static GtkVBoxClass *parent_class = NULL;
@@ -462,15 +463,14 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtkMultipleSat case called", __FILE__, __LINE__);
         break;
 
-    //ToDo: add qths here to pass it to view and map
     case GTK_SAT_MOD_VIEW_MAXPATH:
         view = gtk_max_path_view_new(module->cfgdata,
-                                    module->satellites, module->qth, module->qth2, 0);
+                                    module->satellites, module->qths, module->qth, 0);
         g_signal_connect(view, "update-path", G_CALLBACK(update_max_capacity_path_callback), module);
         break;
     case GTK_SAT_MOD_VIEW_PATHMAP:
         view = gtk_max_path_map_new(module->cfgdata,
-                               module->satellites, module->qth, module->qth2);
+                               module->satellites, module->qth, module->qth2, module->qths);
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtMaxPathMap case called", __FILE__, __LINE__);
         break;   
 
@@ -552,6 +552,30 @@ static void create_module_layout(GtkSatModule * module)
     }
 
     gtk_box_pack_start(GTK_BOX(module), table, TRUE, TRUE, 0);
+}
+
+
+void gtk_sat_module_load_qths(GtkSatModule *module) {
+    gchar *qths_folder = get_qths_dir(module->name);
+    GError *error = NULL;
+    GDir *folder = g_dir_open(qths_folder, 0, &error);
+    
+    for (const gchar *qth_file = g_dir_read_name(folder);
+        qth_file != NULL;
+        qth_file = g_dir_read_name(folder)) {
+
+        gchar *qth_file_path = g_strconcat(qths_folder, G_DIR_SEPARATOR_S, qth_file, NULL);
+        qth_t *q = g_new0(qth_t, 1);
+
+        qth_data_read(qth_file_path, q);
+
+        module->qths = g_slist_prepend(module->qths, q);
+
+        g_free(qth_file_path);
+    }
+
+    g_dir_close(folder);
+    g_free(qths_folder);
 }
 
 
@@ -1290,6 +1314,7 @@ GtkWidget *gtk_sat_module_new(const gchar * cfgfile)
     module->tmgCdnum = get_current_daynum();
 
     gtk_sat_module_load_sats(module);
+    gtk_sat_module_load_qths(module);
 
     /* menu */
     GtkWidget * image = gtk_image_new_from_icon_name("open-menu-symbolic",

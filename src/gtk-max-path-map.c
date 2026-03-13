@@ -299,7 +299,7 @@ void destroy_path_lines(GList *lines, GooCanvasItemModel *root) {
 }
 
 GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
-                                qth_t * qth, qth_t * qth2)
+                                qth_t * qth, qth_t * qth2, GSList *qths)
 {
     GtkMaxPathMap      *satmap;
     GooCanvasItemModel *root;
@@ -311,13 +311,13 @@ GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
     satmap->sats = sats;
     satmap->qth = qth;
 
-    satmap->qths = g_list_prepend(NULL, qth);
-    satmap->qths = g_list_prepend(satmap->qths, qth2);
+    satmap->qths = qths;
+
     qth_t *test_q = malloc(sizeof(qth_t));
     test_q->name = "test Station";
     test_q->lat = 0.7893;
     test_q->lon = 50.9213;
-    satmap->qths = g_list_prepend(satmap->qths, test_q);
+    satmap->qths = g_slist_prepend(satmap->qths, test_q);
 
     satmap->obj = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
 
@@ -428,7 +428,7 @@ static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
                           MOD_CFG_MAP_SECTION,
                           MOD_CFG_MAP_QTH_COL, SAT_CFG_INT_MAP_QTH_COL);
 
-    for (GList *iter = satmap->qths; iter != NULL; iter = iter->next) {
+    for (GSList *iter = satmap->qths; iter != NULL; iter = iter->next) {
         qth_t *OGS = (qth_t *)iter->data;
         mpm_qth_marks *marking = malloc(sizeof(mpm_qth_marks));
         satmap->qth_marks = g_list_append(satmap->qth_marks, marking);

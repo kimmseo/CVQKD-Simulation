@@ -1227,7 +1227,7 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
 
 
 GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
-                                qth_t * qth, qth_t * qth2, guint32 fields)
+                                GSList *qths, qth_t *qth, guint32 fields)
 {
     GtkWidget       *widget;
     GtkMaxPathView  *max_path_view;
@@ -1253,12 +1253,9 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     {
         g_array_append_val(max_path_view->selected, i);
     }
-    
-    max_path_view->qth = qth;
-    max_path_view->qth2 = qth2;
 
-    max_path_view->qths = g_slist_append(NULL, qth);
-    max_path_view->qths = g_slist_append(max_path_view->qths, qth2);
+    max_path_view->qths = qths;
+    max_path_view->qth = qth;
 
     max_path_view->path_colors = NULL;
     max_path_view->max_capacity_path = NULL;

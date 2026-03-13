@@ -142,11 +142,8 @@ struct _GtkMaxPathViewClass {
 };
 
 GType           gtk_max_path_view_get_type(void);
-GtkWidget       *gtk_max_path_view_new(GKeyFile * cfgdata, 
-                                        GHashTable * sats, 
-                                        qth_t * qth, 
-                                        qth_t * qth2, 
-                                        guint32 fields);
+GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
+                                GSList *qths, qth_t *qth, guint32 fields);
 void            gtk_max_path_view_update(GtkWidget * widget, guint index);
 void            gtk_max_path_view_reconf(GtkWidget * widget,
                                         GKeyFile * newcfg,
