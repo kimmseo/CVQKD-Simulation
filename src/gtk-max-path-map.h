@@ -153,7 +153,7 @@ struct _GtkMaxPathMapClass {
 
 GType           gtk_max_path_map_get_type(void);
 GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
-                                qth_t * qth, qth_t * qth2, GSList *qths);
+                                qth_t * qth, GSList *qths);
 void            gtk_max_path_map_update(GtkWidget * widget);
 void            gtk_max_path_map_reconf(GtkWidget * widget, GKeyFile * cfgdat);
 void            gtk_max_path_map_lonlat_to_xy(GtkMaxPathMap * m,

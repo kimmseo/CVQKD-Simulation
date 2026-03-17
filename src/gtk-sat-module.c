@@ -470,7 +470,7 @@ static GtkWidget *create_view(GtkSatModule * module, guint num)
         break;
     case GTK_SAT_MOD_VIEW_PATHMAP:
         view = gtk_max_path_map_new(module->cfgdata,
-                               module->satellites, module->qth, module->qth2, module->qths);
+                               module->satellites, module->qth, module->qths);
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: GtMaxPathMap case called", __FILE__, __LINE__);
         break;   
 

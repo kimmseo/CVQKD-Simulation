@@ -299,7 +299,7 @@ void destroy_path_lines(GList *lines, GooCanvasItemModel *root) {
 }
 
 GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
-                                qth_t * qth, qth_t * qth2, GSList *qths)
+                                qth_t * qth, GSList *qths)
 {
     GtkMaxPathMap      *satmap;
     GooCanvasItemModel *root;
@@ -311,13 +311,7 @@ GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
     satmap->sats = sats;
     satmap->qth = qth;
 
-    satmap->qths = qths;
-
-    qth_t *test_q = malloc(sizeof(qth_t));
-    test_q->name = "test Station";
-    test_q->lat = 0.7893;
-    test_q->lon = 50.9213;
-    satmap->qths = g_slist_prepend(satmap->qths, test_q);
+    satmap->qths = qths; 
 
     satmap->obj = g_hash_table_new_full(g_int_hash, g_int_equal, g_free, g_free);
 
@@ -576,26 +570,94 @@ static void update_map_size(GtkMaxPathMap * satmap)
     }
 }
 
-GooCanvasPoints *generate_arc(GtkMaxPathMap *map, sat_t *satellite, gdouble t_start, gdouble t_end) {
-    guint len = (guint)((t_end - t_start) * 1440); //draw point for every 5
+void generate_arc(
+    GtkMaxPathMap *map, 
+    GooCanvasItemModel *root, 
+    GdkRGBA *color,
+    sat_t *satellite,
+    gdouble t_start, 
+    gdouble t_end) {
+
+    guint len = (guint)((t_end - t_start) * 1440); //draw point for every min
     const gdouble t_step = 1.0 / 1440.0;
 
-    GooCanvasPoints *arc = goo_canvas_points_new(len + 1);
     sat_t dummy_s;
     memcpy(&dummy_s, satellite, sizeof(sat_t));
     qth_t dummy_q = {0};
     gfloat x, y;
 
+    GList *canvas_arcs = g_list_append(NULL, g_array_new(FALSE, FALSE, sizeof(gdouble)));
+
+    predict_calc(&dummy_s, &dummy_q, t_start);
+    gdouble prev_lon = dummy_s.ssplon;
+    gdouble prev_lat = dummy_s.ssplat;
+    gdouble replace = 0;
+
     for (guint i = 0; i < len + 1; i++) {
-        if (i == len) predict_calc(&dummy_s, &dummy_q, t_end);
-        else predict_calc(&dummy_s, &dummy_q, t_start + i * t_step);
+        //make sure we get endpoint correct
+        if (i == len) {                  
+            predict_calc(&dummy_s, &dummy_q, t_end);
+        } else {
+            predict_calc(&dummy_s, &dummy_q, t_start + i * t_step);
+        }
+
+        //check for wrap around map
+        // lat: -90, 90,  lon: -180, 180
+        if ((prev_lat < -60 && dummy_s.ssplat > 60)
+            || (prev_lat > 75 && dummy_s.ssplat < -75)) {
+
+            replace = (prev_lat < -60) ? -90 : 90;
+            lonlat_to_xy(map, dummy_s.ssplon, replace, &x, &y);
+            canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
+
+            canvas_arcs = g_list_prepend(canvas_arcs, g_array_new(FALSE, FALSE, sizeof(gdouble)));
+
+            lonlat_to_xy(map, dummy_s.ssplon, -1 * replace, &x, &y);
+            canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
+
+        } else if ((prev_lon < -150 && dummy_s.ssplon > 150)
+            || (prev_lon > 150 && dummy_s.ssplon < -150)) { 
+            
+            replace = (prev_lon < -150) ? -180 : 180;
+            lonlat_to_xy(map, replace, dummy_s.ssplat, &x, &y);
+            canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
+
+            canvas_arcs = g_list_prepend(canvas_arcs, g_array_new(FALSE, FALSE, sizeof(gdouble))); 
+
+            lonlat_to_xy(map, -1 * replace, dummy_s.ssplat, &x, &y);
+            canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
+        }
 
         lonlat_to_xy(map, dummy_s.ssplon, dummy_s.ssplat, &x, &y);
-        arc->coords[2 * i] = x;
-        arc->coords[(2 * i) + 1] = y;
+        canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
+
+        prev_lat = dummy_s.ssplat;
+        prev_lon = dummy_s.ssplon;
     }
+
+    for (GList *arc = canvas_arcs; arc != NULL; arc=arc->next) {
+        GArray *arc_array = (GArray *)arc->data;
+        gsize array_len = 0;
     
-    return arc;
+        GooCanvasPoints *points = goo_canvas_points_new((guint)(arc_array->len / 2));
+        points->coords = g_array_steal(arc_array, &array_len);
+
+        map->capacity_path = g_list_append(map->capacity_path,
+                g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+                        "parent", root,
+                        "points", points,
+                        "stroke-color", fmted_to_string("#%.2X%.2X%.2X",
+                            (int)(250*color->red),
+                            (int)(250*color->green),
+                            (int)(250*color->blue)),
+                        "line-width", 2.0,
+                        "visibility", GOO_CANVAS_ITEM_VISIBLE,
+                        NULL));
+
+        g_array_free(arc->data, TRUE);
+    }
+
+    g_list_free(canvas_arcs);
 }
 
 
@@ -614,26 +676,18 @@ void draw_capacity_paths(GtkMaxPathMap *map, GList *path, GList *colors) {
         GdkRGBA *color = (GdkRGBA *)c_iter->data;
         path_node *node = (path_node *)p_iter->data;
         path_node *next_node = (path_node *)p_iter->next->data;
-        GooCanvasPoints *points = NULL;
 
-        if (node->type == path_SATELLITE) {
-            points = generate_arc(map, node->obj, node->time, next_node->time);
-        } else if (node->type == path_STATION) {
-            c_iter = c_iter->next;
-            continue;
+        switch (node->type) {
+            case path_SATELLITE:
+                generate_arc(map, root, color, node->obj, node->time, next_node->time);
+                break;
+            case path_STATION:
+                break;
+            default:
+                sat_log_log(SAT_LOG_LEVEL_ERROR, 
+                    "%s: unknown max path node type -> %s", 
+                    __func__, node->type);
         }
-
-        map->capacity_path = g_list_append(map->capacity_path,
-            g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
-                    "parent", root,
-                    "points", points,
-                    "stroke-color", fmted_to_string("#%.2X%.2X%.2X",
-                        (int)(250*color->red),
-                        (int)(250*color->green),
-                        (int)(250*color->blue)),
-                    "line-width", 2.0,
-                    "visibility", GOO_CANVAS_ITEM_VISIBLE,
-                    NULL));
 
         c_iter = c_iter->next;
     }     
