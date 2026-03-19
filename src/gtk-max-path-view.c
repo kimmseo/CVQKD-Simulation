@@ -64,8 +64,6 @@ const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
 
 static GtkBoxClass *parent_class = NULL;
 
-
-
 static void gtk_max_path_view_destroy(GtkWidget * widget)
 {
     GtkMaxPathView      *msat = GTK_MAX_PATH_VIEW(widget);
@@ -94,8 +92,6 @@ static void gtk_max_path_view_destroy(GtkWidget * widget)
                                     msat->dyn_num_sat);
 
         g_array_free(msat->selected, TRUE);
-        g_array_free(msat->panels, TRUE);
-        g_array_free(msat->labels, TRUE);
 
         msat->dyn_num_sat = 0;
     }
@@ -279,22 +275,6 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             break;
         }
     }
-
-    if (buff != NULL)
-    {
-
-        GtkWidget *labelIJ = g_array_index(msat->labels, GtkWidget *, 
-                                (index * MAX_PATH_VIEW_FIELD_NUMBER) + i);
- 
-        //gtk_label_set_text(GTK_LABEL(msat->labels[index][i]), buff);
-        gtk_label_set_text(GTK_LABEL(labelIJ), buff);
-        /*
-        sat_log_log(SAT_LOG_LEVEL_DEBUG,
-                    ("%s: current buff is %s, writing to %d case, first sat"),
-                    buff, i);
-        */        
-        g_free(buff);
-    }
 }
 
 static gint sat_name_compare (sat_t * a, sat_t * b)
@@ -359,166 +339,6 @@ static void Calculate_RADec(sat_t * sat, qth_t * qth, obs_astro_t * obs_set)
     obs_set->ra = FMod2p(obs_set->ra);
 }
 
-static void select_satellite(GtkWidget * menuitem, MaxSelectSatCallbackData * cb_data)
-{
-    GtkMaxPathView      *msat = GTK_MAX_PATH_VIEW(cb_data->parent);
-    guint               i =
-        GPOINTER_TO_UINT(g_object_get_data(G_OBJECT(menuitem), "index"));
-    gchar               *title;
-    sat_t               *sat;
-    guint               index = cb_data->index;
-
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite called and started, index = %d", __FILE__, __LINE__, index);
-    // There are many ghost triggering of this signal, but we only need to
-    // make a new selection when the received menuitem is selected
-    if (gtk_check_menu_item_get_active(GTK_CHECK_MENU_ITEM(menuitem)))
-    {
-        // i is the position in the grid
-        // index is the index of the selected satellite in the satellites list
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: if condition passed for select_satellite", __FILE__, __LINE__);
-
-        //msat->selected[index] = i;
-        guint *selected_index  = &g_array_index(msat->selected, guint, index);
-        *selected_index = i;
-
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->selected[index] is %u", __FILE__, __LINE__, msat->selected[index]);
-
-        sat = SAT(g_slist_nth_data(msat->sats, i));
-
-        title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
-        // This is probably the issue
-        // Header is not updating (fixed - make sure i-th element in grid and index in sats is correct)
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... title = %s", __FILE__, __LINE__, title);
-        //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
-        MaxSatPanel *panelI = g_array_index(msat->panels, MaxSatPanel *, i);
-        gtk_label_set_markup(GTK_LABEL(panelI->header), title);
-        
-        // bugged line: gtk_widget_queue_draw(msat->panels[i]->header);
-        //gtk_widget_queue_draw(msat->panels[index]->header);
-        gtk_widget_queue_draw(panelI->header);
-
-        if (panelI->header == NULL) {
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NULL!", __FILE__, __LINE__);
-        } else {
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: header is NOT NULL!", __FILE__, __LINE__);
-            // OLD, BUGGY LINE: sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[i]->header = %s", __FILE__, __LINE__, msat->panels[i]->header);
-            sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... msat->panels[index]->header content updated", __FILE__, __LINE__);
-        }
-        
-        g_free(title);
-    }
-}
-
-/* Multiple sat options menu */
-static void gtk_max_path_view_popup_cb(GtkWidget * button, MaxPopupCallbackData *cb_data)
-{
-    GtkMaxPathView      *max_path_view = GTK_MAX_PATH_VIEW(cb_data->parent);
-    GtkWidget           *menu;
-    GtkWidget           *menuitem;
-    GtkWidget           *label;
-    GSList              *group = NULL;
-    gchar               *buff;
-    sat_t               *sat = NULL;
-    sat_t               *sati;
-    guint                i, n;
-
-    // Index here refers to position of the SatPanel in Multiple Sat View
-    guint index = cb_data->index;
-    // selectedIndex refers to the index of the satellite selected in the SatPanel
-    gint selectedIndex = cb_data->selectedIndex;
-    sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: callback started, index = %u", __FILE__, __LINE__, index);
-
-    if (selectedIndex >= 0)
-    {
-        //sat = SAT(g_slist_nth_data(multiple_sat->sats, multiple_sat->selected[selectedIndex]));
-        guint selectedNum = g_array_index(max_path_view->selected, guint, selectedIndex);
-        sat = SAT(g_slist_nth_data(max_path_view->sats, selectedNum));
-    }
-    if (sat == NULL)
-    {
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: invalid satellite", __FILE__, __LINE__);
-        //return;
-    }
-
-    n = g_slist_length(max_path_view->sats);
-
-    menu = gtk_menu_new();
-
-    // Satellite name and info
-    menuitem = gtk_menu_item_new();
-    label = gtk_label_new(NULL);
-    g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
-    buff = g_markup_printf_escaped("<b>%s</b>", sat ? sat->nickname : "No Satellite Selected");
-    gtk_label_set_markup(GTK_LABEL(label), buff);
-    g_free(buff);
-    gtk_container_add(GTK_CONTAINER(menuitem), label);
-
-    if (sat != NULL)
-    {
-        // Attach data to menuitem and connect callback
-        g_object_set_data(G_OBJECT(menuitem), "sat", sat);
-        g_object_set_data(G_OBJECT(menuitem), "qth", max_path_view->qth);
-        g_signal_connect(menuitem, "activate",
-                         G_CALLBACK(show_sat_info_menu_cb),
-                         gtk_widget_get_toplevel(button));
-    }
-    else
-    {
-        gtk_widget_set_sensitive(menuitem, FALSE);
-    }
-
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-
-    // Separator
-    menuitem = gtk_separator_menu_item_new();
-    gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-
-    if (sat != NULL)
-    {
-        // Add the menu items for current, next and future passes
-        add_pass_menu_items(menu, sat, max_path_view->qth, &max_path_view->tstamp, cb_data->parent);
-
-        // Separator
-        menuitem = gtk_separator_menu_item_new();
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-    }
-    
-    // Select sat
-    for (i = 0; i < n; i++)
-    {
-        sati = SAT(g_slist_nth_data(max_path_view->sats, i));
-
-        menuitem = gtk_radio_menu_item_new_with_label(group, sati->nickname);
-        group = gtk_radio_menu_item_get_group(GTK_RADIO_MENU_ITEM(menuitem));
-
-        //if (i == multiple_sat->selected[selectedIndex])
-        if (i == g_array_index(max_path_view->selected, guint, index))
-        {
-            gtk_check_menu_item_set_active(GTK_CHECK_MENU_ITEM(menuitem), TRUE);
-        }
-
-        // Store item index so that it is available in the callback
-        g_object_set_data(G_OBJECT(menuitem), "index", GUINT_TO_POINTER(i));
-        MaxSelectSatCallbackData *select_cb_data = g_new(MaxSelectSatCallbackData, 1);
-        select_cb_data->parent = cb_data->parent;
-        select_cb_data->index = index;
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: select_satellite callback signal triggered", __FILE__, __LINE__);
-        g_signal_connect_after(menuitem, "activate",
-                               G_CALLBACK(select_satellite), select_cb_data);
-        gtk_menu_shell_append(GTK_MENU_SHELL(menu), menuitem);
-    }
-
-    gtk_widget_show_all(menu);
-
-    /* gtk_menu_popup got deprecated in 3.22, first available in Ubuntu 18.04 */
-#if GTK_MINOR_VERSION < 22
-    gtk_menu_popup(GTK_MENU(menu), NULL, NULL, NULL, NULL,
-                   0, gdk_event_get_time((GdkEvent *) NULL));
-#else
-    gtk_menu_popup_at_pointer(GTK_MENU(menu), NULL);
-#endif
-}
-
 /* Refresh internal references to the satellites */
 void gtk_max_path_view_reload_sats(GtkWidget * max_path_view, GHashTable * sats)
 {
@@ -568,52 +388,6 @@ void gtk_max_path_view_reconf(GtkWidget * widget,
     GTK_MAX_PATH_VIEW(widget)->counter = 1;
 }
 
-// Select new satellite
-void gtk_max_path_view_select_sat(GtkWidget * max_path_view, gint catnum, guint index)
-{
-    GtkMaxPathView      *msat = GTK_MAX_PATH_VIEW(max_path_view);
-    sat_t               *sat = NULL;
-    gchar               *title;
-    gboolean            foundsat = FALSE;
-    gint                i, n;
-
-    // Find satellite with catnum
-    n = g_slist_length(msat->sats);
-    for (i = 0; i < n; i++)
-    {
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: iteration %d", __FILE__, __LINE__, i);
-        sat = SAT(g_slist_nth_data(msat->sats, i));
-        if (sat->tle.catnr == catnum)
-        {
-            // Found satellite
-            //msat->selected[index] = i;
-            guint *selected_index  = &g_array_index(msat->selected, guint, index);
-            *selected_index = i;
-            foundsat = TRUE;
-
-            // Exit loop
-            i = n;
-        }
-        if (!foundsat)
-        {
-            sat_log_log(SAT_LOG_LEVEL_ERROR,
-                        _("%s: Could not find satellite with catalog number %d"),
-                        __func__, catnum);
-            //return;
-            //msat->selected[index] = i;
-            guint *selected_index  = &g_array_index(msat->selected, guint, index);
-            *selected_index = i;
-        }
-    }
-
-    title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
-    //gtk_label_set_markup(GTK_LABEL(msat->panels[index]->header), title);
-    //gtk_widget_queue_draw(msat->panels[i]->header);
-    MaxSatPanel *panelPointer = g_array_index(msat->panels, MaxSatPanel *, i);
-    gtk_label_set_markup(GTK_LABEL(panelPointer->header), title);
-    gtk_widget_queue_draw(panelPointer->header);
-    g_free(title);
-}
 
 // Update satellites
 void gtk_max_path_view_update(GtkWidget * widget, guint index)
@@ -693,72 +467,6 @@ GType gtk_max_path_view_get_type()
     return gtk_max_path_view_type;
 }
 
-// index is the position in the grid
-// selectedSatIndex is the index of the satellite in sats
-static MaxSatPanel *create_sat_panel(gint index, guint32 flags,
-                                  GtkWidget * parent, GSList * sats, gint selectedSatIndex)
-{
-    MaxSatPanel * panel = g_new0(MaxSatPanel, 1);
-    GtkWidget *label1, *label2;
-    sat_t *sat = NULL;
-    
-    if (index >= 0)
-        sat = SAT(g_slist_nth_data(sats, selectedSatIndex));
-
-    // Create popup button
-    panel->popup_button = gpredict_mini_mod_button("gpredict-mod-popup.png",
-                                                   _("Satellite options / shortcuts"));
-    
-    
-    MaxPopupCallbackData *cb_data = g_new(MaxPopupCallbackData, 1);
-    cb_data->parent = parent;
-    // Index here represents the position of the SatPanel in the Multiple Sat View
-    cb_data->index = index;
-    cb_data->selectedIndex = selectedSatIndex;
-    g_signal_connect(panel->popup_button, "clicked",
-                     G_CALLBACK(gtk_max_path_view_popup_cb), cb_data);
-    
-    // Create header
-    gchar *title = g_markup_printf_escaped("<b>Satellite: %s</b>", sat ? sat->nickname : "No Satellite Selected");
-    panel->header = gtk_label_new(NULL);
-    gtk_label_set_markup(GTK_LABEL(panel->header), title);
-    g_free(title);
-    g_object_set(panel->header, "xalign", 0.0f, "yalign", 0.5f, NULL);
-
-    // Create table
-    panel->table = gtk_grid_new();
-    gtk_container_set_border_width(GTK_CONTAINER(panel->table), 5);
-    gtk_grid_set_row_spacing(GTK_GRID(panel->table), 0);
-    gtk_grid_set_column_spacing(GTK_GRID(panel->table), 5);
-
-    for (guint i = 0; i < MAX_PATH_VIEW_FIELD_NUMBER; i++)
-    {
-        if (flags & (1 << i))
-        {
-            label1 = gtk_label_new(MAX_PATH_VIEW_FIELD_TITLE[i]);
-            g_object_set(label1, "xalign", 1.0f, "yalign", 0.5f, NULL);
-            gtk_grid_attach(GTK_GRID(panel->table), label1, 0, i, 1, 1);
-
-            label2 = gtk_label_new("-");
-            g_object_set(label2, "xalign", 0.0f, "yalign", 0.5f, NULL);
-            gtk_grid_attach(GTK_GRID(panel->table), label2, 2, i, 1, 1);
-            panel->labels[i] = label2;
-            
-            // Add tooltips
-            gtk_widget_set_tooltip_text(label1, MAX_PATH_VIEW_FIELD_HINT[i]);
-            gtk_widget_set_tooltip_text(label2, MAX_PATH_VIEW_FIELD_HINT[i]);
-
-            label1 = gtk_label_new(":");
-            gtk_grid_attach(GTK_GRID(panel->table), label1, 1, i, 1, 1);
-        }
-        else
-        {
-            panel->labels[i] = NULL;
-        }
-    }
-
-    return panel;
-}
 
 gdouble get_overlay_values(GtkWidget *overlay, gchar **text) {
     GList *children = gtk_container_get_children(GTK_CONTAINER(overlay));
@@ -971,14 +679,119 @@ void float_only_input(GtkEditable *editable, const gchar *text, gint length, gin
     }
 }
 
-GtkWidget *gen_path_display() {
-    GtkWidget *display_path = gtk_expander_new("Result");
+static void expander_activate_cb(GtkExpander* self, gpointer user_data) {
+    (void) user_data;
 
-    gtk_expander_set_label_fill(GTK_EXPANDER(display_path), TRUE);
+    gboolean expanded = gtk_expander_get_expanded(self);
+    
+    for (GList *child = gtk_container_get_children(GTK_CONTAINER(self));
+        child != NULL; 
+        child = child->next) {
+        g_object_set(child->data, "vexpand", !expanded, NULL);
+    }
+}
+
+GtkWidget *gen_OGS_display(GSList *qths) {
+    gchar *text;
+    GtkWidget *label;
+
+    GtkWidget *display_OGS = gtk_expander_new(NULL);
+    label = gtk_label_new(NULL);
+    text = g_markup_printf_escaped("<b>Optical Ground Stations</b>");
+    gtk_label_set_markup(GTK_LABEL(label), text);
+    gtk_expander_set_label_widget(GTK_EXPANDER(display_OGS), label); 
+    g_signal_connect(display_OGS, "activate", G_CALLBACK(expander_activate_cb), NULL);
+   
+    GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(display_OGS), scroll);
+    g_object_set(scroll, "margin", 5, NULL);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
+   
+    int i = 0;
+    for (GSList *iter = qths; iter != NULL; iter = iter->next) {
+        qth_t *ogs = (qth_t *)iter->data;
+       
+        GtkWidget *ogs_frame = gtk_frame_new(NULL);
+        gtk_widget_override_background_color(ogs_frame, GTK_STATE_FLAG_NORMAL, 
+            &(GdkRGBA){.red=0.5, .blue=0.5, .green=0.5, .alpha=0.3}); 
+
+        GtkWidget *ogs_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5); 
+        gtk_container_add(GTK_CONTAINER(ogs_frame), ogs_box);
+
+        GtkWidget *name_info = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_box_pack_start(GTK_BOX(ogs_box), name_info, TRUE, TRUE, 10);
+        gtk_widget_set_halign(name_info, GTK_ALIGN_END);
+
+        text = g_markup_printf_escaped("<u>%s</u>", ogs->name);
+        label = gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(label), text);
+        gtk_box_pack_start(GTK_BOX(name_info), label, TRUE, TRUE, 0); 
+        g_free(text);
+
+        label = gtk_label_new(ogs->loc);
+        gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+        gtk_box_pack_start(GTK_BOX(name_info), label, TRUE, TRUE, 0); 
+        
+        label = gtk_label_new(ogs->desc);
+        gtk_label_set_line_wrap(GTK_LABEL(label), TRUE);
+        gtk_box_pack_start(GTK_BOX(name_info), label, TRUE, TRUE, 0); 
+
+        GtkWidget *pos_info = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
+        gtk_box_pack_end(GTK_BOX(ogs_box), pos_info, TRUE, TRUE, 10);
+        gtk_widget_set_halign(pos_info, GTK_ALIGN_END);
+        gtk_widget_set_size_request(pos_info, 100, -1);
+        
+        text = g_strdup_printf("Alt: %i m", ogs->alt);
+        label = gtk_label_new(text);
+        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+        gtk_box_pack_start(GTK_BOX(pos_info), label, FALSE, FALSE, 0);
+        g_free(text);
+
+        text = g_strdup_printf("Lat: %.2f° N", ogs->lat);
+        label = gtk_label_new(text);
+        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+        gtk_box_pack_start(GTK_BOX(pos_info), label, FALSE, FALSE, 0); 
+        g_free(text);
+
+        text = g_strdup_printf("Lon: %.2f° E", ogs->lon);
+        label = gtk_label_new(text);
+        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+        gtk_box_pack_start(GTK_BOX(pos_info), label, FALSE, FALSE, 0); 
+        g_free(text);
+
+        text = g_strdup_printf("WX: %s", ogs->wx);
+        label = gtk_label_new(text);
+        gtk_label_set_xalign(GTK_LABEL(label), 0.0);
+        gtk_box_pack_start(GTK_BOX(pos_info), label, FALSE, FALSE, 0); 
+        g_free(text);
+
+        gtk_grid_attach(GTK_GRID(grid), ogs_frame, 0, i, 1, 1);
+        i++;
+    }
+
+    return display_OGS;
+}
+
+GtkWidget *gen_path_display() {
+    GtkWidget *display_path = gtk_expander_new(NULL);
+    gchar *text = g_markup_printf_escaped("<b>Result</b>");
+    GtkWidget *label = gtk_label_new(NULL);
+    gtk_label_set_markup(GTK_LABEL(label), text);
+    gtk_expander_set_label_widget(GTK_EXPANDER(display_path), label); 
+    g_free(text);
+
+    g_signal_connect(display_path, "activate", G_CALLBACK(expander_activate_cb), NULL);
 
     GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
     gtk_container_add(GTK_CONTAINER(display_path), scroll);
-    gtk_scrolled_window_set_min_content_height(GTK_SCROLLED_WINDOW(scroll), 200);
 
     GtkWidget *grid = gtk_grid_new();
     gtk_container_add(GTK_CONTAINER(scroll), grid);
@@ -1098,8 +911,7 @@ void update_path_display(GtkWidget *button, gpointer data) {
 
 GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     GtkWidget *label;
-
-    GtkWidget *controls = gtk_grid_new();    
+    GtkWidget *controls = gtk_grid_new();
 
     gtk_grid_set_column_spacing(GTK_GRID(controls), 5);
     gtk_grid_set_row_spacing(GTK_GRID(controls), 5);
@@ -1126,8 +938,8 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     //Add names to drop down selectors
     for (GSList *i = max_path_view->qths; i != NULL; i=i->next) {
         qth_t *station = (qth_t *)i->data;
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(src_select), station->name); 
-        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(dst_select), station->name); 
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(src_select), station->name);
+        gtk_combo_box_text_append_text(GTK_COMBO_BOX_TEXT(dst_select), station->name);
     }
    
     //max data size
@@ -1289,68 +1101,14 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     }
     max_path_view->counter = 1;
 
-    max_path_view->search_controls = gen_search_controls(max_path_view); 
-
+    max_path_view->search_controls = gen_search_controls(max_path_view);
     max_path_view->display_path = gen_path_display();
 
-    // Make a grid, then populate the grid using SatPanels
-    // Create a scrollable area
-    max_path_view->swin = gtk_scrolled_window_new(NULL, NULL);
-    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(max_path_view->swin),
-                                   GTK_POLICY_AUTOMATIC, GTK_POLICY_AUTOMATIC);
-    
-    GtkWidget *grid = gtk_grid_new();
-    gtk_grid_set_column_spacing(GTK_GRID(grid), 20);
-    gtk_grid_set_row_spacing(GTK_GRID(grid), 20);
-    gtk_container_set_border_width(GTK_CONTAINER(grid), 10);
-
-    max_path_view->panels = g_array_sized_new(FALSE, TRUE, sizeof(MaxSatPanel *), max_path_view->dyn_num_sat);
-    max_path_view->labels = g_array_sized_new(FALSE, TRUE, sizeof(GtkWidget *), 
-                            max_path_view->dyn_num_sat * MAX_PATH_VIEW_FIELD_NUMBER);
-
-    for (i = 0; i < max_path_view->dyn_num_sat; i++)
-    {
-        guint index = g_array_index(max_path_view->selected, guint, i);
-
-        sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: index set to %u", __FILE__, __LINE__, index);
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint, iteration %d", __FILE__, __LINE__, i);
-        // i is the position in the grid
-        // index is the index of the satellite in sats
-
-        //multiple_sat->panels[i] = create_sat_panel(i, multiple_sat->flags, widget, multiple_sat->sats, index);
-        MaxSatPanel *tmpSatPanel = create_sat_panel(i, max_path_view->flags, widget, max_path_view->sats, index);
-        g_array_append_val(max_path_view->panels, tmpSatPanel);
-
-        for (guint j = 0; j < MAX_PATH_VIEW_FIELD_NUMBER; j++)
-        { 
-            //multiple_sat->labels[i][j] = multiple_sat->panels[i]->labels[j];
-            g_array_append_val(max_path_view->labels, tmpSatPanel->labels[j]);
-        }
-        
-        // Build vbox for header+table
-        GtkWidget *vbox = gtk_box_new(GTK_ORIENTATION_VERTICAL, 0);
-
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-        GtkWidget *hbox = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5);   // Header box
-        gtk_box_pack_start(GTK_BOX(hbox), tmpSatPanel->popup_button, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(hbox), tmpSatPanel->header, TRUE, TRUE, 0);
-
-        gtk_box_pack_start(GTK_BOX(vbox), hbox, FALSE, FALSE, 0);
-        gtk_box_pack_start(GTK_BOX(vbox), tmpSatPanel->table, FALSE, FALSE, 0);
-
-        // Place it in the 2xN grid
-        guint row = i / MAX_SATS_PER_ROW;
-        guint col = i % MAX_SATS_PER_ROW;
-        gtk_grid_attach(GTK_GRID(grid), vbox, col, row, 1, 1);
-        //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: Breakpoint", __FILE__, __LINE__);
-    }
-    
-    gtk_container_add(GTK_CONTAINER(max_path_view->swin), grid);
-
     gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0); 
-    gtk_box_pack_end(GTK_BOX(widget), max_path_view->swin, TRUE, TRUE, 0);
-    gtk_box_pack_end(GTK_BOX(widget), max_path_view->display_path, FALSE, FALSE, 0);
-    
+
+    gtk_box_pack_start(GTK_BOX(widget), max_path_view->display_path, FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), gen_OGS_display(qths), FALSE, TRUE, 0);
+
     gtk_widget_show_all(widget);
 
     return widget;

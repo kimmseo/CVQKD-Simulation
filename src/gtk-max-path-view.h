@@ -101,23 +101,11 @@ struct _gtk_max_path_view {
 
     guint            dyn_num_sat;    //number of satellites currently loaded
 
-    //GtkWidget       *labels[NUMBER_OF_SATS][MULTIPLE_SAT_FIELD_NUMBER]; // GtkLabels displaying the data
-    GArray          *labels;
-
     max_path_t      *max_capacity_path;
     GList           *path_colors;               //GList of GdkRGBA
 
     GtkWidget       *search_controls;
     GtkWidget       *display_path;
-
-    GtkWidget       *swin;      // Scrolled window
-
-    //SatPanel        *panels[NUMBER_OF_SATS];    // SatPanels list (array of SatPanel Pointers)
-    GArray          *panels;
-
-    //GtkWidget       *table[NUMBER_OF_SATS];     // Table
-    
-    //GtkWidget       *popup_button[NUMBER_OF_SATS];  // Popup button
 
     GKeyFile        *cfgdata;   // Configuration data
     GSList          *sats;      // Satellites
@@ -142,7 +130,7 @@ struct _GtkMaxPathViewClass {
 };
 
 GType           gtk_max_path_view_get_type(void);
-GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
+GtkWidget       *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
                                 GSList *qths, qth_t *qth, guint32 fields);
 void            gtk_max_path_view_update(GtkWidget * widget, guint index);
 void            gtk_max_path_view_reconf(GtkWidget * widget,
@@ -152,8 +140,6 @@ void            gtk_max_path_view_reconf(GtkWidget * widget,
 
 void            gtk_max_path_view_reload_sats(GtkWidget * max_path_view,
                                              GHashTable * sats);
-void            gtk_max_path_view_select_sat(GtkWidget * max_path_view, gint catnum,
-                                            guint index);
 
 /* *INDENT-OFF* */
 #ifdef __cplusplus

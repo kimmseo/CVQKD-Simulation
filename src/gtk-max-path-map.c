@@ -612,7 +612,7 @@ void generate_arc(
 
             canvas_arcs = g_list_prepend(canvas_arcs, g_array_new(FALSE, FALSE, sizeof(gdouble)));
 
-            lonlat_to_xy(map, dummy_s.ssplon, -1 * replace, &x, &y);
+            lonlat_to_xy(map, prev_lon, -1 * replace, &x, &y);
             canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
 
         } else if ((prev_lon < -150 && dummy_s.ssplon > 150)
@@ -624,7 +624,7 @@ void generate_arc(
 
             canvas_arcs = g_list_prepend(canvas_arcs, g_array_new(FALSE, FALSE, sizeof(gdouble))); 
 
-            lonlat_to_xy(map, -1 * replace, dummy_s.ssplat, &x, &y);
+            lonlat_to_xy(map, -1 * replace, prev_lat, &x, &y);
             canvas_arcs->data = g_array_append_vals(canvas_arcs->data, &(gdouble[2]){x, y}, 2);
         }
 
