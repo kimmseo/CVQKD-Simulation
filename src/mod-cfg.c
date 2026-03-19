@@ -813,6 +813,16 @@ static void remove_qth_from_tree_cb(GtkTreeView *view, GtkTreePath *path,
     }
 }
 
+static gint sort_qths_liststore_cb(GtkTreeModel *model, GtkTreeIter *a, GtkTreeIter *b, gpointer data) {
+    (void)data;
+
+    gchar *q_a, *q_b;
+    gtk_tree_model_get(model, a, QTHS_COL_NAME, &q_a, -1);
+    gtk_tree_model_get(model, b, QTHS_COL_NAME, &q_b, -1);
+
+    return strcmp(q_a, q_b);
+}
+
 GtkWidget *create_selected_qths_list(const gchar *modname, gboolean new) {
     GtkCellRenderer *renderer;
     GtkTreeViewColumn *column;
@@ -900,6 +910,15 @@ GtkWidget *create_selected_qths_list(const gchar *modname, gboolean new) {
         G_TYPE_FLOAT,  //lon
         G_TYPE_UINT,   //alt
         G_TYPE_STRING); //wx
+
+
+    //Qth list automatically sorts name in lexicographical order
+    GtkTreeSortable *sortable = GTK_TREE_SORTABLE(store);
+    gtk_tree_sortable_set_sort_func(
+        sortable, 
+        QTHS_COL_NAME, 
+        (GtkTreeIterCompareFunc)sort_qths_liststore_cb, NULL, NULL);
+    gtk_tree_sortable_set_sort_column_id(sortable, QTHS_COL_NAME, GTK_SORT_ASCENDING);
 
     gtk_tree_view_set_model(GTK_TREE_VIEW(qthlist), GTK_TREE_MODEL(store));
 

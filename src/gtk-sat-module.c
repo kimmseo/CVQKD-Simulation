@@ -554,6 +554,11 @@ static void create_module_layout(GtkSatModule * module)
     gtk_box_pack_start(GTK_BOX(module), table, TRUE, TRUE, 0);
 }
 
+gint cmp_qths_by_name(gconstpointer a, gconstpointer b) {
+    qth_t *q_a = (qth_t *)a;
+    qth_t *q_b = (qth_t *)b;
+    return strcmp(q_a->name, q_b->name);
+}
 
 void gtk_sat_module_load_qths(GtkSatModule *module) {
     gchar *qths_folder = get_qths_dir(module->name);
@@ -573,6 +578,8 @@ void gtk_sat_module_load_qths(GtkSatModule *module) {
 
         g_free(qth_file_path);
     }
+
+    module->qths = g_slist_sort(module->qths, (GCompareFunc)cmp_qths_by_name);
 
     g_dir_close(folder);
     g_free(qths_folder);
