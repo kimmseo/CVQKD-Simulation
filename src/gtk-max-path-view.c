@@ -691,9 +691,65 @@ static void expander_activate_cb(GtkExpander* self, gpointer user_data) {
     }
 }
 
+GtkWidget *gen_SAT_display(GSList *sats) {
+    gchar *text;
+    GtkWidget *label; 
+
+    GdkRGBA gdk_rgba;
+    gint rgba = sat_cfg_get_int(SAT_CFG_INT_MAP_SAT_COL);
+    rgba_from_cfg(rgba, &gdk_rgba);
+    gdk_rgba.alpha = 0.2;
+
+    GtkWidget *display_SAT = gtk_expander_new(NULL);
+    label = gtk_label_new(NULL);
+    text = g_markup_printf_escaped("<b>Satellites</b>");
+    gtk_label_set_markup(GTK_LABEL(label), text);
+    gtk_expander_set_label_widget(GTK_EXPANDER(display_SAT), label);
+    g_free(text);
+
+    g_signal_connect(display_SAT, "activate", G_CALLBACK(expander_activate_cb), NULL);
+   
+   GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
+    gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
+        GTK_POLICY_NEVER, GTK_POLICY_AUTOMATIC);
+    gtk_container_add(GTK_CONTAINER(display_SAT), scroll);
+    g_object_set(scroll, "margin", 5, NULL);
+
+    GtkWidget *grid = gtk_grid_new();
+    gtk_grid_set_column_homogeneous(GTK_GRID(grid), TRUE);
+    gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
+    gtk_container_add(GTK_CONTAINER(scroll), grid);
+   
+    int i = 0;
+    for (GSList *iter = sats; iter != NULL; iter = iter->next) {
+        sat_t *sat = (sat_t *)iter->data;
+
+        text = g_markup_printf_escaped("<u>%s</u>", sat->name);
+        label = gtk_label_new(NULL);
+        gtk_label_set_markup(GTK_LABEL(label), text);
+        GtkWidget *sat_frame = gtk_frame_new(NULL);
+        gtk_container_add(GTK_CONTAINER(sat_frame), label);
+
+        gtk_widget_override_background_color(sat_frame, GTK_STATE_FLAG_NORMAL, 
+            &gdk_rgba);
+
+        g_free(text);
+        
+        gtk_grid_attach(GTK_GRID(grid), sat_frame, 0, i, 1, 1);
+        i++;
+    }
+
+    return display_SAT;
+}
+
 GtkWidget *gen_OGS_display(GSList *qths) {
     gchar *text;
     GtkWidget *label;
+
+    GdkRGBA gdk_rgba;
+    gint rgba = sat_cfg_get_int(SAT_CFG_INT_MAP_QTH_COL);
+    rgba_from_cfg(rgba, &gdk_rgba);
+    gdk_rgba.alpha = 0.2;
 
     GtkWidget *display_OGS = gtk_expander_new(NULL);
     label = gtk_label_new(NULL);
@@ -701,6 +757,7 @@ GtkWidget *gen_OGS_display(GSList *qths) {
     gtk_label_set_markup(GTK_LABEL(label), text);
     gtk_expander_set_label_widget(GTK_EXPANDER(display_OGS), label); 
     g_signal_connect(display_OGS, "activate", G_CALLBACK(expander_activate_cb), NULL);
+    g_free(text);
    
     GtkWidget *scroll = gtk_scrolled_window_new(NULL, NULL);
     gtk_scrolled_window_set_policy(GTK_SCROLLED_WINDOW(scroll),
@@ -719,7 +776,7 @@ GtkWidget *gen_OGS_display(GSList *qths) {
        
         GtkWidget *ogs_frame = gtk_frame_new(NULL);
         gtk_widget_override_background_color(ogs_frame, GTK_STATE_FLAG_NORMAL, 
-            &(GdkRGBA){.red=0.5, .blue=0.5, .green=0.5, .alpha=0.3}); 
+            &gdk_rgba);
 
         GtkWidget *ogs_box = gtk_box_new(GTK_ORIENTATION_HORIZONTAL, 5); 
         gtk_container_add(GTK_CONTAINER(ogs_frame), ogs_box);
@@ -1037,6 +1094,13 @@ GtkWidget *gen_search_controls(GtkMaxPathView *max_path_view) {
     return controls;
 }
 
+static gint cmp_sat_by_name_cb(gconstpointer a, gconstpointer b) {
+    sat_t *s_a = (sat_t *)a;
+    sat_t *s_b = (sat_t *)b;
+
+    return strcmp(s_a->name, s_b->name);
+}
+
 
 GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
                                 GSList *qths, qth_t *qth, guint32 fields)
@@ -1056,6 +1120,8 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     /* ... */
 
     g_hash_table_foreach(sats, store_sats, widget);
+
+    max_path_view->sats = g_slist_sort(max_path_view->sats, (GCompareFunc)cmp_sat_by_name_cb);
 
     max_path_view->dyn_num_sat = g_slist_length(max_path_view->sats);
 
@@ -1107,7 +1173,8 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0); 
 
     gtk_box_pack_start(GTK_BOX(widget), max_path_view->display_path, FALSE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(widget), gen_OGS_display(qths), FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), gen_OGS_display(max_path_view->qths), FALSE, TRUE, 0);
+    gtk_box_pack_start(GTK_BOX(widget), gen_SAT_display(max_path_view->sats), FALSE, TRUE, 0);
 
     gtk_widget_show_all(widget);
 
