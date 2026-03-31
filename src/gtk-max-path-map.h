@@ -109,6 +109,7 @@ typedef struct {
     GList *capacity_path_nodes;                 //GList of path_node. Owned by gtk-sat-module.c 
     GList *capacity_path_colors;                //GList of GdkRGBA. Owned by gtk-sat-module.c
     GList *capacity_path;                      //GList of GooCanvasItem. Path lines on the map
+    GList *path_end_marks;                     //GList of mpm_qth_marks, mark end spot and time of path segments
 
     GooCanvasItemModel *terminator;     /*!< Outline of sun shadow on Earth. */
 

@@ -88,9 +88,9 @@ static void     clear_selection(gpointer key, gpointer val, gpointer data);
 static void     load_map_file(GtkMaxPathMap * satmap, float clon);
 static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap);
 static gdouble  arccos(gdouble, gdouble);
-static gboolean pole_is_covered(sat_t * sat);
-static gboolean north_pole_is_covered(sat_t * sat);
-static gboolean south_pole_is_covered(sat_t * sat);
+static gboolean pole_is_covered(sat_t * sat, gdouble beta);
+static gboolean north_pole_is_covered(sat_t * sat, gdouble beta);
+static gboolean south_pole_is_covered(sat_t * sat, gdouble beta);
 static gboolean mirror_lon(sat_t * sat, gdouble rangelon, gdouble * mlon,
                            gdouble mapbreak);
 static guint    calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat);
@@ -115,12 +115,25 @@ static void     gtk_max_path_map_load_hide_coverages(GtkMaxPathMap * map);
 static void     gtk_max_path_map_store_hidecovs(GtkMaxPathMap * satmap);
 static void     reset_ground_track(gpointer key, gpointer value,
                                    gpointer user_data);
-
 void destroy_path_lines(GList *lines, GooCanvasItemModel *root);
+void destroy_path_end_marks(GList *path_end_marks, GooCanvasItemModel *root);
 
 static GtkVBoxClass *parent_class = NULL;
 static GooCanvasPoints *points1;
 static GooCanvasPoints *points2;
+
+static void qth_marking_update_pos(GtkMaxPathMap *satmap, GList *list) {
+    gfloat x, y;
+    for (GList *iter = list; iter != NULL; iter = iter->next) {
+        mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+        lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
+        g_object_set(marking->mark,
+                    "x", x - MARKER_SIZE_HALF,
+                    "y", y - MARKER_SIZE_HALF, NULL);
+        g_object_set(marking->label, "x", x, "y", y + 2, NULL);
+    }
+}
+
 
 
 GType gtk_max_path_map_get_type()
@@ -171,6 +184,7 @@ static void gtk_max_path_map_init(GtkMaxPathMap * satmap,
     satmap->qth = NULL;
     satmap->qths = NULL;
     satmap->qth_marks = NULL;
+    satmap->path_end_marks = NULL;
     satmap->obj = NULL;
     satmap->showtracks = g_hash_table_new_full(g_int_hash, g_int_equal,
                                                NULL, NULL);
@@ -266,28 +280,24 @@ static void gtk_max_path_map_destroy(GtkWidget * widget)
             goo_canvas_item_model_remove_child(root, idx);
         satmap->map = NULL;
         
-        if (satmap->capacity_path) {
+        if (satmap->capacity_path)
             destroy_path_lines(satmap->capacity_path, root);
-        }
+        satmap->capacity_path = NULL;
 
-        if (satmap->qth_marks) {
-            for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
-                mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+        if (satmap->qth_marks)
+           destroy_path_end_marks(satmap->qth_marks, root);
+        satmap->qth_marks = NULL;
 
-                idx = goo_canvas_item_model_find_child(root, marking->mark);
-                if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+        if (satmap->path_end_marks)
+            destroy_path_end_marks(satmap->path_end_marks, root);
+        satmap->path_end_marks = NULL;
 
-                idx = goo_canvas_item_model_find_child(root, marking->label);
-                if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
-            }
-            g_list_free(satmap->qth_marks);
-        }
     }
     (*GTK_WIDGET_CLASS(parent_class)->destroy) (widget);
 }
 
 void destroy_path_lines(GList *lines, GooCanvasItemModel *root) {
-    int idx = 0;
+    gint idx = 0;
     if (!lines || !root) return;
 
     for (GList *i = lines; i!=NULL; i=i->next) {
@@ -297,6 +307,21 @@ void destroy_path_lines(GList *lines, GooCanvasItemModel *root) {
     
     g_list_free_full(lines, g_object_unref);
 }
+
+void destroy_path_end_marks(GList *path_end_marks, GooCanvasItemModel *root) {
+    gint idx = 0;
+    for (GList *iter = path_end_marks; iter != NULL; iter = iter->next) {
+        mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
+        
+        idx = goo_canvas_item_model_find_child(root, marking->mark);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+
+        idx = goo_canvas_item_model_find_child(root, marking->label);
+        if (idx != -1) goo_canvas_item_model_remove_child(root, idx);
+    }
+    g_list_free(path_end_marks);
+}
+
 
 GtkWidget      *gtk_max_path_map_new(GKeyFile * cfgdata, GHashTable * sats,
                                 qth_t * qth, GSList *qths)
@@ -470,6 +495,8 @@ static GooCanvasItemModel *create_canvas_model(GtkMaxPathMap * satmap)
 
     satmap->capacity_path_nodes = NULL;
     satmap->capacity_path_colors = NULL;
+    satmap->capacity_path_nodes = NULL;
+    satmap->path_end_marks = NULL;
      
     return root;
 }
@@ -486,7 +513,6 @@ static void update_map_size(GtkMaxPathMap * satmap)
 {
     GtkAllocation   allocation;
     GdkPixbuf      *pbuf;
-    gfloat          x, y;
     gfloat          ratio;      /* ratio between map width and height */
     gfloat          size;       /* size = min (alloc.w, ratio*alloc.h) */
 
@@ -548,14 +574,8 @@ static void update_map_size(GtkMaxPathMap * satmap)
         if (satmap->show_terminator)
             redraw_terminator(satmap);
 
-        for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
-            mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
-            lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
-            g_object_set(marking->mark,
-                        "x", x - MARKER_SIZE_HALF,
-                        "y", y - MARKER_SIZE_HALF, NULL);
-            g_object_set(marking->label, "x", x, "y", y + 2, NULL);
-        }
+        qth_marking_update_pos(satmap, satmap->qth_marks);
+        qth_marking_update_pos(satmap, satmap->path_end_marks);
 
         g_object_set(satmap->curs,
                      "x", (gdouble) satmap->x0 + 2,
@@ -568,6 +588,51 @@ static void update_map_size(GtkMaxPathMap * satmap)
         g_hash_table_foreach(satmap->sats, update_sat, satmap);
         satmap->resize = FALSE;
     }
+}
+
+static void generate_qth_mark(GtkMaxPathMap *satmap, path_node *node, gdouble time, gboolean write_time, gchar *col) {
+    gfloat x, y;
+    GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(satmap->canvas));
+    mpm_qth_marks *marking = malloc(sizeof(mpm_qth_marks));
+    satmap->path_end_marks = g_list_append(satmap->path_end_marks, marking);
+
+    if (node->type == path_SATELLITE) {
+        qth_t dummy_q;
+        sat_t dummy_s;
+        memcpy(&dummy_s, (sat_t *)node->obj, sizeof(sat_t));
+        predict_calc(&dummy_s, &dummy_q, time);
+        marking->lat = dummy_s.ssplat;
+        marking->lon = dummy_s.ssplon;
+
+    } else if (node->type == path_STATION) {
+        qth_t * station = (qth_t *)node->obj;
+        marking->lat = station->lat;
+        marking->lon = station->lon;
+    }
+
+    gchar fmted_time[25];
+    daynum_to_str(fmted_time, 25, "%d/%m/%G - %H:%M", time);
+
+    lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
+
+    marking->mark = goo_canvas_rect_model_new(root,
+                                        x - (2 * MARKER_SIZE_HALF),
+                                        y - (2 * MARKER_SIZE_HALF),
+                                        4 * MARKER_SIZE_HALF,
+                                        4 * MARKER_SIZE_HALF,
+                                        "fill-color", col,
+                                        "stroke-color", col,
+                                        "visibility", GOO_CANVAS_ITEM_VISIBLE,
+                                        NULL);
+
+    marking->label = goo_canvas_text_model_new(root, 
+                                    write_time ? fmted_time : "",
+                                    x, y + 2, -1,
+                                    GOO_CANVAS_ANCHOR_NORTH,
+                                    "font", "Sans 8",
+                                    "fill-color", col,
+                                    "visibility", GOO_CANVAS_ITEM_VISIBLE,
+                                    NULL);
 }
 
 void generate_arc(
@@ -642,8 +707,7 @@ void generate_arc(
         GooCanvasPoints *points = goo_canvas_points_new((guint)(arc_array->len / 2));
         points->coords = g_array_steal(arc_array, &array_len);
 
-        map->capacity_path = g_list_append(map->capacity_path,
-                g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
+        gpointer *line = g_object_new(GOO_TYPE_CANVAS_POLYLINE_MODEL,
                         "parent", root,
                         "points", points,
                         "stroke-color", fmted_to_string("#%.2X%.2X%.2X",
@@ -651,8 +715,18 @@ void generate_arc(
                             (int)(250*color->green),
                             (int)(250*color->blue)),
                         "line-width", 2.0,
+                        "arrow-length", 10.0,
+                        "arrow-width", 10.0,
+                        "arrow-tip-length", 10.0,
+                        "end-arrow", TRUE,
                         "visibility", GOO_CANVAS_ITEM_VISIBLE,
-                        NULL));
+                        NULL);
+
+        //place item at bottom of stack, just above the map
+        goo_canvas_item_model_lower(GOO_CANVAS_ITEM_MODEL(line), NULL);
+        goo_canvas_item_model_raise(GOO_CANVAS_ITEM_MODEL(line), map->map);
+
+        map->capacity_path = g_list_append(map->capacity_path, line);
 
         g_array_free(arc->data, TRUE);
     }
@@ -665,23 +739,39 @@ void draw_capacity_paths(GtkMaxPathMap *map, GList *path, GList *colors) {
     if (!map || !path || !colors) return;
 
     GooCanvasItemModel *root = goo_canvas_get_root_item_model(GOO_CANVAS(map->canvas));
+    path_node *node;
+    path_node *next_node;
+    GdkRGBA *color;
 
     if (map->capacity_path) {
         destroy_path_lines(map->capacity_path, root);
         map->capacity_path = NULL;
     }
 
+    if (map->path_end_marks) {
+        destroy_path_end_marks(map->path_end_marks, root);
+        map->path_end_marks = NULL; 
+    }
+
     GList *c_iter = colors;
     for (GList *p_iter = path; p_iter->next != NULL; p_iter = p_iter->next) {
-        GdkRGBA *color = (GdkRGBA *)c_iter->data;
-        path_node *node = (path_node *)p_iter->data;
-        path_node *next_node = (path_node *)p_iter->next->data;
+        color = (GdkRGBA *)c_iter->data;
+        node = (path_node *)p_iter->data;
+        next_node = (path_node *)p_iter->next->data;
+
+        gchar *color_str = g_strdup_printf("#%.2X%.2X%.2X",
+            (int)(250*color->red),
+            (int)(250*color->green),
+            (int)(250*color->blue));
 
         switch (node->type) {
             case path_SATELLITE:
                 generate_arc(map, root, color, node->obj, node->time, next_node->time);
+                generate_qth_mark(map, node, node->time, TRUE, color_str);
+                generate_qth_mark(map, node, next_node->time, FALSE, color_str);
                 break;
             case path_STATION:
+                generate_qth_mark(map, node, node->time, FALSE, color_str);
                 break;
             default:
                 sat_log_log(SAT_LOG_LEVEL_ERROR, 
@@ -689,9 +779,18 @@ void draw_capacity_paths(GtkMaxPathMap *map, GList *path, GList *colors) {
                     __func__, node->type);
         }
 
+        g_free(color_str);
         c_iter = c_iter->next;
-    }     
+    }    
 
+    GList *last_p = g_list_last(path);
+    GList *last_c = g_list_last(colors); 
+    node = (path_node *)last_p->data;
+    color = (GdkRGBA *)last_c->data;
+    generate_qth_mark(map, node, node->time, FALSE, g_strdup_printf("#%.2X%.2X%.2X",
+                                                    (int)(250*color->red),
+                                                    (int)(250*color->green),
+                                                    (int)(250*color->blue)));
 }
 
 
@@ -715,7 +814,6 @@ static void on_canvas_realized(GtkWidget * canvas, gpointer data)
 void gtk_max_path_map_update(GtkWidget * widget)
 {
     GtkMaxPathMap  *satmap = GTK_MAX_PATH_MAP(widget);
-    gfloat          x, y;
 
     /* check whether there are any pending resize requests */
     if (satmap->resize){
@@ -736,14 +834,9 @@ void gtk_max_path_map_update(GtkWidget * widget)
         satmap->naos = 0.0;
         satmap->ncat = 0;
 
-        for (GList *iter = satmap->qth_marks; iter != NULL; iter = iter->next) {
-            mpm_qth_marks *marking = (mpm_qth_marks *)iter->data;
-            lonlat_to_xy(satmap, marking->lon, marking->lat, &x, &y);
-            g_object_set(marking->mark,
-                        "x", x - MARKER_SIZE_HALF,
-                        "y", y - MARKER_SIZE_HALF, NULL);
-            g_object_set(marking->label, "x", x, "y", y + 2, NULL);
-        }
+        qth_marking_update_pos(satmap, satmap->qth_marks);
+        qth_marking_update_pos(satmap, satmap->path_end_marks);
+
 
         g_hash_table_foreach(satmap->sats, update_sat, satmap);
 
@@ -1180,16 +1273,16 @@ static gdouble arccos(gdouble x, gdouble y)
 }
 
 /* Check whether the footprint covers the North or South pole. */
-static gboolean pole_is_covered(sat_t * sat)
+static gboolean pole_is_covered(sat_t * sat, gdouble beta)
 {
-    if (north_pole_is_covered(sat) || south_pole_is_covered(sat))
+    if (north_pole_is_covered(sat, beta) || south_pole_is_covered(sat, beta))
         return TRUE;
     else
         return FALSE;
 }
 
 /* Check whether the footprint covers the North pole. */
-static gboolean north_pole_is_covered(sat_t * sat)
+static gboolean north_pole_is_covered(sat_t * sat, gdouble beta)
 {
     int             ret1;
     gdouble         qrb1, az1;
@@ -1201,7 +1294,8 @@ static gboolean north_pole_is_covered(sat_t * sat)
                     _("%s: Bad data measuring distance to North Pole %f %f."),
                     __func__, sat->ssplon, sat->ssplat);
     }
-    if (qrb1 <= 0.5 * sat->footprint)
+    //if (qrb1 <= 0.5 * sat->footprint)
+    if (qrb1 <= beta * xkmper)
     {
         return TRUE;
     }
@@ -1209,7 +1303,7 @@ static gboolean north_pole_is_covered(sat_t * sat)
 }
 
 /* Check whether the footprint covers the South pole. */
-static gboolean south_pole_is_covered(sat_t * sat)
+static gboolean south_pole_is_covered(sat_t * sat, gdouble beta)
 {
     int             ret1;
     gdouble         qrb1, az1;
@@ -1221,7 +1315,8 @@ static gboolean south_pole_is_covered(sat_t * sat)
                     _("%s: Bad data measuring distance to South Pole %f %f."),
                     __func__, sat->ssplon, sat->ssplat);
     }
-    if (qrb1 <= 0.5 * sat->footprint)
+    //if (qrb1 <= 0.5 * sat->footprint)
+    if (qrb1 <= beta * xkmper)
     {
         return TRUE;
     }
@@ -1324,7 +1419,15 @@ static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
      */
     ssplat = sat->ssplat * de2ra;
     ssplon = sat->ssplon * de2ra;
-    beta = (0.5 * sat->footprint) / xkmper;
+    
+    gdouble degree = 30;
+    beta = asin(sat->pos.w * sin(degree * de2ra) / xkmper) - (degree * de2ra); 
+
+    qth_t q = {0};
+    q.alt = 0;
+    gdouble range = sin(beta) * xkmper / sin(degree * de2ra); //km
+    gdouble elevation = 90 - (beta / de2ra) - degree; //degrees
+    gdouble skr = lw_sat_to_ground_downlink(&q, elevation, range);
 
     for (azi = 0; azi < 180; azi++)
     {
@@ -1334,7 +1437,7 @@ static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
         num = cos(beta) - (sin(ssplat) * sin(rangelat));
         dem = cos(ssplat) * cos(rangelat);
 
-        if (azi == 0 && north_pole_is_covered(sat))
+        if (azi == 0 && north_pole_is_covered(sat, beta))
             rangelon = ssplon + pi;
         else if (fabs(num / dem) > 1.0)
             rangelon = ssplon;
@@ -1353,7 +1456,7 @@ static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
             rangelon -= twopi;
 
         rangelat = rangelat / de2ra;
-        rangelon = rangelon / de2ra;
+        rangelon = rangelon / de2ra; 
 
         /* mirror longitude */
         if (mirror_lon(sat, rangelon, &mlon, satmap->left_side_lon))
@@ -1375,7 +1478,7 @@ static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
      */
 
     /* pole is covered => sort points1 and add additional points */
-    if (pole_is_covered(sat))
+    if (pole_is_covered(sat, beta))
     {
 
         sort_points_x(satmap, sat, points1, 360);
