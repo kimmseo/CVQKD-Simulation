@@ -1081,7 +1081,6 @@ GtkWidget *gtk_multiple_sat_new(GKeyFile * cfgdata, GHashTable * sats,
         }
         */
     }
-    
     gtk_container_add(GTK_CONTAINER(multiple_sat->swin), grid);
     gtk_box_pack_end(GTK_BOX(widget), multiple_sat->swin, TRUE, TRUE, 0);
     gtk_widget_show_all(widget);

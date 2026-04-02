@@ -7,6 +7,7 @@
 
 #include "qth-data.h"
 #include "max-capacity-path/path-util.h"
+#include "sat-kdtree-utils.h"
 
 
 /* *INDENT-OFF* */
@@ -21,43 +22,29 @@ extern "C" {
 
 /* Symbolic references to columns */
 typedef enum {
-    MAX_PATH_VIEW_FIELD_AZ = 0,  // Azimuth
-    MAX_PATH_VIEW_FIELD_EL,      // Elevation
-    MAX_PATH_VIEW_FIELD_DIR,     // Direction, satellite on its way up or down
-    MAX_PATH_VIEW_FIELD_RA,      // Right Ascension
-    MAX_PATH_VIEW_FIELD_DEC,     // Declination
+    MAX_PATH_VIEW_FIELD_DIR = 0,     // Direction, satellite on its way up or down
     MAX_PATH_VIEW_FIELD_LAT,     // Latitude
     MAX_PATH_VIEW_FIELD_LON,     // Longitude
-    MAX_PATH_VIEW_FIELD_SSP,     // Sub Satellite Point grid square
     MAX_PATH_VIEW_FIELD_FOOTPRINT,   // Footprint
     MAX_PATH_VIEW_FIELD_ALT,     // Altitude
     MAX_PATH_VIEW_FIELD_VEL,     // Velocity
-    MAX_PATH_VIEW_FIELD_DOPPLER, // Doppler shift at 100 Mhz
-    MAX_PATH_VIEW_FIELD_LOSS,    // Path loss at 100 Mhz
-    MAX_PATH_VIEW_FIELD_MA,      // Mean Anomaly
-    MAX_PATH_VIEW_FIELD_PHASE,   // Phase
-    MAX_PATH_VIEW_FIELD_ORBIT,   // Orbit number
+    MAX_PATH_VIEW_FIELD_SKR_DOWN,    // Secret Key Rate downlink
+    MAX_PATH_VIEW_FIELD_SKR_UP,  // Secret Key Rate uplink
+    MAX_PATH_VIEW_FIELD_SKR_NEAREST, // Secret Key Rate (inter-sat) to nearest sat
     MAX_PATH_VIEW_FIELD_NUMBER
 } max_path_view_field_t;
 
 /* Fieldnum Flags */
 typedef enum {
-    MAX_PATH_VIEW_FLAG_AZ = 1 << MAX_PATH_VIEW_FIELD_AZ,
-    MAX_PATH_VIEW_FLAG_EL = 1 << MAX_PATH_VIEW_FIELD_EL,
     MAX_PATH_VIEW_FLAG_DIR = 1 << MAX_PATH_VIEW_FIELD_DIR,
-    MAX_PATH_VIEW_FLAG_RA = 1 << MAX_PATH_VIEW_FIELD_RA,
-    MAX_PATH_VIEW_FLAG_DEC = 1 << MAX_PATH_VIEW_FIELD_DEC,
     MAX_PATH_VIEW_FLAG_LAT = 1 << MAX_PATH_VIEW_FIELD_LAT,
     MAX_PATH_VIEW_FLAG_LON = 1 << MAX_PATH_VIEW_FIELD_LON,
-    MAX_PATH_VIEW_FLAG_SSP = 1 << MAX_PATH_VIEW_FIELD_SSP,
     MAX_PATH_VIEW_FLAG_FOOTPRINT = 1 << MAX_PATH_VIEW_FIELD_FOOTPRINT,
     MAX_PATH_VIEW_FLAG_ALT = 1 << MAX_PATH_VIEW_FIELD_ALT,
     MAX_PATH_VIEW_FLAG_VEL = 1 << MAX_PATH_VIEW_FIELD_VEL,
-    MAX_PATH_VIEW_FLAG_DOPPLER = 1 << MAX_PATH_VIEW_FIELD_DOPPLER,
-    MAX_PATH_VIEW_FLAG_LOSS = 1 << MAX_PATH_VIEW_FIELD_LOSS,
-    MAX_PATH_VIEW_FLAG_MA = 1 << MAX_PATH_VIEW_FIELD_MA,
-    MAX_PATH_VIEW_FLAG_PHASE = 1 << MAX_PATH_VIEW_FIELD_PHASE,
-    MAX_PATH_VIEW_FLAG_ORBIT = 1 << MAX_PATH_VIEW_FIELD_ORBIT,
+    MAX_PATH_VIEW_FLAG_SKR_DOWN = 1 << MAX_PATH_VIEW_FIELD_SKR_DOWN,
+    MAX_PATH_VIEW_FLAG_SKR_UP = 1 << MAX_PATH_VIEW_FIELD_SKR_UP,
+    MAX_PATH_VIEW_FLAG_SKR_NEAREST = 1 << MAX_PATH_VIEW_FIELD_SKR_NEAREST
 } max_path_view_flag_t;
 
 // Helper struct to define a satellite panel
@@ -107,6 +94,9 @@ struct _gtk_max_path_view {
     GtkWidget       *search_controls;
     GtkWidget       *display_path;
 
+    gint            num_selected_fields;
+    GArray          *labels;
+
     GKeyFile        *cfgdata;   // Configuration data
     GSList          *sats;      // Satellites
     GSList          *qths;
@@ -114,11 +104,13 @@ struct _gtk_max_path_view {
     qth_t           *qth2;      //TEMP: replace this and qth with qth_t GSList
 
     guint32         flags;      // Flags indicating which columns are visible
+    guint           num_flags_selected;
     guint           refresh;    // Refresh rate
     guint           counter;    // Cycle counter
     
     //gint            selected[NUMBER_OF_SATS];   // Index of selected sat
     GArray          *selected;
+    Kdtree          *kdtree;    // k-d tree to hold satellites
 
     gdouble         tstamp;     // Time stamp of calculations - update by GtkSatModule
 

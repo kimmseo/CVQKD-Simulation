@@ -18,6 +18,7 @@
 #include "sat-pass-dialogs.h"
 #include "time-tools.h"
 #include "skr-utils.h"
+#include "calc-dist-two-sat.h"
 
 #include "max-capacity-path/link-capacity-path.h"
 #include "max-capacity-path/satellite-history.h"
@@ -25,41 +26,27 @@
 
 /* Column titles indexed with column symb. refs */
 const gchar     *MAX_PATH_VIEW_FIELD_TITLE[MAX_PATH_VIEW_FIELD_NUMBER] = {
-    N_("Azimuth"),
-    N_("Elevation"),
     N_("Direction"),
-    N_("Right Asc."),
-    N_("Declination"),
     N_("SSP Lat."),
     N_("SSP Lon."),
-    N_("SSP Loc."),
     N_("Footprint"),
     N_("Altitude"),
     N_("Velocity"),
-    N_("Doppler@100M"),
-    N_("Sig. Loss"),
-    N_("Mean Anom."),
-    N_("Orbit Phase"),
-    N_("Orbit Num."),
+    N_("Downlink SKR"),
+    N_("Uplink SKR"),
+    N_("Inter-satellite SKR")
 };
 
 const gchar     *MAX_PATH_VIEW_FIELD_HINT[MAX_PATH_VIEW_FIELD_NUMBER] = {
-    N_("Azimuth of the satellite"),
-    N_("Elevation of the satellite"),
     N_("Direction of the satellite"),
-    N_("Right Ascension of the satellite"),
-    N_("Declination of the satellite"),
     N_("Latitude of the sub-satellite point"),
     N_("Longitude of the sub-satellite point"),
-    N_("Sub-Satellite Point as Maidenhead grid square"),
     N_("Diameter of the satellite footprint"),
     N_("Altitude of the satellite"),
     N_("Tangential velocity of the satellite"),
-    N_("Doppler Shift @ 100MHz"),
-    N_("Signal loss @ 100MHz"),
-    N_("Mean Anomaly"),
-    N_("Orbit Phase"),
-    N_("Orbit Number"),
+    N_("Secret Key Rate (satellite to ground, downlink)"),
+    N_("Secret Key Rate (ground to satellite, uplink)"),
+    N_("Secret Key Rate (satellite to nearest satellite)")
 };
 
 static GtkBoxClass *parent_class = NULL;
@@ -118,81 +105,49 @@ static void gtk_max_path_view_init(GtkMaxPathView * list, gpointer g_class)
 }
 
 /* Update a field in the GtkMultipleSat view */
-static void update_field(GtkMaxPathView * msat, guint i, guint index)
+static void update_field(GtkMaxPathView * msat, guint i, guint index, guint number_fields)
 {
     sat_t       *sat;
     gchar       *buff = NULL;
     gchar       hmf = ' ';
     gdouble     number;
-    gint        retcode;
+    sat_t       *nsat;  // Nearest satellite, for calculating inter-sat SKR
+    gboolean    los_vis;   // Is LOS clear from sat to nsat
+    gdouble     up_skr, down_skr, inter_sat_skr; 
         
     // Get selected satellite
 
     //sat = SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
     sat = SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, index)));
 
-    if (!sat)
-    {
-        /*
-        sat_log_log(SAT_LOG_LEVEL_DEBUG,
-                    _("%s:%d: Can not update non-existing sat"),
-                    __FILE__, __LINE__);
-        */
+    if (!sat) {
         // Satellite is NULL, set label to NULL
         buff = g_strdup("NULL");
-    }
-    else
-    {
+    } else {
         // Update requested field
-        switch (i)
-        {
-        case MAX_PATH_VIEW_FIELD_AZ:
-            buff = g_strdup_printf("%6.2f\302\260", sat->az);
-            break;
-        case MAX_PATH_VIEW_FIELD_EL:
-            buff = g_strdup_printf("%6.2f\302\260", sat->el);
-            break;
+        switch (i) {
         case MAX_PATH_VIEW_FIELD_DIR:
-            if (sat->otype == ORBIT_TYPE_GEO)
-            {
+            if (sat->otype == ORBIT_TYPE_GEO) {
                 buff = g_strdup("Geostationary");
-            }
-            else if (decayed(sat))
-            {
+            } else if (decayed(sat)) {
                 buff = g_strdup("Decayed");
-            }
-            else if (sat->range_rate > 0.0)
-            {
+            } else if (sat->range_rate > 0.0) {
                 /* Receding */
                 buff = g_strdup("Receding");
-            }
-            else if (sat->range_rate < 0.0)
-            {
+            } else if (sat->range_rate < 0.0) {
                 /* Approaching */
                 buff = g_strdup("Approaching");
-            }
-            else
-            {
+            } else {
                 buff = g_strdup("N/A");
             }
             break;
-        case MAX_PATH_VIEW_FIELD_RA:
-            buff = g_strdup_printf("%6.2f\302\260", sat->ra);
-            break;
-        case MAX_PATH_VIEW_FIELD_DEC:
-            buff = g_strdup_printf("%6.2f\302\260", sat->dec);
-            break;
         case MAX_PATH_VIEW_FIELD_LAT:
             number = sat->ssplat;
-            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
-            {
-                if (number < 0.00)
-                {
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW)) {
+                if (number < 0.00) {
                     number = -number;
                     hmf = 'S';
-                }
-                else
-                {
+                } else {
                     hmf = 'N';
                 }
             }
@@ -200,42 +155,20 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             break;
         case MAX_PATH_VIEW_FIELD_LON:
             number = sat->ssplon;
-            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW))
-            {
-                if (number < 0.00)
-                {
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_NSEW)) {
+                if (number < 0.00) {
                     number = -number;
                     hmf = 'W';
-                }
-                else
-                {
+                } else {
                     hmf = 'E';
                 }
             }
             buff = g_strdup_printf("%.2f\302\260%c", number, hmf);
             break;
-        case MAX_PATH_VIEW_FIELD_SSP:
-            /* SSP locator */
-            buff = g_try_malloc(7);
-            retcode = longlat2locator(sat->ssplon, sat->ssplat, buff, 3);
-            if (retcode == RIG_OK)
-            {
-                buff[6] = '\0';
-            }
-            else
-            {
-                g_free(buff);
-                buff = NULL;
-            }
-
-            break;
-        case MAX_PATH_VIEW_FIELD_FOOTPRINT:
-            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL))
-            {
+        case MAX_PATH_VIEW_FIELD_FOOTPRINT: //TODO: update this to laser footprint
+            if (sat_cfg_get_bool(SAT_CFG_BOOL_USE_IMPERIAL)) {
                 buff = g_strdup_printf("%.0f mi", KM_TO_MI(sat->footprint));
-            }
-            else
-            {
+            } else {
                 buff = g_strdup_printf("%.0f km", sat->footprint);
             }
             break;
@@ -251,22 +184,41 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
             else
                 buff = g_strdup_printf("%.3f km/sec", sat->velo);
             break;
-        case MAX_PATH_VIEW_FIELD_DOPPLER:
-            number = -100.0e06 * (sat->range_rate / 299792.4580);   // Hz
-            buff = g_strdup_printf("%.0f Hz", number);
+        case MAX_PATH_VIEW_FIELD_SKR_DOWN:
+            if (sat->el < 30) {
+                buff = g_strdup_printf("Below elevation threshold");
+            } else {
+                // Sat is in viable elevation, calculate downlink SKR
+                down_skr = sat_to_ground_downlink(sat, msat->qth);
+                buff = g_strdup_printf("%.2e bps", down_skr);
+            }
             break;
-        case MAX_PATH_VIEW_FIELD_LOSS:
-            number = 72.4 + 20.0 * log10(sat->range);       // dB
-            buff = g_strdup_printf("%.2f dB", number);
+        case MAX_PATH_VIEW_FIELD_SKR_UP:
+            if (sat->el < 30) {
+                buff = g_strdup_printf("Below elevation threshold");
+            } else {
+                // Sat is in viable elevation, calculate uplink SKR
+                up_skr = ground_to_sat_uplink(msat->qth, sat);
+                buff = g_strdup_printf("%.2e bps", up_skr);
+            }
             break;
-        case MAX_PATH_VIEW_FIELD_MA:
-            buff = g_strdup_printf("%.2f\302\260", sat->ma);
-            break;
-        case MAX_PATH_VIEW_FIELD_PHASE:
-            buff = g_strdup_printf("%.2f\302\260", sat->phase);
-            break;
-        case MAX_PATH_VIEW_FIELD_ORBIT:
-            buff = g_strdup_printf("%ld", sat->orbit);
+        case MAX_PATH_VIEW_FIELD_SKR_NEAREST:
+            nsat = sat_kdtree_find_nearest_other(msat->kdtree, sat);
+            
+            // Add a NULL check for nsat to avoid SEGFAULT
+            if (nsat == NULL) {
+                buff = g_strdup("N/A");
+                break;
+            }
+            
+            los_vis = is_los_clear(sat, nsat);
+            if (los_vis) {
+                // Line of sight is clear, calculate distance and inter-satellite SKR
+                inter_sat_skr = inter_sat_link(sat, nsat);
+                buff = g_strdup_printf("%s, %.2e bps", nsat->nickname, inter_sat_skr);
+            } else {        // line of sight not clear
+                buff = g_strdup_printf("%s, No LOS", nsat->nickname);
+            }
             break;
         default:
             sat_log_log(SAT_LOG_LEVEL_ERROR,
@@ -274,6 +226,15 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index)
                         __FILE__, __LINE__, i);
             break;
         }
+    }
+
+    if (buff != NULL) {
+        GtkWidget *labelIJ = g_array_index(msat->labels, GtkWidget *, 
+                                (index * number_fields) + i);
+
+        //gtk_label_set_text(GTK_LABEL(msat->labels[index][i]), buff);
+        gtk_label_set_text(GTK_LABEL(labelIJ), buff);
+        g_free(buff);
     }
 }
 
@@ -294,50 +255,6 @@ static void store_sats(gpointer key, gpointer value, gpointer user_data)
                                                (GCompareFunc) sat_name_compare);
 }
 
-static void Calculate_RADec(sat_t * sat, qth_t * qth, obs_astro_t * obs_set)
-{
-    /* Reference:  Methods of Orbit Determination by  */
-    /*                Pedro Ramon Escobal, pp. 401-402 */
-    double          phi, theta, sin_theta, cos_theta, sin_phi, cos_phi,
-        az, el, Lxh, Lyh, Lzh, Sx, Ex, Zx, Sy, Ey, Zy, Sz, Ez, Zz,
-        Lx, Ly, Lz, cos_delta, sin_alpha, cos_alpha;
-    geodetic_t      geodetic;
-
-    geodetic.lon = qth->lon * de2ra;
-    geodetic.lat = qth->lat * de2ra;
-    geodetic.alt = qth->alt / 1000.0;
-    geodetic.theta = 0;
-
-    az = sat->az * de2ra;
-    el = sat->el * de2ra;
-    phi = geodetic.lat;
-    theta = FMod2p(ThetaG_JD(sat->jul_utc) + geodetic.lon);
-    sin_theta = sin(theta);
-    cos_theta = cos(theta);
-    sin_phi = sin(phi);
-    cos_phi = cos(phi);
-    Lxh = -cos(az) * cos(el);
-    Lyh = sin(az) * cos(el);
-    Lzh = sin(el);
-    Sx = sin_phi * cos_theta;
-    Ex = -sin_theta;
-    Zx = cos_theta * cos_phi;
-    Sy = sin_phi * sin_theta;
-    Ey = cos_theta;
-    Zy = sin_theta * cos_phi;
-    Sz = -cos_phi;
-    Ez = 0;
-    Zz = sin_phi;
-    Lx = Sx * Lxh + Ex * Lyh + Zx * Lzh;
-    Ly = Sy * Lxh + Ey * Lyh + Zy * Lzh;
-    Lz = Sz * Lxh + Ez * Lyh + Zz * Lzh;
-    obs_set->dec = ArcSin(Lz);  /* Declination (radians) */
-    cos_delta = sqrt(1 - Sqr(Lz));
-    sin_alpha = Ly / cos_delta;
-    cos_alpha = Lx / cos_delta;
-    obs_set->ra = AcTan(sin_alpha, cos_alpha);  /* Right Ascension (radians) */
-    obs_set->ra = FMod2p(obs_set->ra);
-}
 
 /* Refresh internal references to the satellites */
 void gtk_max_path_view_reload_sats(GtkWidget * max_path_view, GHashTable * sats)
@@ -406,35 +323,13 @@ void gtk_max_path_view_update(GtkWidget * widget, guint index)
     // Check refresh rate
     // have integer overflow, temporarily setting refresh to 1
     msat->refresh = 1;
-    if (msat->counter < msat->refresh)
-    {
+    if (msat->counter < msat->refresh) {
         sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: counter = %u, refresh = %u", __FILE__, __LINE__, msat->counter, msat->refresh);
         msat->counter++;
-    }
-    else
-    {
-        // Calculate here to avoid double calculation
-        if ((msat->flags & MAX_PATH_VIEW_FLAG_RA) ||
-            (msat->flags & MAX_PATH_VIEW_FLAG_DEC))
-        {
-            obs_astro_t     astro;
-            sat_t           *sat =
-                //SAT(g_slist_nth_data(msat->sats, msat->selected[index]));
-                SAT(g_slist_nth_data(msat->sats, g_array_index(msat->selected, guint, index)));
- 
-            Calculate_RADec(sat, msat->qth, &astro);
-            sat->ra = Degrees(astro.ra);
-            sat->dec = Degrees(astro.dec);
-        }
-
+    } else {
         // Update visible fields one by one
-        for (i = 0; i < MAX_PATH_VIEW_FIELD_NUMBER; i++)
-        {
-            if (msat->flags & (1 << i))
-            {
-                //sat_log_log(SAT_LOG_LEVEL_DEBUG, "%s %d: checking... index = %d, i = %d", __FILE__, __LINE__, index, i);
-                update_field(msat, i, index);
-            }
+        for (i = 0; i < msat->num_flags_selected; i++) {
+            update_field(msat, i, index, msat->num_flags_selected);
         }
         msat->counter = 1;
     }
@@ -691,7 +586,37 @@ static void expander_activate_cb(GtkExpander* self, gpointer user_data) {
     }
 }
 
-GtkWidget *gen_SAT_display(GSList *sats) {
+static GtkWidget *create_sat_panel(guint32 flags, sat_t *sat, GArray *labels, guint num_flags)
+{
+    GtkWidget *table = gtk_grid_new();
+    GtkWidget *label;
+
+    gtk_container_set_border_width(GTK_CONTAINER(table), 5);
+    gtk_grid_set_row_spacing(GTK_GRID(table), 0);
+    gtk_grid_set_column_spacing(GTK_GRID(table), 5);
+
+
+    for (gint i = 0; i < MAX_PATH_VIEW_FIELD_NUMBER; i++) {
+
+        if (flags & (1 << i)) {
+            label = gtk_label_new(MAX_PATH_VIEW_FIELD_TITLE[i]);
+            g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+            gtk_grid_attach(GTK_GRID(table), label, 0, i, 1, 1);
+
+            label = gtk_label_new(":");
+            gtk_grid_attach(GTK_GRID(table), label, 1, i, 1, 1);
+
+            label = gtk_label_new("-");
+            g_object_set(label, "xalign", 0.0f, "yalign", 0.5f, NULL);
+            gtk_grid_attach(GTK_GRID(table), label, 2, i, 1, 1);
+            g_array_append_val(labels, label);
+        }
+    }
+
+    return table;
+}
+
+GtkWidget *gen_SAT_display(GSList *sats, guint32 flags, GArray *labels, guint num_flags) {
     gchar *text;
     GtkWidget *label; 
 
@@ -720,15 +645,17 @@ GtkWidget *gen_SAT_display(GSList *sats) {
     gtk_grid_set_row_spacing(GTK_GRID(grid), 5);
     gtk_container_add(GTK_CONTAINER(scroll), grid);
    
-    int i = 0;
+    guint i = 0;
     for (GSList *iter = sats; iter != NULL; iter = iter->next) {
         sat_t *sat = (sat_t *)iter->data;
 
         text = g_markup_printf_escaped("<u>%s</u>", sat->name);
         label = gtk_label_new(NULL);
         gtk_label_set_markup(GTK_LABEL(label), text);
+
         GtkWidget *sat_frame = gtk_frame_new(NULL);
-        gtk_container_add(GTK_CONTAINER(sat_frame), label);
+        gtk_frame_set_label_widget(GTK_FRAME(sat_frame), label);
+        gtk_container_add(GTK_CONTAINER(sat_frame), create_sat_panel(flags, sat, labels, num_flags));
 
         gtk_widget_override_background_color(sat_frame, GTK_STATE_FLAG_NORMAL, 
             &gdk_rgba);
@@ -1101,7 +1028,6 @@ static gint cmp_sat_by_name_cb(gconstpointer a, gconstpointer b) {
     return strcmp(s_a->name, s_b->name);
 }
 
-
 GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
                                 GSList *qths, qth_t *qth, guint32 fields)
 {
@@ -1118,6 +1044,28 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
 
     // Read configuration data
     /* ... */
+    // Initialise column flags
+    if (fields > 0) {
+        max_path_view->flags = fields;
+    } else {
+        max_path_view->flags = mod_cfg_get_int(cfgdata,
+                                              MOD_CFG_MULTIPLE_SAT_SECTION,
+                                              MOD_CFG_MULTIPLE_SAT_FIELDS,
+                                              SAT_CFG_INT_MULTIPLE_SAT_FIELDS);
+    }
+
+    // Get refresh rate and cycle counter
+    max_path_view->refresh = mod_cfg_get_int(cfgdata,
+                                            MOD_CFG_MULTIPLE_SAT_SECTION,
+                                            MOD_CFG_MULTIPLE_SAT_REFRESH,
+                                            SAT_CFG_INT_MULTIPLE_SAT_REFRESH);
+    // Max refresh rate is 500
+    // If above 500, int overflow has ocurred
+    // Catch and set to 1 by default
+    if (max_path_view->refresh > 500) {
+        max_path_view->refresh = 1;
+    }
+    max_path_view->counter = 1;
 
     g_hash_table_foreach(sats, store_sats, widget);
 
@@ -1127,9 +1075,20 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
 
     max_path_view->selected = g_array_sized_new(FALSE, TRUE, sizeof(guint), max_path_view->dyn_num_sat);
  
-    for (i = 0; i < max_path_view->dyn_num_sat; i++)
-    {
+    for (i = 0; i < max_path_view->dyn_num_sat; i++) {
         g_array_append_val(max_path_view->selected, i);
+    } 
+
+    // Populate k-d tree for calcuating nearest sat
+    GHashTableIter iter;
+    gpointer key, value;
+    sat_t *sati;
+
+    g_hash_table_iter_init(&iter, sats);
+    max_path_view->kdtree = sat_kdtree_create();
+    while (g_hash_table_iter_next(&iter, &key, &value)) {
+        sati = SAT(value);
+        sat_kdtree_insert(max_path_view->kdtree, sati);
     }
 
     max_path_view->qths = qths;
@@ -1141,17 +1100,26 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     max_path_view->cfgdata = cfgdata;
 
     // Initialise column flags
-    if (fields > 0)
-    {
+    if (fields > 0) {
         max_path_view->flags = fields;
-    }
-    else
-    {
+    } else {
         max_path_view->flags = mod_cfg_get_int(cfgdata,
                                               MOD_CFG_MAX_PATH_VIEW_SECTION,
                                               MOD_CFG_MAX_PATH_VIEW_FIELDS,
                                               SAT_CFG_INT_MAX_PATH_VIEW_FIELDS);
     }
+
+    guint num_flags = 0;
+    for (gint i = 0; i < MAX_PATH_VIEW_FIELD_NUMBER; i++) {
+        if (max_path_view->flags & (1 << i)) {
+            num_flags++;         
+        }
+    }
+    max_path_view->num_flags_selected = num_flags;
+
+    max_path_view->labels = g_array_sized_new(FALSE, TRUE, sizeof(GtkWidget *), 
+                            max_path_view->dyn_num_sat * max_path_view->num_flags_selected);
+
 
     // Get refresh rate and cycle counter
     max_path_view->refresh = mod_cfg_get_int(cfgdata,
@@ -1161,8 +1129,7 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     // Max refresh rate is 500
     // If above 500, int overflow has ocurred
     // Catch and set to 1 by default
-    if (max_path_view->refresh > 500)
-    {
+    if (max_path_view->refresh > 500) {
         max_path_view->refresh = 1;
     }
     max_path_view->counter = 1;
@@ -1171,11 +1138,13 @@ GtkWidget *gtk_max_path_view_new(GKeyFile * cfgdata, GHashTable * sats,
     max_path_view->display_path = gen_path_display();
 
     gtk_box_pack_start(GTK_BOX(widget), max_path_view->search_controls, FALSE, FALSE, 0); 
-
     gtk_box_pack_start(GTK_BOX(widget), max_path_view->display_path, FALSE, TRUE, 0);
     gtk_box_pack_start(GTK_BOX(widget), gen_OGS_display(max_path_view->qths), FALSE, TRUE, 0);
-    gtk_box_pack_start(GTK_BOX(widget), gen_SAT_display(max_path_view->sats), FALSE, TRUE, 0);
-
+    gtk_box_pack_start(GTK_BOX(widget), gen_SAT_display(
+        max_path_view->sats, 
+        max_path_view->flags, 
+        max_path_view->labels, 
+        max_path_view->num_flags_selected), FALSE, TRUE, 0);
     gtk_widget_show_all(widget);
 
     return widget;

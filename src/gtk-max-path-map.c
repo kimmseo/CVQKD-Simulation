@@ -1423,12 +1423,6 @@ static guint calculate_footprint(GtkMaxPathMap * satmap, sat_t * sat)
     gdouble degree = 30;
     beta = asin(sat->pos.w * sin(degree * de2ra) / xkmper) - (degree * de2ra); 
 
-    qth_t q = {0};
-    q.alt = 0;
-    gdouble range = sin(beta) * xkmper / sin(degree * de2ra); //km
-    gdouble elevation = 90 - (beta / de2ra) - degree; //degrees
-    gdouble skr = lw_sat_to_ground_downlink(&q, elevation, range);
-
     for (azi = 0; azi < 180; azi++)
     {
         azimuth = de2ra * (double)azi;
