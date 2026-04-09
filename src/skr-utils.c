@@ -21,7 +21,7 @@
 #include "calc-dist-two-sat.h"
 #include "max-capacity-path/path-util.h"
 
-/* Constant parameters for SKR calculation based on the provided Python scripts and paper */
+/* Constant parameters for SKR calculation based on the provided Python scriptsand paper */
 #define ALPHA_MOD_AMP 2.236       // sqrt(5) -> Corresponds to VA = 5 SNU
 #define EXCESS_NOISE 0.03         // Excess noise (ksi) in SNU
 #define RECONCILIATION_EFF 0.98   // Initial reconciliation efficiency (beta)

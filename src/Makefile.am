@@ -1,6 +1,6 @@
 ## Process this file with automake to produce Makefile.in
 
-SUBDIRS = sgpsdp max-capacity-path
+SUBDIRS = sgpsdp max-capacity-path weather-data
 
 AM_CPPFLAGS = \
 	@PACKAGE_CFLAGS@ -I.. \
@@ -35,13 +35,13 @@ gpredict_SOURCES = \
     max-capacity-path/link-capacity-path.c \
     max-capacity-path/link-capacity-path.h \
     max-capacity-path/transfer-heap.c  \
-    max-capacity-path/transfer-heap.h \ 
+    max-capacity-path/transfer-heap.h \
     max-capacity-path/satellite-history.c \
     max-capacity-path/satellite-history.h \
-    max-capacity-path/transfer-time.c \ 
+    max-capacity-path/transfer-time.c \
     max-capacity-path/transfer-time.h \ 
-    max-capacity-path/path-util.c \ 
-    max-capacity-path/path-util.h \ 
+    max-capacity-path/path-util.c \
+    max-capacity-path/path-util.h \
     about.c about.h \
     compat.c compat.h config-keys.h \
     first-time.c first-time.h \
@@ -123,7 +123,7 @@ gpredict_SOURCES = \
     sat-pref-second-sat.c sat-pref-second-sat.h \
     sat-pref-two-sat.c sat-pref-two-sat.h \
     sat-pref-multiple-sat.c sat-pref-multiple-sat.h \
-    sat-pref-max-path-view.c sat-pref-max-path-view.h \ 
+    sat-pref-max-path-view.c sat-pref-max-path-view.h \
     sat-pref-interfaces.c sat-pref-interfaces.h \
     sat-pref-rig.c sat-pref-rig.h sat-pref-rig-data.h \
     sat-pref-rig-editor.c sat-pref-rig-editor.h \

@@ -72,6 +72,17 @@ else
     havelibgps=false;
 fi
 
+# check for netcdf
+if $PKG_CONFIG --atleast-version=4.9.2 netcdf; then
+    CFLAGS="$CFLAGS `$PKG_CONFIG --cflags netcdf`"
+    LIBS="$LIBS `$PKG_CONFIG --libs netcdf`"
+    havenetcdf=TRUE;
+    AC_DEFINE(HAS_NETCDF, 1, [Define if netcdf is available])
+else 
+    AC_MSG_ERROR(Gpredict requires netcdf)
+    havenetcdf=FALSE;
+fi
+
 AC_SUBST(PACKAGE_CFLAGS)
 AC_SUBST(PACKAGE_LIBS)
 
@@ -103,6 +114,7 @@ GTHR_V=`$PKG_CONFIG --modversion gthread-2.0`
 GDK_V=`$PKG_CONFIG --modversion gdk-3.0`
 GTK_V=`$PKG_CONFIG --modversion gtk+-3.0`
 CURL_V=`$PKG_CONFIG --modversion libcurl`
+NETCDF_V=`$PKG_CONFIG --modversion netcdf`
 if test "$havegoocanvas2" = true ;  then
     GOOC_V=`$PKG_CONFIG --modversion goocanvas-2.0`
 fi
@@ -128,6 +140,7 @@ src/sgpsdp/Makefile
 src/sgpsdp/TR/Makefile
 src/max-capacity-path/Makefile
 src/max-capacity-path/tests/Makefile
+src/weather-data/Makefile
 icons/Makefile
 pixmaps/Makefile
 pixmaps/maps/Makefile
@@ -144,7 +157,7 @@ AC_OUTPUT
 echo
 echo SUMMARY:
 echo
-echo Gpredict version... : $VERSION
+echo Gpredict version... : CVQKD
 echo Glib version....... : $GLIB_V
 echo Gio version........ : $GIO_V
 echo Gthread version.... : $GTHR_V
@@ -152,6 +165,7 @@ echo Gdk version........ : $GDK_V
 echo Gtk+ version....... : $GTK_V
 echo GooCanvas version.. : $GOOC_V
 echo Libcurl version.... : $CURL_V
+echo NetCDF version..... : $NETCDF_V
 if test "$havelibgps" = true ; then
    echo Libgps version..... : $GPS_V
 fi
