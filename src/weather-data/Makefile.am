@@ -1,7 +1,5 @@
-AM_CPPFLAGS = $(all_includes) @PACKAGE_CFLAGS@
+SUBDIRS = tests
 
-noinst_PROGRAMS = weather-stuff
-
-weather_stuff_SOURCES = netcdf.c
-
-weather_stuff_LDADD = @PACKAGE_LIBS@
+EXTRA_DIST = \
+    calc-weather-data.c \
+    calc-weather-data.h

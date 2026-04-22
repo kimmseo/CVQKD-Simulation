@@ -141,6 +141,7 @@ src/sgpsdp/TR/Makefile
 src/max-capacity-path/Makefile
 src/max-capacity-path/tests/Makefile
 src/weather-data/Makefile
+src/weather-data/tests/Makefile
 icons/Makefile
 pixmaps/Makefile
 pixmaps/maps/Makefile
