@@ -2,14 +2,14 @@
 #include "../qth-data.h"
 
 typedef struct {
-    size_t len;
-    gdouble *cn2;
-    gdouble *vis;
+    gdouble rms_wind;
+    gdouble vis;
 } ogs_weather_data;
 
-GHashTable *load_turbulence_data(
+ogs_weather_data *load_turbulence_data(
         gchar *visibility_filepath,
         gchar *cn2_filepath,
-        GSList *OGS_list,
         gdouble start_time,
         gdouble end_time);
+
+void read_hour_data(gchar *filepath, gchar *var_name);

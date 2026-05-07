@@ -210,7 +210,7 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index, guint numb
                 buff = g_strdup("N/A");
                 break;
             }
-            
+           /*
             los_vis = is_los_clear(sat, nsat);
             if (los_vis) {
                 // Line of sight is clear, calculate distance and inter-satellite SKR
@@ -220,6 +220,7 @@ static void update_field(GtkMaxPathView * msat, guint i, guint index, guint numb
                 buff = g_strdup_printf("%s, No LOS", nsat->nickname);
             }
             break;
+            */
         default:
             sat_log_log(SAT_LOG_LEVEL_ERROR,
                         _("%s:%d: Invalid field number (%d)"),

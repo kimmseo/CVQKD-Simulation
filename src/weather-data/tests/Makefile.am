@@ -8,11 +8,15 @@ noinst_PROGRAMS = weather-stuff
 
 weather_stuff_SOURCES = \
     test.c \
-    ../calc-weather-data.c ../calc-weather-data.h \
-    ../../sat-log.c        ../../sat-log.h \
-    ../../compat.c         ../../compat.h \
-    ../../sat-cfg.c        ../../sat-cfg.h \
-    ../../gpredict-utils.c ../../gpredict-utils.h \
-    ../../strnatcmp.c      ../../strnatcmp.h
+    ../calc-weather-data.c  ../calc-weather-data.h \
+    ../../sat-log.c         ../../sat-log.h \
+    ../../compat.c          ../../compat.h \
+    ../../sat-cfg.c         ../../sat-cfg.h \
+    ../../gpredict-utils.c  ../../gpredict-utils.h \
+    ../../strnatcmp.c       ../../strnatcmp.h \
+    ../../time-tools.c      ../../time-tools.h \
+    ../../sgpsdp/sgp_time.c ../../sgpsdp/sgp_time.h \
+    ../../sgpsdp/sgp4sdp4.c ../../sgpsdp/sgp4sdp4.h \
+    ../../sgpsdp/sgp_math.c ../../sgpsdp/sgp_math.h
 
 weather_stuff_LDADD = @PACKAGE_LIBS@

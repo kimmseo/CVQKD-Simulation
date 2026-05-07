@@ -59,7 +59,7 @@ gdouble get_transfer_time(
     gdouble check_term = accum + (time_step / 3) * skr + (time_step / 3) * next_skr;
 
     //accum + x_prev + x_i + x_next < data_size
-    while(check_term < data_size) { 
+    while(check_term < data_size) {
  
         //next_i is already at the last spot in history
         if (next_i >= history_len - 1) return G_MAXDOUBLE;
