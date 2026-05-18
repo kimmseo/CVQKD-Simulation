@@ -1,4 +1,3 @@
-SUBDIRS = tests
 
 EXTRA_DIST = \
     link-capacity-path.c \
