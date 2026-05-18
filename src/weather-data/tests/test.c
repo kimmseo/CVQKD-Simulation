@@ -33,7 +33,7 @@ int main() {
     gdouble start_time = 2461157.898843; // 27/4/2026 around 17:35
     gdouble end_time = 2461159.898843;   // + 2 days
    
-    ogs_weather_data *table = load_turbulence_data(vis_filepath, cn2_filepath, start_time, end_time);
+    ogs_weather_data *table = load_weather_from_file(vis_filepath, cn2_filepath, start_time, end_time);
     gint t_length = sizeof(*table);
 
     if (table == NULL) {

@@ -73,7 +73,7 @@ else
 fi
 
 # check for netcdf
-if $PKG_CONFIG --atleast-version=4.9.2 netcdf; then
+if $PKG_CONFIG --atleast-version=4.7.3 netcdf; then
     CFLAGS="$CFLAGS `$PKG_CONFIG --cflags netcdf`"
     LIBS="$LIBS `$PKG_CONFIG --libs netcdf`"
     havenetcdf=TRUE;
